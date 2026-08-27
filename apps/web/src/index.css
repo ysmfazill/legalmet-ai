@@ -1,0 +1,11 @@
+/**
+ * Global stylesheet manifest for @legalmet/web.
+ * Order matters: tokens → base → components → layout → charts → workspace.
+ */
+@import './styles/tokens.css';
+@import './styles/base.css';
+@import './styles/ui.css';
+@import './styles/layout.css';
+@import './styles/charts.css';
+@import './styles/workspace.css';
+@import './styles/intake.css';

@@ -1,0 +1,32 @@
+[project]
+name = "legalmet-api"
+version = "0.1.0"
+description = "LEGALMET AI — compliance inspection API service (FastAPI)."
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q"
+# UnsupportedFieldAttributeWarning: benign Pydantic 2.11 diagnostic emitted only
+# inside FastAPI's request-body validation when a CamelModel (alias_generator=
+# to_camel) is used as a body param. The generated camelCase aliases DO work at
+# runtime — the round-trip tests (e.g. posting `fileSize`, `correctedStatus`)
+# pass — so this is noise, not a behavioural defect. Suppressed for clean output.
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::pydantic.warnings.UnsupportedFieldAttributeWarning",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["B008"]  # FastAPI uses function calls (Depends) as default args by design.
+
+[tool.ruff.lint.per-file-ignores]
+# Alembic migrations are machine-generated; their long column/type definitions
+# are conventional and not worth reflowing by hand.
+"alembic/versions/*" = ["E501"]

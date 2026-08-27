@@ -1,0 +1,139 @@
+/**
+ * LEGALMET AI — design tokens.
+ *
+ * Single source of truth for colour, type, spacing, radius, shadow and motion.
+ * The semantic `tone` values exported by `@legalmet/config`
+ * (packages/config/src/domain.ts) map 1:1 to the `--tone-*` custom properties
+ * here; components must reference tokens, never hard-coded values.
+ *
+ * Semantic status colour language (fixed for the whole product):
+ *   GREEN  = Compliant            AMBER = Review required
+ *   RED    = Potential violation  BLUE  = Info / evidence
+ *   GRAY   = Neutral / not applicable
+ */
+:root {
+  color-scheme: dark;
+
+  /* --- Base surfaces & text ------------------------------------------------ */
+  --bg: #090d1a;
+  --bg-elevated: #0d1424;
+  --surface: #121a2e;
+  --surface-2: #18223b;
+  --surface-3: #1f2b49;
+  --surface-hover: #1c2842;
+  --border: #26324c;
+  --border-strong: #33436a;
+  --border-subtle: #1c2740;
+
+  --text: #e8edf7;
+  --text-muted: #97a4bd;
+  --text-faint: #6c7a96;
+  --text-inverse: #0a0f1e;
+
+  --accent: #4c7dff;
+  --accent-strong: #6a93ff;
+  --accent-soft: rgba(76, 125, 255, 0.14);
+  --focus-ring: rgba(106, 147, 255, 0.65);
+
+  /* --- Semantic status tones (map 1:1 to config `Tone`) -------------------- */
+  --tone-positive: #34d399;
+  --tone-warning: #f5b544;
+  --tone-critical: #ff5f6e;
+  --tone-neutral: #8b97ad;
+  --tone-info: #4c7dff;
+
+  --tone-positive-soft: rgba(52, 211, 153, 0.14);
+  --tone-warning-soft: rgba(245, 181, 68, 0.14);
+  --tone-critical-soft: rgba(255, 95, 110, 0.14);
+  --tone-neutral-soft: rgba(139, 151, 173, 0.14);
+  --tone-info-soft: rgba(76, 125, 255, 0.14);
+
+  /* Compliance status aliases (readability at call sites) */
+  --status-compliant: var(--tone-positive);
+  --status-review: var(--tone-warning);
+  --status-violation: var(--tone-critical);
+  --status-na: var(--tone-neutral);
+  --status-info: var(--tone-info);
+
+  /* --- Risk scale ---------------------------------------------------------- */
+  --risk-high: #ff5f6e;
+  --risk-medium: #f5b544;
+  --risk-low: #38bdf8;
+  --risk-high-soft: rgba(255, 95, 110, 0.16);
+  --risk-medium-soft: rgba(245, 181, 68, 0.16);
+  --risk-low-soft: rgba(56, 189, 248, 0.16);
+
+  /* --- Confidence bands ---------------------------------------------------- */
+  --confidence-high: var(--tone-positive);
+  --confidence-medium: var(--tone-warning);
+  --confidence-low: var(--tone-critical);
+
+  /* --- Typography ---------------------------------------------------------- */
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', monospace;
+
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-md: 13px;
+  --fs-base: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 19px;
+  --fs-2xl: 23px;
+  --fs-3xl: 30px;
+
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  --lh-tight: 1.25;
+  --lh-normal: 1.5;
+
+  /* --- Spacing scale (4px base) ------------------------------------------- */
+  --space: 8px; /* legacy alias */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 56px;
+
+  /* --- Radius -------------------------------------------------------------- */
+  --radius: 10px; /* legacy alias */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-pill: 999px;
+
+  /* --- Borders & shadows --------------------------------------------------- */
+  --border-width: 1px;
+  --shadow-sm: 0 1px 2px rgba(3, 7, 18, 0.4);
+  --shadow-md: 0 6px 20px rgba(3, 7, 18, 0.45);
+  --shadow-lg: 0 18px 48px rgba(3, 7, 18, 0.55);
+  --shadow-focus: 0 0 0 3px var(--focus-ring);
+
+  /* --- Motion -------------------------------------------------------------- */
+  --transition-fast: 120ms ease;
+  --transition-base: 180ms ease;
+
+  /* --- Layout dimensions --------------------------------------------------- */
+  --sidebar-width: 248px;
+  --sidebar-width-collapsed: 68px;
+  --topbar-height: 60px;
+  --content-max: 1440px;
+  --z-drawer: 60;
+  --z-modal: 70;
+  --z-topbar: 40;
+  --z-sidebar: 45;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --transition-fast: 0ms;
+    --transition-base: 0ms;
+  }
+}

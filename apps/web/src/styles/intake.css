@@ -1,0 +1,248 @@
+/**
+ * LEGALMET AI — Real package intake (Prompt 3): camera capture, upload
+ * progress, stored-image cards and the real-inspection metadata view.
+ *
+ * Presentation only. Nothing here implies a compliance result — intake reaches
+ * READY_FOR_ANALYSIS at most.
+ */
+
+/* --- Method tabs ---------------------------------------------------------- */
+.intake-tabs {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.intake-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-muted);
+  transition:
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+.intake-tab:hover {
+  border-color: var(--border-strong);
+}
+.intake-tab.is-active {
+  border-color: var(--accent);
+  color: var(--text);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+/* --- Camera --------------------------------------------------------------- */
+.camera {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.camera__stage {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: linear-gradient(135deg, #10182b, #0b1120);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-md);
+}
+.camera__media {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+.camera__placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* --- Upload progress ------------------------------------------------------ */
+.upload-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.upload-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-1) var(--space-3);
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: var(--fs-sm);
+}
+.upload-row__name {
+  font-family: var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.upload-row--error {
+  border-color: var(--tone-critical);
+  background: var(--tone-critical-soft);
+}
+.progress {
+  grid-column: 1 / -1;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.progress__bar {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width var(--transition-fast);
+}
+
+/* --- Stored image cards --------------------------------------------------- */
+.intake-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-4);
+}
+.intake-card {
+  display: flex;
+  flex-direction: column;
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  overflow: hidden;
+}
+.intake-card__thumb {
+  aspect-ratio: 4 / 3;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #141d33, #0e1524);
+  overflow: hidden;
+}
+.intake-card__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.intake-card__thumb-fallback {
+  color: var(--text-faint);
+}
+.intake-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+.intake-card__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.intake-card__meta {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
+}
+.intake-card__meta div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.intake-card__meta dt {
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+}
+.intake-card__meta dd {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Batch result --------------------------------------------------------- */
+.batch-summary {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.batch-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.batch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) solid var(--border);
+  border-left-width: 3px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: var(--fs-sm);
+}
+.batch-row--ok {
+  border-left-color: var(--tone-positive);
+}
+.batch-row--rejected {
+  border-left-color: var(--tone-critical);
+}
+.batch-row__name {
+  font-family: var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- Real inspection image + metadata view -------------------------------- */
+.real-image {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: linear-gradient(135deg, #10182b, #0b1120);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-md);
+}
+.real-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3) var(--space-4);
+}
+.meta-grid div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.meta-grid dt {
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+}
+.meta-grid dd {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+  word-break: break-word;
+}

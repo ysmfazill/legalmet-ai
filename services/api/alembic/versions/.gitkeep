@@ -1,0 +1,5 @@
+# Migration revision scripts live here.
+#
+# This placeholder keeps the (otherwise empty) directory under version control
+# so Alembic has a version_locations target before the first migration is
+# generated. It is safe to delete once real migration scripts exist.

@@ -1,0 +1,45 @@
+# ---------------------------------------------------------------------------
+# LEGALMET AI — local infrastructure (PostgreSQL)
+#
+# This provides the production-intended database (PostgreSQL) for local
+# development. The backend can also run zero-config against SQLite for quick
+# starts and tests — see services/api/.env.example.
+#
+# Usage:
+#   cp .env.example .env
+#   docker compose up -d db
+# ---------------------------------------------------------------------------
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: legalmet-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-legalmet}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-legalmet}
+      POSTGRES_DB: ${POSTGRES_DB:-legalmet}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - legalmet_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-legalmet}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Optional lightweight DB UI (http://localhost:8080). Comment out if unused.
+  adminer:
+    image: adminer:4
+    container_name: legalmet-adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+
+volumes:
+  legalmet_pgdata:
+    driver: local

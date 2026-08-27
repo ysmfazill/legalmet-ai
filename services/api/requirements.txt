@@ -1,0 +1,25 @@
+# ---------------------------------------------------------------------------
+# LEGALMET AI — API service runtime dependencies
+# Target: Python 3.11+
+# ---------------------------------------------------------------------------
+fastapi>=0.115,<0.117
+uvicorn[standard]>=0.30
+pydantic>=2.7,<3
+pydantic-settings>=2.3
+SQLAlchemy>=2.0.30,<2.1
+alembic>=1.13
+
+# PostgreSQL driver (production). Not required for the SQLite dev/test path.
+psycopg2-binary>=2.9
+
+# Auth & security
+PyJWT>=2.8
+bcrypt>=4.1
+
+# Uploads & structured logging
+python-multipart>=0.0.9
+structlog>=24.1
+
+# Image intake (Prompt 3): deterministic decoding, EXIF orientation, quality
+# statistics and safe resizing. No numpy/opencv — Pillow only.
+Pillow>=10,<12

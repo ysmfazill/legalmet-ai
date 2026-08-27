@@ -1,0 +1,47 @@
+# ---------------------------------------------------------------------------
+# LEGALMET AI — root .gitignore
+# ---------------------------------------------------------------------------
+
+# Node / frontend
+node_modules/
+dist/
+.vite/
+*.local
+.eslintcache
+
+# Python / backend
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Environment & secrets (NEVER commit real secrets)
+.env
+.env.*
+!.env.example
+
+# Local storage (uploaded / processed images in dev)
+storage/
+*.sqlite3
+*.db
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Claude Code local settings (machine-local; keep out of the shared repo)
+.claude/settings.local.json

@@ -1,0 +1,23 @@
+{
+  "name": "legalmet-ai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "LEGALMET AI — evidence-grounded, version-aware AI-assisted compliance inspection platform for packaged commodities (SIH26034).",
+  "license": "UNLICENSED",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace @legalmet/web",
+    "build:web": "npm run build --workspace @legalmet/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
