@@ -8,9 +8,9 @@ Selection is config-driven so environments differ by settings, not by code.
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Callable
 
 from app.core.config import Settings, get_settings
 from app.services.analytics.service import AnalyticsService
@@ -170,9 +170,11 @@ def build_services(
     intake_quality = _build_intake_quality(settings)
     rule_engine = _build_rule_engine(settings)
 
-    regulatory = RegulatoryService()
     evidence = EvidenceService()
     audit = AuditService()
+    # Prompt 5: the regulatory-intelligence service shares the audit trail so
+    # verification-state changes on authoritative data are recorded.
+    regulatory = RegulatoryService(audit=audit)
     review = ReviewService(audit)
     analytics = AnalyticsService()
 

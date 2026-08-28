@@ -266,6 +266,7 @@ function RealInspectionWorkspace({ inspection }: { inspection: Inspection }) {
       {selectedField && (
         <FieldEvidenceDrawer
           field={selectedField}
+          inspectionId={inspection.id}
           ocrLine={selectedOcrLine}
           region={selectedRegion}
           run={selectedRun}

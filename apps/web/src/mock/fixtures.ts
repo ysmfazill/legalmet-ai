@@ -79,6 +79,7 @@ export const regulation: Regulation = {
     'Placeholder regulatory dataset modelling mandatory pre-packaged commodity declarations for demonstration of the version-aware rule engine. Not verified legal content.',
   officialSourceUrl: null,
   isDemo: true,
+  documentType: 'OTHER',
   createdAt: '2024-01-01T00:00:00Z',
 };
 

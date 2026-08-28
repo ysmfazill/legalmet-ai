@@ -161,6 +161,77 @@ class RuleStatus(StrEnum):
     DRAFT = "DRAFT"
 
 
+class SourceType(StrEnum):
+    """Kind of repository/authority a regulatory source is (Prompt 5)."""
+
+    GOVERNMENT_DEPARTMENT = "GOVERNMENT_DEPARTMENT"
+    OFFICIAL_REPOSITORY = "OFFICIAL_REPOSITORY"
+    GAZETTE_PUBLICATION = "GAZETTE_PUBLICATION"
+    LEGAL_DATABASE = "LEGAL_DATABASE"
+    OTHER = "OTHER"
+
+
+class VerificationStatus(StrEnum):
+    """Verification state of a regulatory SOURCE (Prompt 5).
+
+    This is a property of the *source provenance* — how much the system trusts
+    that the recorded regulatory content matches an authoritative government
+    publication. It is completely separate from OCR confidence and is never an
+    AI confidence. Only VERIFIED sources may be approved for production
+    compliance evaluation (Prompt 6).
+    """
+
+    UNVERIFIED = "UNVERIFIED"
+    VERIFIED = "VERIFIED"
+    SUPERSEDED = "SUPERSEDED"
+    ARCHIVED = "ARCHIVED"
+
+
+class DocumentType(StrEnum):
+    """Kind of regulatory document (Prompt 5)."""
+
+    RULES = "RULES"
+    ACT = "ACT"
+    AMENDMENT_NOTIFICATION = "AMENDMENT_NOTIFICATION"
+    CIRCULAR = "CIRCULAR"
+    GUIDANCE = "GUIDANCE"
+    OTHER = "OTHER"
+
+
+class RequirementType(StrEnum):
+    """Kind of regulatory requirement (Prompt 5). Not a compliance verdict."""
+
+    DECLARATION = "DECLARATION"
+    FORMAT = "FORMAT"
+    PROHIBITION = "PROHIBITION"
+    PROCEDURAL = "PROCEDURAL"
+
+
+class VersionSelectionStatus(StrEnum):
+    """Outcome of deterministic effective-date version selection (Prompt 5).
+
+    NO_APPLICABLE_VERSION is an explicit state — the resolver never silently
+    falls back to the newest version.
+    """
+
+    FOUND = "FOUND"
+    NO_APPLICABLE_VERSION = "NO_APPLICABLE_VERSION"
+
+
+class CandidateMappingStatus(StrEnum):
+    """Status of a field → requirement candidate mapping (Prompt 5).
+
+    A candidate mapping is a *possible* association between perceived evidence
+    and a requirement definition. Applicability is NOT evaluated here and NO
+    compliance conclusion is ever drawn (that is Prompt 6).
+    """
+
+    CANDIDATE = "CANDIDATE"
+    APPLICABILITY_NOT_EVALUATED = "APPLICABILITY_NOT_EVALUATED"
+    AWAITING_COMPLIANCE_ENGINE = "AWAITING_COMPLIANCE_ENGINE"
+
+
+
 class EvidenceType(StrEnum):
     OCR_TEXT = "OCR_TEXT"
     IMAGE_REGION = "IMAGE_REGION"
@@ -249,6 +320,15 @@ class AuditEventType(StrEnum):
     PERCEPTION_COMPLETED = "PERCEPTION_COMPLETED"
     PERCEPTION_FAILED = "PERCEPTION_FAILED"
     IMAGE_REANALYZED = "IMAGE_REANALYZED"
+    # Prompt 5 — regulatory intelligence (authoritative data lifecycle)
+    REGULATORY_SOURCE_CREATED = "REGULATORY_SOURCE_CREATED"
+    REGULATORY_SOURCE_UPDATED = "REGULATORY_SOURCE_UPDATED"
+    REGULATORY_DOCUMENT_CREATED = "REGULATORY_DOCUMENT_CREATED"
+    REGULATORY_VERSION_CREATED = "REGULATORY_VERSION_CREATED"
+    REGULATORY_VERSION_SUPERSEDED = "REGULATORY_VERSION_SUPERSEDED"
+    REGULATORY_REQUIREMENT_CREATED = "REGULATORY_REQUIREMENT_CREATED"
+    REGULATORY_REQUIREMENT_UPDATED = "REGULATORY_REQUIREMENT_UPDATED"
+    REGULATORY_DATA_SEEDED = "REGULATORY_DATA_SEEDED"
 
 
 class BatchStatus(StrEnum):

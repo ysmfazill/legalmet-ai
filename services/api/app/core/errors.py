@@ -38,6 +38,7 @@ class ErrorCode(str, Enum):
     # Regulatory / rule engine
     NO_APPLICABLE_RULE = "NO_APPLICABLE_RULE"
     RULE_VERSION_CONFLICT = "RULE_VERSION_CONFLICT"
+    REGULATORY_DATA_INVALID = "REGULATORY_DATA_INVALID"
 
     # Infrastructure
     DATABASE_ERROR = "DATABASE_ERROR"
@@ -133,6 +134,15 @@ class NoApplicableRuleError(AppError):
 class RuleVersionConflictError(AppError):
     status_code = 409
     code = ErrorCode.RULE_VERSION_CONFLICT
+
+
+class RegulatoryDataInvalidError(AppError):
+    """Structural data-quality failure in regulatory seed/import (Prompt 5).
+
+    Raised loudly — regulatory data is never silently repaired."""
+
+    status_code = 422
+    code = ErrorCode.REGULATORY_DATA_INVALID
 
 
 class DatabaseError(AppError):

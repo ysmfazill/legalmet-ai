@@ -104,6 +104,12 @@ def _schema_and_seed(
     db = session_factory()
     try:
         seed_demo_data(db, test_settings)
+        # Prompt 5: research-grade regulatory seed (idempotent, UNVERIFIED).
+        # Mirrors the production lifespan so the regulatory API tests run
+        # against exactly what a started server would expose.
+        from app.db.regulatory_seed import seed_regulatory_data
+
+        seed_regulatory_data(db)
     finally:
         db.close()
 

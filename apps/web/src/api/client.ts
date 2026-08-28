@@ -24,6 +24,7 @@ import type {
   CreateInspectionRequest,
   CreatePackageRequest,
   ExtractedField,
+  FieldCandidates,
   HealthResponse,
   ImageRegion,
   ImageType,
@@ -31,11 +32,18 @@ import type {
   OcrTextResult,
   Package,
   PackageImage,
+  Paginated,
   PerceptionAnalysis,
   PerceptionKickoff,
   ProcessingRun,
   ProcessingRunDetail,
+  Regulation,
+  RegulationVersion,
+  RegulatoryRequirement,
+  RegulatoryRequirementDetail,
+  RegulatorySource,
   User,
+  VersionSelection,
 } from '@legalmet/types';
 
 /** Base URL for all API calls. Dev default is proxied by Vite to the backend. */
@@ -336,4 +344,93 @@ export const api = {
     request<ProcessingRunDetail>(`/processing-runs/${runId}`),
 
   fetchObjectUrl,
+
+  // --- Regulatory intelligence (Prompt 5) -------------------------------------
+  // Read models over the SOURCE → DOCUMENT → VERSION → REQUIREMENT hierarchy.
+  // These endpoints never return a compliance verdict: the strongest statement
+  // they make about a detected field is "candidate requirement — applicability
+  // not evaluated, awaiting the compliance engine".
+
+  listRegulatorySources: (params: {
+    verificationStatus?: string;
+    sourceType?: string;
+  } = {}): Promise<RegulatorySource[]> =>
+    request<RegulatorySource[]>('/regulations/sources' + querySuffix(params)),
+
+  getRegulatorySource: (sourceId: string): Promise<RegulatorySource> =>
+    request<RegulatorySource>(`/regulations/sources/${sourceId}`),
+
+  /** ADMIN-only, audited verification-state change (before/after recorded). */
+  updateSourceVerification: (
+    sourceId: string,
+    body: { verificationStatus: string; verificationNote?: string | null },
+  ): Promise<RegulatorySource> =>
+    request<RegulatorySource>(`/regulations/sources/${sourceId}`, {
+      method: 'PATCH',
+      body,
+    }),
+
+  listRegulatoryDocuments: (params: {
+    sourceId?: string;
+    documentType?: string;
+    isDemo?: boolean;
+  } = {}): Promise<Regulation[]> =>
+    request<Regulation[]>('/regulations/documents' + querySuffix(params)),
+
+  getRegulatoryDocument: (documentId: string): Promise<Regulation> =>
+    request<Regulation>(`/regulations/documents/${documentId}`),
+
+  listRegulatoryVersions: (params: {
+    documentId?: string;
+    status?: string;
+    effectiveOn?: string;
+  } = {}): Promise<RegulationVersion[]> =>
+    request<RegulationVersion[]>('/regulations/versions' + querySuffix(params)),
+
+  /** Deterministic effective-date selection (never falls back to newest). */
+  resolveRegulatoryVersion: (documentId: string, on: string): Promise<VersionSelection> =>
+    request<VersionSelection>(
+      '/regulations/versions/resolve' + querySuffix({ documentId, on }),
+    ),
+
+  listRegulatoryRequirements: (params: {
+    versionId?: string;
+    documentId?: string;
+    sourceId?: string;
+    fieldKey?: string;
+    requirementType?: string;
+    category?: string;
+    status?: string;
+    effectiveOn?: string;
+    current?: boolean;
+    isDemo?: boolean;
+    page?: number;
+    pageSize?: number;
+  } = {}): Promise<Paginated<RegulatoryRequirement>> =>
+    request<Paginated<RegulatoryRequirement>>(
+      '/regulations/requirements' + querySuffix(params),
+    ),
+
+  getRegulatoryRequirement: (requirementId: string): Promise<RegulatoryRequirementDetail> =>
+    request<RegulatoryRequirementDetail>(`/regulations/requirements/${requirementId}`),
+
+  /**
+   * Map an inspection's perceived fields to candidate requirement definitions.
+   * Every mapping is marked applicability-not-evaluated / awaiting the
+   * compliance engine — never a compliance verdict.
+   */
+  getFieldCandidates: (inspectionId: string, on?: string): Promise<FieldCandidates> =>
+    request<FieldCandidates>(
+      `/inspections/${inspectionId}/regulatory-candidates` + querySuffix({ on }),
+    ),
 };
+
+/** Query string for GET params (empty values dropped), '' when none. */
+function querySuffix(params: Record<string, string | number | boolean | undefined>): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== '') search.set(key, String(value));
+  }
+  const query = search.toString();
+  return query ? `?${query}` : '';
+}

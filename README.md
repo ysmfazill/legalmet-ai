@@ -54,11 +54,21 @@ legalmet-ai/
   flow keeps its clearly-labelled mock services.
 - **Frontend:** Inspection Workspace with real package intake, an image viewer
   (zoom/pan, OCR/region overlays) and a perception panel with per-field
-  evidence drawers.
+  evidence drawers, plus a Regulatory Intelligence page over the real
+  Source → Document → Version → Requirement hierarchy.
+- **Regulatory intelligence is real (Prompt 5):** version-aware, provenance-
+  bearing requirement data for the Legal Metrology (Packaged Commodities)
+  Rules, 2011 — deterministic effective-date selection with an explicit
+  NO_APPLICABLE_VERSION state, a research-grade UNVERIFIED seed (nothing
+  fabricated, nothing dressed up as official law) and a loud-failing
+  data-quality gate. Perceived fields map to *candidate* requirements only;
+  **no compliance verdict exists in this layer**.
 
 Perception docs: [`docs/perception.md`](docs/perception.md) (pipeline),
 [`docs/ocr.md`](docs/ocr.md) (engine setup, languages, licences),
 [`docs/vision.md`](docs/vision.md) (region detection, licences).
+Regulatory docs: [`docs/regulatory.md`](docs/regulatory.md) (provenance
+hierarchy, versioning, seed honesty contract, candidate mapping).
 
 See [`docs/architecture.md`](docs/architecture.md) for the full design.
 
@@ -221,8 +231,11 @@ npm run build:web           # production build of @legalmet/web
 
 ## Future roadmap
 
-1. **Verified regulatory data** — ingest official Legal Metrology requirements
-   with version history, replacing placeholder rules (regulatory service).
+1. ~~**Verified regulatory data**~~ — the regulatory-intelligence foundation
+   (source/document/version/requirement hierarchy, version windows, candidate
+   mapping) landed in Prompt 5. What remains: flipping the seeded source to
+   VERIFIED after human checking against the official Gazette / India Code
+   text, and broader document coverage.
 2. ~~**Real OCR**~~ — done in Prompt 4 (PaddleOCR behind `OCRService`).
 3. ~~**Computer vision**~~ — QR/barcode region detection done in Prompt 4
    (OpenCV behind `VisionService`); richer label-element detection remains
@@ -233,9 +246,11 @@ npm run build:web           # production build of @legalmet/web
    (`extracted_fields.corrected_value`); correction UX, escalation and
    reporting/export remain future work.
 
-> Regulatory intelligence, compliance evaluation and LLM assistance are not
-> implemented — the architecture provides the interfaces and seams where each
-> attaches without touching call sites.
+> Compliance evaluation (the deterministic engine over *verified* regulatory
+> data) and LLM assistance are not implemented — the architecture provides the
+> interfaces and seams where each attaches without touching call sites. The
+> regulatory intelligence layer (Prompt 5) is a knowledge foundation, not a
+> legal determination.
 
 ---
 

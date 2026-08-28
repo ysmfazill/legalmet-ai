@@ -314,3 +314,89 @@ See [perception.md](./perception.md) §4 for the full table
 `PERCEPTION_OCR_TIMEOUT_SECONDS`, `PERCEPTION_FIELD_REVIEW_THRESHOLD`,
 preprocessor edge bounds) and [ocr.md](./ocr.md) for engine installation and
 model caching.
+
+---
+
+# Part 3 — Regulatory Intelligence API (Prompt 5)
+
+> **Scope guardrail:** these endpoints expose the Source → Document → Version
+> → Requirement hierarchy with full provenance. They never evaluate compliance
+> — the strongest statement they make about a perceived field is *"candidate
+> requirement — applicability not evaluated, awaiting the compliance engine"*.
+> **Regulatory intelligence is not itself a legal determination.**
+
+Sources: `services/api/app/api/routers/regulations.py`,
+`services/api/app/services/regulatory/service.py`. Full design notes:
+[regulatory.md](./regulatory.md).
+
+All routes require a bearer token. Reads are available to any authenticated
+user. The **only** mutation is `PATCH /regulations/sources/{id}` — ADMIN-only
+and audited (a `REGULATORY_SOURCE_UPDATED` event records the before/after
+verification states).
+
+## 1. Endpoints
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| GET | `/regulations/sources` | filters: `verificationStatus`, `sourceType` |
+| GET | `/regulations/sources/{id}` | |
+| PATCH | `/regulations/sources/{id}` | **ADMIN, audited**; body `{verificationStatus, verificationNote?}` — a note is *required* to move to `VERIFIED` |
+| GET | `/regulations/documents` | filters: `sourceId`, `documentType`, `isDemo` |
+| GET | `/regulations/documents/{id}` | includes the version list |
+| GET | `/regulations/versions` | filters: `documentId`, `status`, `effectiveOn` |
+| GET | `/regulations/versions/resolve` | `documentId` + `on` → deterministic selection |
+| GET | `/regulations/requirements` | paginated; filters incl. `versionId`, `documentId`, `sourceId`, `fieldKey`, `requirementType`, `category`, `status`, `effectiveOn`, `current`, `isDemo` |
+| GET | `/regulations/requirements/{id}` | full `provenance` object |
+| GET | `/inspections/{id}/regulatory-candidates` | field → candidate requirements |
+
+Prompt 1's demo endpoints (`GET /regulations`, `GET /rules`,
+`GET /rules/validators`) are unchanged.
+
+## 2. Version resolution
+
+`GET /regulations/versions/resolve?documentId=…&on=2016-06-01T00:00:00Z`
+returns:
+
+```json
+{
+  "documentId": "…",
+  "requestedDate": "2016-06-01T00:00:00Z",
+  "status": "FOUND",              // or NO_APPLICABLE_VERSION
+  "version": { "versionLabel": "as amended by G.S.R. 385(E)/2015", … }
+}
+```
+
+`NO_APPLICABLE_VERSION` is an explicit state (`version: null`) — the resolver
+**never silently falls back to the newest version**.
+
+## 3. Candidate mapping
+
+`GET /inspections/{id}/regulatory-candidates[?on=…]` maps each extracted
+field from the latest perception run per image to requirement definitions in
+force at the context date (default: the inspection's creation date):
+
+```json
+{
+  "inspectionId": "…",
+  "contextDate": "2026-08-28T…",
+  "fields": [
+    {
+      "fieldId": "…", "fieldType": "MRP", "fieldStatus": "DETECTED",
+      "candidates": [
+        {
+          "requirementId": "…", "ruleCode": "LM-PC-2011-6.1(e)",
+          "versionLabel": "as amended through G.S.R. 629(E)/2017 (consolidated)",
+          "effectiveFrom": "2017-06-23T00:00:00Z",
+          "sourceReference": "…", "sourceVerificationStatus": "UNVERIFIED"
+        }
+      ],
+      "mappingStatus": "CANDIDATE",
+      "applicabilityStatus": "APPLICABILITY_NOT_EVALUATED",
+      "evaluationStatus": "AWAITING_COMPLIANCE_ENGINE"
+    }
+  ],
+  "regulatoryEvaluation": "AWAITING_REGULATORY_EVALUATION"
+}
+```
+
+No compliance verdict exists on this route — see [regulatory.md](./regulatory.md) §5.

@@ -16,6 +16,7 @@ from app.models.product import Product
 from app.models.regulatory import (
     Regulation,
     RegulationVersion,
+    RegulatorySource,
     Rule,
     RuleApplicability,
 )
@@ -38,6 +39,7 @@ __all__ = [
     "Product",
     "Regulation",
     "RegulationVersion",
+    "RegulatorySource",
     "Rule",
     "RuleApplicability",
     "ReviewAction",

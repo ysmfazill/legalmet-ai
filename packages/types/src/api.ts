@@ -12,15 +12,20 @@ import type {
   DashboardSummary,
   Evidence,
   EvidenceGraph,
+  FieldCandidates,
   Inspection,
   Package,
   PackageImage,
   Product,
   Regulation,
   RegulationVersion,
+  RegulatoryRequirement,
+  RegulatoryRequirementDetail,
+  RegulatorySource,
   ReviewAction,
   Rule,
   User,
+  VersionSelection,
 } from './models';
 import type { ComplianceStatus, ImageType, ReviewActionType } from './enums';
 
@@ -139,6 +144,17 @@ export type RuleListResponse = Paginated<Rule>;
 export type RegulationListResponse = {
   items: (Regulation & { versions?: RegulationVersion[] })[];
 };
+
+// --- Regulatory intelligence (Prompt 5) ---------------------------------------
+
+export type RegulatorySourceListResponse = RegulatorySource[];
+export type RegulatoryDocumentListResponse = Regulation[];
+export type RegulatoryVersionListResponse = RegulationVersion[];
+export type RegulatoryRequirementListResponse = Paginated<RegulatoryRequirement>;
+export type RegulatoryRequirementResponse = RegulatoryRequirementDetail;
+export type VersionSelectionResponse = VersionSelection;
+export type FieldCandidatesResponse = FieldCandidates;
+
 export type AuditListResponse = { items: AuditEvent[] };
 export type DashboardResponse = DashboardSummary;
 export type ProductResponse = Product;

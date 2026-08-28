@@ -234,3 +234,71 @@ export type AuditEventType = (typeof AUDIT_EVENT_TYPES)[number];
 
 export const BATCH_STATUSES = ['OPEN', 'PROCESSING', 'COMPLETED', 'ARCHIVED'] as const;
 export type BatchStatus = (typeof BATCH_STATUSES)[number];
+
+// --- Regulatory intelligence (Prompt 5) -------------------------------------
+// Provenance hierarchy: SOURCE → DOCUMENT → VERSION → REQUIREMENT. Verification
+// status describes the *data's* verification against an official publication —
+// it is completely separate from OCR/perception confidence.
+
+/** Who publishes the regulatory material a document was sourced from. */
+export const SOURCE_TYPES = [
+  'GOVERNMENT_DEPARTMENT',
+  'OFFICIAL_REPOSITORY',
+  'GAZETTE_PUBLICATION',
+  'LEGAL_DATABASE',
+  'OTHER',
+] as const;
+export type SourceType = (typeof SOURCE_TYPES)[number];
+
+/**
+ * Whether a source's content has been checked against an official publication.
+ * Only VERIFIED data is eligible for production compliance evaluation;
+ * flipping to VERIFIED is an audited ADMIN action.
+ */
+export const VERIFICATION_STATUSES = ['UNVERIFIED', 'VERIFIED', 'SUPERSEDED', 'ARCHIVED'] as const;
+export type VerificationStatus = (typeof VERIFICATION_STATUSES)[number];
+
+/** Kind of legal instrument a document represents. */
+export const DOCUMENT_TYPES = [
+  'RULES',
+  'ACT',
+  'AMENDMENT_NOTIFICATION',
+  'CIRCULAR',
+  'GUIDANCE',
+  'OTHER',
+] as const;
+export type DocumentType = (typeof DOCUMENT_TYPES)[number];
+
+/** Nature of a requirement definition. */
+export const REQUIREMENT_TYPES = ['DECLARATION', 'FORMAT', 'PROHIBITION', 'PROCEDURAL'] as const;
+export type RequirementType = (typeof REQUIREMENT_TYPES)[number];
+
+/** Outcome of deterministic effective-date version selection. */
+export const VERSION_SELECTION_STATUSES = ['FOUND', 'NO_APPLICABLE_VERSION'] as const;
+export type VersionSelectionStatus = (typeof VERSION_SELECTION_STATUSES)[number];
+
+/**
+ * Markers on a detected-field → requirement mapping. Every value is a boundary
+ * statement — none of them is a compliance verdict (the Prompt 6 engine owns
+ * conclusions).
+ */
+export const CANDIDATE_MAPPING_STATUSES = [
+  'CANDIDATE',
+  'APPLICABILITY_NOT_EVALUATED',
+  'AWAITING_COMPLIANCE_ENGINE',
+] as const;
+export type CandidateMappingStatus = (typeof CANDIDATE_MAPPING_STATUSES)[number];
+
+// --- Audit events (Prompt 5 additions) ---------------------------------------
+
+export const REGULATORY_AUDIT_EVENT_TYPES = [
+  'REGULATORY_SOURCE_CREATED',
+  'REGULATORY_SOURCE_UPDATED',
+  'REGULATORY_DOCUMENT_CREATED',
+  'REGULATORY_VERSION_CREATED',
+  'REGULATORY_VERSION_SUPERSEDED',
+  'REGULATORY_REQUIREMENT_CREATED',
+  'REGULATORY_REQUIREMENT_UPDATED',
+  'REGULATORY_DATA_SEEDED',
+] as const;
+export type RegulatoryAuditEventType = (typeof REGULATORY_AUDIT_EVENT_TYPES)[number];

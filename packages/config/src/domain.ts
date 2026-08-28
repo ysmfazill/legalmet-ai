@@ -7,7 +7,9 @@
  * properties defined in `apps/web/src/styles/tokens.css`.
  */
 import type {
+  CandidateMappingStatus,
   ComplianceStatus,
+  DocumentType,
   ExtractionStatus,
   FieldType,
   ImageProcessingStatus,
@@ -16,8 +18,12 @@ import type {
   InspectionStatus,
   PackageStatus,
   ProcessingRunStatus,
+  RequirementType,
   ReviewActionType,
+  SourceType,
   UserRole,
+  VerificationStatus,
+  VersionSelectionStatus,
 } from '@legalmet/types';
 
 export type Tone = 'positive' | 'warning' | 'critical' | 'neutral' | 'info';
@@ -185,5 +191,95 @@ export const EXTRACTION_STATUS_META: Record<ExtractionStatus, EnumMeta> = {
     label: 'Not Extracted',
     tone: 'neutral',
     description: 'The field was located (e.g. an "MRP" label was seen) but no usable value could be read.',
+  },
+};
+
+// --- Regulatory intelligence (Prompt 5) ---------------------------------------
+// Verification status describes whether regulatory DATA was checked against an
+// official publication. It is NOT OCR confidence and NOT a compliance verdict.
+
+export const VERIFICATION_STATUS_META: Record<VerificationStatus, EnumMeta> = {
+  UNVERIFIED: {
+    label: 'Unverified',
+    tone: 'warning',
+    description:
+      'Research-grade content not yet checked against the official publication. Ineligible for production compliance evaluation.',
+  },
+  VERIFIED: {
+    label: 'Verified Source',
+    tone: 'positive',
+    description:
+      'A human checked the content against the official Gazette / India Code text (audited ADMIN action).',
+  },
+  SUPERSEDED: {
+    label: 'Superseded',
+    tone: 'neutral',
+    description: 'A newer verified source has replaced this one.',
+  },
+  ARCHIVED: {
+    label: 'Archived',
+    tone: 'neutral',
+    description: 'Retained for audit; no longer active.',
+  },
+};
+
+export const SOURCE_TYPE_META: Record<SourceType, EnumMeta> = {
+  GOVERNMENT_DEPARTMENT: { label: 'Government Department', tone: 'info' },
+  OFFICIAL_REPOSITORY: { label: 'Official Repository', tone: 'info' },
+  GAZETTE_PUBLICATION: { label: 'Gazette Publication', tone: 'info' },
+  LEGAL_DATABASE: { label: 'Legal Database', tone: 'neutral' },
+  OTHER: { label: 'Other', tone: 'neutral' },
+};
+
+export const DOCUMENT_TYPE_META: Record<DocumentType, EnumMeta> = {
+  RULES: { label: 'Rules', tone: 'info' },
+  ACT: { label: 'Act', tone: 'info' },
+  AMENDMENT_NOTIFICATION: { label: 'Amendment Notification', tone: 'info' },
+  CIRCULAR: { label: 'Circular', tone: 'neutral' },
+  GUIDANCE: { label: 'Guidance', tone: 'neutral' },
+  OTHER: { label: 'Other', tone: 'neutral' },
+};
+
+export const REQUIREMENT_TYPE_META: Record<RequirementType, EnumMeta> = {
+  DECLARATION: {
+    label: 'Declaration',
+    tone: 'info',
+    description: 'A mandatory on-package declaration.',
+  },
+  FORMAT: { label: 'Format', tone: 'info', description: 'How a declaration must be expressed.' },
+  PROHIBITION: { label: 'Prohibition', tone: 'critical' },
+  PROCEDURAL: { label: 'Procedural', tone: 'neutral' },
+};
+
+export const VERSION_SELECTION_META: Record<VersionSelectionStatus, EnumMeta> = {
+  FOUND: {
+    label: 'Version Found',
+    tone: 'positive',
+    description: 'A version is in force at the requested date.',
+  },
+  NO_APPLICABLE_VERSION: {
+    label: 'No Applicable Version',
+    tone: 'warning',
+    description:
+      'No version is in force at the requested date. The resolver never silently falls back to the newest version.',
+  },
+};
+
+/** Boundary markers on field → requirement mappings. Never compliance verdicts. */
+export const CANDIDATE_MAPPING_META: Record<CandidateMappingStatus, EnumMeta> = {
+  CANDIDATE: {
+    label: 'Candidate Requirement',
+    tone: 'info',
+    description: 'A requirement definition whose field key matches this detected field.',
+  },
+  APPLICABILITY_NOT_EVALUATED: {
+    label: 'Applicability Not Evaluated',
+    tone: 'neutral',
+    description: 'Whether the requirement applies to this package has not been determined.',
+  },
+  AWAITING_COMPLIANCE_ENGINE: {
+    label: 'Awaiting Compliance Engine',
+    tone: 'neutral',
+    description: 'No compliance conclusion exists for this field yet.',
   },
 };

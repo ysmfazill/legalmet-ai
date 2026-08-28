@@ -1,24 +1,27 @@
 /**
- * Declaration evidence drawer (Prompt 4).
+ * Declaration evidence drawer (Prompts 4 + 5).
  *
  * Opens when an inspector clicks a perceived declaration. Shows the full
  * evidence chain for that single field:
  *
  *   FIELD → RAW OCR TEXT (verbatim) → REGION → OCR CONFIDENCE → PROCESSING
  *   RUN (reference, pipeline version, models) → extraction method
+ *   → CANDIDATE REQUIREMENTS (Prompt 5)
  *
- * Deliberately does NOT show any compliance interpretation: the drawer ends
- * with the "awaiting regulatory evaluation" note, because whether a detected
- * declaration satisfies the Legal Metrology rules is decided later, by the
- * regulatory layer — never here.
+ * Deliberately does NOT show any compliance interpretation: candidate
+ * requirements are definitions whose field key matches this detected field —
+ * applicability is not evaluated and no compliance conclusion exists here.
+ * That decision belongs to the compliance engine, never to this drawer.
  */
 import { FIELD_TYPE_LABELS } from '@legalmet/config';
 
 import type { ExtractedField, ImageRegion, OcrTextResult, ProcessingRun } from '@legalmet/types';
 
-import { ConfidenceMeter, ExtractionStatusBadge } from '../components/Badge';
+import { api } from '../api/client';
+import { ConfidenceMeter, ExtractionStatusBadge, VerificationBadge } from '../components/Badge';
 import { Drawer } from '../components/Drawer';
 import { Icon } from '../components/Icon';
+import { useAsync } from '../data/useAsync';
 import { formatDateTime, formatDurationMs } from '../lib/format';
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -35,14 +38,28 @@ export function FieldEvidenceDrawer({
   ocrLine,
   region,
   run,
+  inspectionId,
   onClose,
 }: {
   field: ExtractedField;
   ocrLine?: OcrTextResult | null;
   region?: ImageRegion | null;
   run?: ProcessingRun | null;
+  /** Needed to resolve candidate requirements (Prompt 5). */
+  inspectionId?: string;
   onClose: () => void;
 }) {
+  // Candidate requirements for the whole inspection; this drawer filters to
+  // the selected field. Failure is non-fatal — the perception evidence above
+  // is still fully usable without it.
+  const candidatesQuery = useAsync(
+    () => (inspectionId ? api.getFieldCandidates(inspectionId) : Promise.resolve(null)),
+    [inspectionId],
+  );
+  const fieldCandidate =
+    candidatesQuery.status === 'success'
+      ? (candidatesQuery.data?.fields.find((f) => f.fieldId === field.id) ?? null)
+      : null;
   return (
     <Drawer wide title={FIELD_TYPE_LABELS[field.fieldType]} subtitle="Perception evidence" onClose={onClose}>
       <div className="stack">
@@ -128,6 +145,71 @@ export function FieldEvidenceDrawer({
             </div>
           ) : (
             <p style={{ color: 'var(--text-muted)' }}>Run details unavailable.</p>
+          )}
+        </section>
+
+        <section className="stack stack--sm">
+          <div className="eyebrow">Candidate requirements (regulatory)</div>
+          {candidatesQuery.status === 'loading' && (
+            <p style={{ color: 'var(--text-muted)' }}>Resolving candidate requirements…</p>
+          )}
+          {candidatesQuery.status === 'error' && (
+            <p style={{ color: 'var(--text-muted)' }}>
+              Candidate requirements unavailable ({candidatesQuery.error.message}).
+            </p>
+          )}
+          {fieldCandidate && fieldCandidate.candidates.length > 0 && (
+            <div className="stack stack--sm">
+              {fieldCandidate.candidates.map((cand) => (
+                <div
+                  key={cand.requirementId}
+                  className="detail-list"
+                  style={{ paddingLeft: 'var(--space-3)', borderLeft: '2px solid var(--border)' }}
+                >
+                  <Row label="Requirement">
+                    <span className="tag" style={{ marginRight: 8 }}>
+                      {cand.ruleCode}
+                    </span>
+                    {cand.title}
+                  </Row>
+                  <Row label="Version in force">{cand.versionLabel}</Row>
+                  {cand.effectiveFrom && <Row label="Effective from">{cand.effectiveFrom}</Row>}
+                  {cand.sourceReference && (
+                    <Row label="Source reference">
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-sm)' }}>
+                        {cand.sourceReference}
+                      </span>
+                    </Row>
+                  )}
+                  {cand.sourceVerificationStatus && (
+                    <Row label="Source status">
+                      <VerificationBadge status={cand.sourceVerificationStatus} />
+                    </Row>
+                  )}
+                </div>
+              ))}
+              <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)' }}>
+                <strong>Candidate association only.</strong> Whether each requirement applies to
+                this package has not been evaluated, and no compliance conclusion exists — the
+                compliance engine makes that decision.
+              </p>
+            </div>
+          )}
+          {fieldCandidate && fieldCandidate.candidates.length === 0 && (
+            <p style={{ color: 'var(--text-muted)' }}>
+              No requirement definition in force at this inspection's context date maps to this
+              field type. This is an absence of a definition — not a statement of compliance.
+            </p>
+          )}
+          {candidatesQuery.status === 'success' && !fieldCandidate && (
+            <p style={{ color: 'var(--text-muted)' }}>
+              This field is not part of the latest perception run's candidate mapping.
+            </p>
+          )}
+          {!inspectionId && (
+            <p style={{ color: 'var(--text-muted)' }}>
+              Inspection context unavailable — candidate requirements cannot be resolved.
+            </p>
           )}
         </section>
       </div>

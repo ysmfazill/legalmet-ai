@@ -10,6 +10,7 @@ import {
   PACKAGE_STATUS_META,
   PROCESSING_RUN_STATUS_META,
   USER_ROLE_META,
+  VERIFICATION_STATUS_META,
 } from '@legalmet/config';
 import type { Tone } from '@legalmet/config';
 import type {
@@ -22,6 +23,7 @@ import type {
   PackageStatus,
   ProcessingRunStatus,
   UserRole,
+  VerificationStatus,
 } from '@legalmet/types';
 
 import { CONFIDENCE_TONE, confidenceBand, formatPercent } from '../lib/format';
@@ -151,6 +153,24 @@ export function ExtractionStatusBadge({ status }: { status: ExtractionStatus }) 
   const meta = EXTRACTION_STATUS_META[status];
   return (
     <Badge tone={meta.tone} outline title={meta.description ?? 'Perception outcome (not a compliance result)'}>
+      {meta.label}
+    </Badge>
+  );
+}
+
+/**
+ * Verification state of a regulatory SOURCE (Prompt 5) — whether its content
+ * was checked against an official publication. Explicitly NOT OCR confidence
+ * and NOT a compliance verdict.
+ */
+export function VerificationBadge({ status }: { status: VerificationStatus }) {
+  const meta = VERIFICATION_STATUS_META[status];
+  return (
+    <Badge
+      tone={meta.tone}
+      dot
+      title={meta.description ?? 'Source verification state (not OCR confidence)'}
+    >
       {meta.label}
     </Badge>
   );

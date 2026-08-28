@@ -79,6 +79,13 @@ class Settings(BaseSettings):
     demo_inspector_email: str = "inspector@legalmet.local"
     demo_inspector_password: str = "changeme-inspector"
 
+    # --- Regulatory intelligence seed (Prompt 5) ---------------------------
+    # Idempotent seed of the researched Legal Metrology dataset at startup.
+    # Distinct from seed_demo_data: this is real (research-grade, UNVERIFIED)
+    # content with full provenance — not fiction. Set False to manage the
+    # regulatory layer purely via import/API.
+    seed_regulatory_data: bool = True
+
     # --- Logging -----------------------------------------------------------
     log_level: str = "INFO"
     log_json: bool = False

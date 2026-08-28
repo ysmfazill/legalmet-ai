@@ -45,6 +45,19 @@ async def _lifespan(app: FastAPI):
         finally:
             db.close()
 
+    # Prompt 5: research-grade regulatory intelligence seed (idempotent). Runs
+    # independently of the DEMO flag — it is clearly-labelled UNVERIFIED data,
+    # never fictional. Failing loudly is deliberate: structurally invalid
+    # regulatory data must never land silently.
+    if settings.seed_regulatory_data:
+        from app.db.regulatory_seed import seed_regulatory_data
+
+        db = SessionLocal()
+        try:
+            seed_regulatory_data(db)
+        finally:
+            db.close()
+
     if settings.using_insecure_secret and settings.is_production:
         logger.warning("insecure_secret_in_production")
 
