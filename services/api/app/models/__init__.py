@@ -11,6 +11,7 @@ from app.models.finding import ComplianceFinding, Evidence
 from app.models.image import Image, ImageRegion
 from app.models.inspection import Inspection, Package
 from app.models.model_version import ModelVersion
+from app.models.perception import OcrTextResult, ProcessingRun
 from app.models.product import Product
 from app.models.regulatory import (
     Regulation,
@@ -31,7 +32,9 @@ __all__ = [
     "ImageRegion",
     "Inspection",
     "ModelVersion",
+    "OcrTextResult",
     "Package",
+    "ProcessingRun",
     "Product",
     "Regulation",
     "RegulationVersion",

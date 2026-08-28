@@ -13,6 +13,7 @@ import type {
   CaptureSource,
   ComplianceStatus,
   EvidenceType,
+  ExtractionStatus,
   FieldType,
   ImageProcessingStatus,
   ImageQualityGrade,
@@ -21,6 +22,7 @@ import type {
   InspectionStatus,
   ModelServiceType,
   PackageStatus,
+  ProcessingRunStatus,
   RegionType,
   RegulationVersionStatus,
   ReviewActionType,
@@ -136,6 +138,10 @@ export interface ImageRegion {
   bbox: BoundingBox;
   confidence: number;
   createdAt: string;
+  // --- Prompt 4: perception provenance + decoded symbols -------------------
+  processingRunId?: string | null;
+  /** Decoded symbol evidence, e.g. {symbology: "EAN_13", value: "890..."}. */
+  payload?: Json | null;
 }
 
 export interface ExtractedField {
@@ -152,6 +158,111 @@ export interface ExtractedField {
   modelVersionId?: string | null;
   isDemo: boolean;
   createdAt: string;
+  // --- Prompt 4: perception outcome + provenance ---------------------------
+  /** Perception outcome (DETECTED / REVIEW_REQUIRED / NOT_EXTRACTED) — NOT a
+   * compliance status. */
+  status: ExtractionStatus;
+  processingRunId?: string | null;
+  sourceOcrResultId?: string | null;
+  /** Human-correction foundation — populated only by a future human action. */
+  correctedValue?: string | null;
+  correctedAt?: string | null;
+}
+
+// --- Perception processing runs (Prompt 4) -----------------------------------
+
+/** One auditable OCR/vision execution over ONE image. */
+export interface ProcessingRun {
+  id: string;
+  reference: string;
+  inspectionId: string;
+  imageId: string;
+  status: ProcessingRunStatus;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  durationMs?: number | null;
+  ocrProvider?: string | null;
+  ocrModel?: string | null;
+  ocrVersion?: string | null;
+  visionProvider?: string | null;
+  visionModel?: string | null;
+  visionVersion?: string | null;
+  pipelineVersion: string;
+  configuration?: Json | null;
+  summary?: Json | null;
+  error?: Json | null;
+  isDemo: boolean;
+  createdAt: string;
+}
+
+/** Run detail including the evidence produced by that exact run. */
+export interface ProcessingRunDetail extends ProcessingRun {
+  ocrResults: OcrTextResult[];
+  regions: ImageRegion[];
+  fields: ExtractedField[];
+}
+
+/** One OCR line — raw engine output is immutable evidence. */
+export interface OcrTextResult {
+  id: string;
+  imageId: string;
+  processingRunId: string;
+  regionId?: string | null;
+  /** Verbatim engine output — never modified. */
+  rawText: string;
+  /** Derived tidy-up; the raw text above is never touched. */
+  normalizedText?: string | null;
+  bbox: BoundingBox;
+  /** The OCR engine's own recognition confidence (never legal confidence). */
+  confidence: number;
+  language?: string | null;
+  provider: string;
+  modelName: string;
+  modelVersion: string;
+  createdAt: string;
+}
+
+export interface PerceptionKickoffRun {
+  runId: string;
+  reference: string;
+  imageId: string;
+}
+
+export interface PerceptionKickoff {
+  inspectionId: string;
+  status: string;
+  runs: PerceptionKickoffRun[];
+  note: string;
+}
+
+export interface PerceptionImageSummary {
+  imageId: string;
+  imageType: string;
+  latestRun?: ProcessingRun | null;
+  ocrCount: number;
+  regionCount: number;
+  fieldCount: number;
+}
+
+export interface PerceptionSummary {
+  textElements: number;
+  visualRegions: number;
+  fieldsExtracted: number;
+  lowConfidenceItems: number;
+  totalProcessingMs: number;
+  ocrModel?: string | null;
+  visionModel?: string | null;
+}
+
+export interface PerceptionAnalysis {
+  inspectionId: string;
+  hasRuns: boolean;
+  /** True while any latest run is in a non-terminal stage (poll while set). */
+  active: boolean;
+  summary: PerceptionSummary;
+  images: PerceptionImageSummary[];
+  /** Marker for the workspace UI: perception is done, law is not applied yet. */
+  regulatoryEvaluation: 'AWAITING_REGULATORY_EVALUATION';
 }
 
 // --- Regulatory knowledge system -------------------------------------------

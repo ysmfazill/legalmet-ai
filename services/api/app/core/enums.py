@@ -84,6 +84,12 @@ class ComplianceStatus(StrEnum):
 
 
 class FieldType(StrEnum):
+    # Prompt 4 additions: PRODUCT_NAME / BRAND_NAME / ADDRESS let the
+    # perception layer record name-plate and address evidence; LOT_NUMBER is
+    # intentionally folded into BATCH_NUMBER (same regex family) to avoid two
+    # competing types for one physical marking.
+    PRODUCT_NAME = "PRODUCT_NAME"
+    BRAND_NAME = "BRAND_NAME"
     MRP = "MRP"
     NET_QUANTITY = "NET_QUANTITY"
     GENERIC_NAME = "GENERIC_NAME"
@@ -91,6 +97,7 @@ class FieldType(StrEnum):
     PACKER_DETAILS = "PACKER_DETAILS"
     IMPORTER_DETAILS = "IMPORTER_DETAILS"
     COUNTRY_OF_ORIGIN = "COUNTRY_OF_ORIGIN"
+    ADDRESS = "ADDRESS"
     DATE_OF_MANUFACTURE = "DATE_OF_MANUFACTURE"
     DATE_OF_PACKING = "DATE_OF_PACKING"
     BEST_BEFORE = "BEST_BEFORE"
@@ -136,6 +143,7 @@ class RegionType(StrEnum):
     SYMBOL = "SYMBOL"
     LOGO = "LOGO"
     BARCODE = "BARCODE"
+    QR_CODE = "QR_CODE"
     GRAPHIC = "GRAPHIC"
     OTHER = "OTHER"
 
@@ -166,8 +174,57 @@ class ModelServiceType(StrEnum):
     OCR = "OCR"
     VISION = "VISION"
     PRODUCT_CLASSIFIER = "PRODUCT_CLASSIFIER"
+    FIELD_EXTRACTOR = "FIELD_EXTRACTOR"
     RULE_ENGINE = "RULE_ENGINE"
     LLM_ASSIST = "LLM_ASSIST"
+
+
+class ProcessingRunStatus(StrEnum):
+    """Lifecycle of one perception processing run (Prompt 4).
+
+    Perception-only states — they assert what the pipeline did to the image,
+    never anything about compliance. REVIEW_REQUIRED means the run finished but
+    produced low-confidence evidence a human should look at.
+    """
+
+    QUEUED = "QUEUED"
+    PREPROCESSING = "PREPROCESSING"
+    OCR_PROCESSING = "OCR_PROCESSING"
+    VISION_PROCESSING = "VISION_PROCESSING"
+    FIELD_EXTRACTION = "FIELD_EXTRACTION"
+    COMPLETED = "COMPLETED"
+    PARTIAL = "PARTIAL"
+    FAILED = "FAILED"
+    REVIEW_REQUIRED = "REVIEW_REQUIRED"
+
+    @property
+    def is_terminal(self) -> bool:
+        return self in _TERMINAL_RUN_STATUSES
+
+
+_TERMINAL_RUN_STATUSES = frozenset(
+    {
+        ProcessingRunStatus.COMPLETED,
+        ProcessingRunStatus.PARTIAL,
+        ProcessingRunStatus.FAILED,
+        ProcessingRunStatus.REVIEW_REQUIRED,
+    }
+)
+
+
+class ExtractionStatus(StrEnum):
+    """Per-field perception outcome (Prompt 4). Not a compliance verdict.
+
+    DETECTED — deterministic evidence found with adequate OCR confidence.
+    REVIEW_REQUIRED — a pattern matched but OCR confidence is low; a human
+    must confirm before anything downstream trusts the value.
+    NOT_EXTRACTED — the field was located (e.g. an "MRP" label was seen) but
+    no usable value could be read. Never silently guessed.
+    """
+
+    DETECTED = "DETECTED"
+    REVIEW_REQUIRED = "REVIEW_REQUIRED"
+    NOT_EXTRACTED = "NOT_EXTRACTED"
 
 
 class AuditEventType(StrEnum):
@@ -187,6 +244,11 @@ class AuditEventType(StrEnum):
     IMAGE_PREPARED = "IMAGE_PREPARED"
     IMAGE_DELETED = "IMAGE_DELETED"
     INSPECTION_READY = "INSPECTION_READY"
+    # Prompt 4 — real perception pipeline
+    PERCEPTION_STARTED = "PERCEPTION_STARTED"
+    PERCEPTION_COMPLETED = "PERCEPTION_COMPLETED"
+    PERCEPTION_FAILED = "PERCEPTION_FAILED"
+    IMAGE_REANALYZED = "IMAGE_REANALYZED"
 
 
 class BatchStatus(StrEnum):

@@ -16,6 +16,7 @@ from app.api.routers import (
     health,
     images,
     inspections,
+    perception,
     regulations,
     review,
     storage,
@@ -33,5 +34,6 @@ api_router.include_router(audit.router)
 api_router.include_router(analytics.router)
 api_router.include_router(batch.router)
 api_router.include_router(storage.router)
+api_router.include_router(perception.router)
 
 __all__ = ["api_router"]

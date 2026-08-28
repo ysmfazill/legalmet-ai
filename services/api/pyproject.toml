@@ -7,7 +7,14 @@ requires-python = ">=3.11"
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
-addopts = "-q"
+addopts = "-q -m 'not integration'"
+# Integration tests hit real AI engines (PaddleOCR model downloads + CPU
+# inference, ~minutes per run). They are excluded from the default suite and
+# run explicitly with:  pytest -m integration
+# (a CLI -m overrides the addopts filter.)
+markers = [
+    "integration: real AI/OCR engine tests (slow, require locally cached models)",
+]
 # UnsupportedFieldAttributeWarning: benign Pydantic 2.11 diagnostic emitted only
 # inside FastAPI's request-body validation when a CamelModel (alias_generator=
 # to_camel) is used as a body param. The generated camelCase aliases DO work at

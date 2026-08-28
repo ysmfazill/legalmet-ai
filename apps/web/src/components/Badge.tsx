@@ -2,21 +2,25 @@ import type { ReactNode } from 'react';
 
 import {
   COMPLIANCE_STATUS_META,
+  EXTRACTION_STATUS_META,
   IMAGE_PROCESSING_STATUS_META,
   IMAGE_QUALITY_GRADE_META,
   INSPECTION_STATUS_META,
   IMAGE_QUALITY_META,
   PACKAGE_STATUS_META,
+  PROCESSING_RUN_STATUS_META,
   USER_ROLE_META,
 } from '@legalmet/config';
 import type { Tone } from '@legalmet/config';
 import type {
   ComplianceStatus,
+  ExtractionStatus,
   ImageProcessingStatus,
   ImageQualityGrade,
   ImageQualityStatus,
   InspectionStatus,
   PackageStatus,
+  ProcessingRunStatus,
   UserRole,
 } from '@legalmet/types';
 
@@ -117,6 +121,36 @@ export function RoleBadge({ role }: { role: UserRole }) {
   const meta = USER_ROLE_META[role];
   return (
     <Badge tone={meta.tone} outline>
+      {meta.label}
+    </Badge>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Perception (Prompt 4)                                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Perception processing-run status. Describes what the pipeline DID to the
+ * image — never a compliance verdict. The title tooltip spells that out.
+ */
+export function ProcessingRunBadge({ status }: { status: ProcessingRunStatus }) {
+  const meta = PROCESSING_RUN_STATUS_META[status];
+  return (
+    <Badge tone={meta.tone} dot title={meta.description ?? 'Perception run status (not a compliance result)'}>
+      {meta.label}
+    </Badge>
+  );
+}
+
+/**
+ * Per-field perception outcome — DETECTED / REVIEW_REQUIRED / NOT_EXTRACTED.
+ * This is what the extractor saw, not what the law requires.
+ */
+export function ExtractionStatusBadge({ status }: { status: ExtractionStatus }) {
+  const meta = EXTRACTION_STATUS_META[status];
+  return (
+    <Badge tone={meta.tone} outline title={meta.description ?? 'Perception outcome (not a compliance result)'}>
       {meta.label}
     </Badge>
   );

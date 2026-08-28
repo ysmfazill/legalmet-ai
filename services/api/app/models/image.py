@@ -57,6 +57,13 @@ class Image(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     extracted_fields = relationship(
         "ExtractedField", back_populates="image", cascade="all, delete-orphan"
     )
+    # Prompt 4 — perception history (append-only; reanalysis adds runs).
+    processing_runs = relationship(
+        "ProcessingRun", back_populates="image", cascade="all, delete-orphan"
+    )
+    # Plain back-populates only: OCR rows are cascade-owned by their
+    # ProcessingRun (single delete-orphan parent rule).
+    ocr_results = relationship("OcrTextResult", back_populates="image")
 
 
 class ImageRegion(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
@@ -72,5 +79,17 @@ class ImageRegion(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     bbox: Mapped[dict] = mapped_column(JSONType, nullable=False)
     confidence: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
 
+    # --- Prompt 4: perception provenance + decoded payloads -----------------
+    # Which run produced this region (null for the legacy mock path).
+    processing_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("processing_runs.id", ondelete="CASCADE"), index=True, nullable=True
+    )
+    # Structured payload for decodable symbols, e.g. a barcode/QR region:
+    # {"symbology": "EAN_13", "value": "8901234123457"}. Evidence only —
+    # never used to draw legal conclusions.
+    payload: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
+
     image = relationship("Image", back_populates="regions")
     extracted_fields = relationship("ExtractedField", back_populates="region")
+    # Plain back-populates only (cascade ownership sits with the run).
+    ocr_results = relationship("OcrTextResult", back_populates="region")

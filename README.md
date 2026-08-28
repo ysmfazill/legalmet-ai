@@ -2,10 +2,12 @@
 
 **Evidence-grounded, version-aware, AI-assisted compliance inspection for packaged commodities.**
 
-> ⚠️ **DEMO DATA — NOT LEGAL ADVICE.** This build uses clearly-labelled
-> placeholder regulatory data and **mock** perception services (OCR / computer
-> vision / product understanding). It does **not** contain verified Legal
-> Metrology requirements and must not be used for real compliance decisions.
+> ⚠️ **DEMO REGULATORY DATA — NOT LEGAL ADVICE.** This build contains
+> clearly-labelled placeholder regulatory data. Perception is **real** (local
+> PaddleOCR + OpenCV read the actual uploaded images — Prompt 4), but the
+> system has **no verified Legal Metrology requirements and no compliance
+> evaluation for real inspections yet**; the demo analysis flow remains
+> clearly labelled as demo. It must not be used for real compliance decisions.
 
 ---
 
@@ -45,10 +47,18 @@ legalmet-ai/
   request-ID correlation, structured logging, JWT auth, a pluggable service
   layer, and a **deterministic** (non-AI) rule engine as the *only* component
   that concludes compliance.
-- **Perception is mocked:** OCR/vision/product/quality services are deterministic
-  stubs behind abstract interfaces, swappable at the service registry.
-- **Frontend:** a minimal professional shell that consumes the shared packages
-  and verifies backend connectivity.
+- **Perception is real (Prompt 4):** real image intake (Prompt 3), then a real
+  OCR engine (PaddleOCR, local CPU) and real QR/barcode detection (OpenCV)
+  behind replaceable provider seams (`OCRProvider`, `VisionProvider`,
+  `FieldExtractionProvider`, `ImagePreprocessor`). The legacy demo compliance
+  flow keeps its clearly-labelled mock services.
+- **Frontend:** Inspection Workspace with real package intake, an image viewer
+  (zoom/pan, OCR/region overlays) and a perception panel with per-field
+  evidence drawers.
+
+Perception docs: [`docs/perception.md`](docs/perception.md) (pipeline),
+[`docs/ocr.md`](docs/ocr.md) (engine setup, languages, licences),
+[`docs/vision.md`](docs/vision.md) (region detection, licences).
 
 See [`docs/architecture.md`](docs/architecture.md) for the full design.
 
@@ -86,6 +96,24 @@ python -m venv .venv
 pip install -r requirements.txt -r requirements-dev.txt
 cp .env.example .env          # optional; sensible SQLite defaults work as-is
 ```
+
+### 3. Perception engines (optional — real OCR / symbol detection)
+
+Real perception uses locally-installed engines (no API keys, no network calls
+after setup):
+
+```bash
+pip install "paddlepaddle==3.0.0" "paddleocr==3.1.0" "paddlex==3.1.0"
+```
+
+`paddlex` **must** stay pinned to 3.1.0 (newer versions break paddleocr 3.1).
+The first perception run downloads the PP-OCRv5 models into
+`~/.paddlex/official_models` and caches them; if the engines or models are
+missing, runs fail with a clear `AI_SERVICE_UNAVAILABLE` error rather than
+faking output. Only English OCR models are configured by default — additional
+Indian-script models are a `PERCEPTION_OCR_LANGS` setting plus first-run
+download. Full details, verified versions and licences:
+[`docs/ocr.md`](docs/ocr.md) and [`docs/vision.md`](docs/vision.md).
 
 ---
 
@@ -155,9 +183,13 @@ backend, set `VITE_API_BASE_URL` (see `apps/web/.env.example`).
 
 ```bash
 cd services/api
-python -m pytest            # 32 tests
+python -m pytest            # fast suite (no AI engines, no model downloads)
+pytest -m integration       # REAL PaddleOCR + OpenCV over rendered label images (slow)
 python -m ruff check .      # lint
 ```
+
+Integration tests need the perception engines installed (see above) and are
+deselected by default; the fast suite runs entirely on deterministic fakes.
 
 **Frontend / shared packages (from the repo root):**
 
@@ -171,14 +203,17 @@ npm run build:web           # production build of @legalmet/web
 
 ## Current limitations
 
-- **DEMO DATA only.** Regulatory rules are placeholders, not verified Legal
-  Metrology (Packaged Commodities) Rules, 2011 content.
-- **No real OCR / computer vision.** Perception services are deterministic mocks
-  that emit synthetic, seeded output; no image is actually read.
-- **No real product classification** and **no LLM assistance** in this build.
-- The **rule engine** runs real deterministic logic but over placeholder rules.
-- The **frontend is a foundation shell**, not the final product UI — no
-  inspection workflow screens yet.
+- **DEMO regulatory data only.** Regulatory rules are placeholders, not verified
+  Legal Metrology (Packaged Commodities) Rules, 2011 content — regulatory
+  intelligence and compliance evaluation are deliberately **not implemented
+  yet** (perception outputs are marked `AWAITING_REGULATORY_EVALUATION`).
+- **Perception scope:** real OCR (PaddleOCR) and real QR/barcode detection
+  (OpenCV) only — no logo/graphic segmentation, no product classification, no
+  LLM assistance. Only English OCR models are configured by default.
+- **Unbenchmarked accuracy:** no OCR/vision accuracy percentages are claimed
+  anywhere; the engines have not been benchmarked on real Indian packaging.
+- The **rule engine** runs real deterministic logic but over placeholder rules
+  (demo flow only, clearly labelled).
 - Auth uses demo credentials seeded on startup; secrets default to insecure dev
   values and must be overridden outside development.
 
@@ -188,18 +223,19 @@ npm run build:web           # production build of @legalmet/web
 
 1. **Verified regulatory data** — ingest official Legal Metrology requirements
    with version history, replacing placeholder rules (regulatory service).
-2. **Real OCR** — attach a production OCR engine behind `OCRService`.
-3. **Computer vision** — real label region/element detection behind
-   `VisionService`.
+2. ~~**Real OCR**~~ — done in Prompt 4 (PaddleOCR behind `OCRService`).
+3. ~~**Computer vision**~~ — QR/barcode region detection done in Prompt 4
+   (OpenCV behind `VisionService`); richer label-element detection remains
+   future work.
 4. **Product understanding** — real category/declaration-profile classification.
 5. **Expanded deterministic rule coverage** across commodity categories.
-6. **Full inspection UI** — capture/upload, analysis review, evidence graph
-   visualisation, dashboards, batch workflows.
-7. **Human-in-the-loop review** at scale, escalation, and reporting/export.
+6. **Human-in-the-loop review** — the corrected-value data model is in place
+   (`extracted_fields.corrected_value`); correction UX, escalation and
+   reporting/export remain future work.
 
-> None of the above (OCR, CV, real rules, advanced AI) is implemented in this
-> foundation phase — the architecture provides the interfaces and seams where
-> each attaches without touching call sites.
+> Regulatory intelligence, compliance evaluation and LLM assistance are not
+> implemented — the architecture provides the interfaces and seams where each
+> attaches without touching call sites.
 
 ---
 

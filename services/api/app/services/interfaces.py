@@ -21,6 +21,7 @@ from uuid import UUID
 
 from app.core.enums import (
     ComplianceStatus,
+    ExtractionStatus,
     FieldType,
     ImageQualityGrade,
     ImageQualityStatus,
@@ -72,6 +73,9 @@ class OcrLine:
     text: str
     bbox: BBox
     confidence: float
+    # Prompt 4: script/language tag reported by the engine (e.g. "en",
+    # "devanagari") when the engine is language-aware; None otherwise.
+    language: str | None = None
 
 
 @dataclass
@@ -79,6 +83,10 @@ class OcrResult:
     lines: list[OcrLine]
     mean_confidence: float
     descriptor: ServiceDescriptor
+    # Dimensions of the frame the bboxes are normalised against (the OCR
+    # derivative actually fed to the engine).
+    width: int | None = None
+    height: int | None = None
 
 
 @dataclass
@@ -86,6 +94,9 @@ class DetectedRegion:
     region_type: RegionType
     bbox: BBox
     confidence: float
+    # Prompt 4: structured payload for decodable symbols, e.g.
+    # {"symbology": "EAN_13", "value": "8901234123457"}. Evidence only.
+    payload: dict | None = None
 
 
 @dataclass
@@ -102,6 +113,14 @@ class FieldCandidate:
     bbox: BBox
     normalized_value: str | None = None
     unit: str | None = None
+    # Prompt 4: perception outcome for this candidate (NOT a compliance
+    # status) and which OCR line (index into OcrResult.lines) it came from.
+    status: ExtractionStatus = ExtractionStatus.DETECTED
+    source_index: int | None = None
+    # Short machine-readable label of the deterministic rule that matched,
+    # e.g. "regex:mrp" or "heuristic:typography".
+    method: str | None = None
+    language: str | None = None
 
 
 @dataclass
@@ -210,6 +229,72 @@ class ProductUnderstandingService(abc.ABC):
     def classify(
         self, *, name: str, category_hint: str | None, gtin: str | None
     ) -> ProductProfile: ...
+
+
+# ---------------------------------------------------------------------------
+# Prompt 4 — perception provider seams
+#
+# OCRService above IS the OCRProvider seam and VisionService IS the
+# VisionProvider seam (both already swappable via the service registry). The
+# two interfaces below complete the replaceable perception architecture:
+# ImagePreprocessor (derivative preparation) and FieldExtractionProvider
+# (deterministic field candidate extraction).
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class PreprocessedImage:
+    """An OCR-oriented derivative of the original image.
+
+    The ORIGINAL bytes are the primary evidence and are never modified; this
+    derivative exists only to give the OCR engine a well-conditioned input.
+    """
+
+    data: bytes
+    width: int
+    height: int
+    # Ordered list of operations actually applied, e.g. ["exif_transpose",
+    # "grayscale", "autocontrast", "resize:1200x1600"]. Recorded verbatim in
+    # the processing run's configuration for reproducibility.
+    operations: list[str] = field(default_factory=list)
+
+
+class ImagePreprocessor(abc.ABC):
+    """Produces an OCR-oriented derivative from original image bytes."""
+
+    @property
+    @abc.abstractmethod
+    def name(self) -> str: ...
+
+    @property
+    @abc.abstractmethod
+    def version(self) -> str: ...
+
+    @abc.abstractmethod
+    def prepare(self, *, image_bytes: bytes) -> PreprocessedImage:
+        """Decode + condition ``image_bytes`` for OCR.
+
+        Raises :class:`app.core.errors.InvalidImageError` when the bytes are
+        corrupt or not a decodable image.
+        """
+
+
+class FieldExtractionProvider(abc.ABC):
+    """Deterministic extraction of declaration candidates from OCR text.
+
+    Implementations MUST be rule-based (regex/keyword/typography heuristics) —
+    this seam exists so a stronger extractor (or an LLM with structured output
+    and preserved evidence) can replace it later WITHOUT touching the
+    pipeline. Implementations never invent values: when evidence is weak the
+    candidate carries status REVIEW_REQUIRED or NOT_EXTRACTED.
+    """
+
+    @property
+    @abc.abstractmethod
+    def descriptor(self) -> ServiceDescriptor: ...
+
+    @abc.abstractmethod
+    def extract(self, *, ocr: OcrResult) -> list[FieldCandidate]: ...
 
 
 class RuleEngine(abc.ABC):

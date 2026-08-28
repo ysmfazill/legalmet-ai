@@ -23,11 +23,18 @@ import type {
   CaptureSource,
   CreateInspectionRequest,
   CreatePackageRequest,
+  ExtractedField,
   HealthResponse,
+  ImageRegion,
   ImageType,
   Inspection,
+  OcrTextResult,
   Package,
   PackageImage,
+  PerceptionAnalysis,
+  PerceptionKickoff,
+  ProcessingRun,
+  ProcessingRunDetail,
   User,
 } from '@legalmet/types';
 
@@ -295,6 +302,38 @@ export const api = {
   /** POST /inspections/{id}/ready — the strongest intake outcome. No analysis. */
   markReady: (inspectionId: string): Promise<Inspection> =>
     request<Inspection>(`/inspections/${inspectionId}/ready`, { method: 'POST' }),
+
+  // --- Perception (Prompt 4) --------------------------------------------------
+  // These endpoints surface what the system PERCEIVED on real package images:
+  // OCR text, visual regions and extracted declaration candidates with
+  // evidence links. They never return a compliance verdict — the strongest
+  // statement available is "awaiting regulatory evaluation".
+
+  /** Queue a perception run for every usable image (202 + poll). */
+  startPerception: (inspectionId: string): Promise<PerceptionKickoff> =>
+    request<PerceptionKickoff>(`/inspections/${inspectionId}/perceive`, { method: 'POST' }),
+
+  /** Queue a NEW run for one image; prior runs are preserved as history. */
+  reanalyzeImage: (imageId: string): Promise<PerceptionKickoff> =>
+    request<PerceptionKickoff>(`/images/${imageId}/reanalyze`, { method: 'POST' }),
+
+  getPerceptionAnalysis: (inspectionId: string): Promise<PerceptionAnalysis> =>
+    request<PerceptionAnalysis>(`/inspections/${inspectionId}/analysis`),
+
+  listOcrResults: (inspectionId: string): Promise<OcrTextResult[]> =>
+    request<OcrTextResult[]>(`/inspections/${inspectionId}/ocr`),
+
+  listRegions: (inspectionId: string): Promise<ImageRegion[]> =>
+    request<ImageRegion[]>(`/inspections/${inspectionId}/regions`),
+
+  listFields: (inspectionId: string): Promise<ExtractedField[]> =>
+    request<ExtractedField[]>(`/inspections/${inspectionId}/fields`),
+
+  listProcessingRuns: (inspectionId: string): Promise<ProcessingRun[]> =>
+    request<ProcessingRun[]>(`/inspections/${inspectionId}/processing`),
+
+  getProcessingRun: (runId: string): Promise<ProcessingRunDetail> =>
+    request<ProcessingRunDetail>(`/processing-runs/${runId}`),
 
   fetchObjectUrl,
 };

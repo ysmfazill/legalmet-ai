@@ -23,3 +23,14 @@ structlog>=24.1
 # Image intake (Prompt 3): deterministic decoding, EXIF orientation, quality
 # statistics and safe resizing. No numpy/opencv — Pillow only.
 Pillow>=10,<12
+
+# Real perception (Prompt 4): local CPU OCR via PaddleOCR.
+# Version pins matter: paddleocr 3.1.0 requires paddlex==3.1.x (3.7+ changes
+# PaddlePredictorOption.__init__ and breaks engine construction). paddlepaddle
+# is the CPU inference runtime; opencv-contrib-python and numpy are used both
+# by paddleocr and directly (QR/barcode vision service, image decode).
+paddlepaddle==3.0.0
+paddleocr==3.1.0
+paddlex==3.1.0
+opencv-contrib-python>=4.8,<5
+numpy>=1.26,<3

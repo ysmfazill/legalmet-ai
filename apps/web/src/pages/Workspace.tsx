@@ -23,7 +23,14 @@ import { PageHeader } from '../components/PageHeader';
 import { AsyncView, EmptyState } from '../components/states';
 import { useAsync } from '../data/useAsync';
 import { QualityReadout } from '../intake/QualityReadout';
-import { useObjectUrl } from '../intake/useObjectUrl';
+import { FieldEvidenceDrawer } from '../perception/FieldEvidenceDrawer';
+import {
+  PerceptionControlCard,
+  PerceptionDeclarationsCard,
+  PerceptionRunHistoryCard,
+} from '../perception/PerceptionPanel';
+import { PerceptionViewer } from '../perception/PerceptionViewer';
+import { usePerception } from '../perception/usePerception';
 import { formatBytes, formatDateTime, humanizeEnum } from '../lib/format';
 import { toneColor, toneSoft } from '../lib/tone';
 import { mockApi } from '../mock/adapter';
@@ -116,23 +123,43 @@ function NoWorkspace() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* REAL intake workspace — actual uploaded image + provenance.                */
+/* REAL inspection workspace — actual uploaded image + REAL perception        */
+/* (Prompt 4).                                                                */
 /*                                                                            */
-/* Deliberately shows NO OCR text, NO detected declarations, NO findings and  */
-/* NO compliance verdict — none of that exists at intake time. The strongest  */
-/* state it can surface is READY_FOR_ANALYSIS.                                */
+/* Shows what the system PERCEIVED: real OCR text, symbol regions and         */
+/* extracted declaration candidates with full evidence links. It never shows  */
+/* a compliance verdict — the strongest statement available is                */
+/* "awaiting regulatory evaluation".                                          */
 /* -------------------------------------------------------------------------- */
 function RealInspectionWorkspace({ inspection }: { inspection: Inspection }) {
   const images = inspection.packages?.flatMap((p) => p.images ?? []) ?? [];
   const statusMeta = INSPECTION_STATUS_META[inspection.status];
   const isReady = inspection.status === 'READY_FOR_ANALYSIS';
 
+  const perception = usePerception(inspection.id);
+  const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
+
+  const selectedField =
+    perception.fields.find((f) => f.id === selectedFieldId) ?? null;
+  const selectedRegionId = selectedField?.imageRegionId ?? null;
+  const selectedOcrLine = selectedField?.sourceOcrResultId
+    ? perception.ocr.find((o) => o.id === selectedField.sourceOcrResultId) ?? null
+    : null;
+  const selectedRegion = selectedField?.imageRegionId
+    ? perception.regions.find((r) => r.id === selectedField.imageRegionId) ?? null
+    : null;
+  const selectedRun = selectedField?.processingRunId
+    ? perception.runs.find((r) => r.id === selectedField.processingRunId) ?? null
+    : null;
+
+  const hasRuns = perception.analysis?.hasRuns ?? false;
+
   return (
     <>
       <PageHeader
         eyebrow={inspection.referenceNo}
         title={inspection.product?.name ?? 'Packaged commodity'}
-        lead={`${inspection.product?.category ?? '—'} · Real package intake`}
+        lead={`${inspection.product?.category ?? '—'} · Real package perception`}
         actions={
           <>
             <InspectionStatusBadge status={inspection.status} />
@@ -149,23 +176,24 @@ function RealInspectionWorkspace({ inspection }: { inspection: Inspection }) {
       />
 
       <div className="demo-note demo-note--block">
-        <Icon name={isReady ? 'check' : 'info'} size={15} />
+        <Icon name="info" size={15} />
         <span>
-          {isReady ? (
-            <>
-              <strong>Ready for analysis.</strong>{' '}
-              {statusMeta?.description ?? 'The package is queued. No analysis has run yet.'} This is a
-              real uploaded package — <strong>no OCR, computer vision or compliance result exists yet</strong>.
-            </>
-          ) : (
-            <>
-              <strong>{statusMeta?.label ?? humanizeEnum(inspection.status)}.</strong> Images are
-              validated and stored with a deterministic <strong>usability</strong> grade. No compliance
-              analysis runs at intake — the strongest outcome here is Ready for analysis.
-            </>
-          )}
+          <strong>{statusMeta?.label ?? humanizeEnum(inspection.status)}.</strong>{' '}
+          {isReady
+            ? 'Images are validated and stored. '
+            : 'Images are validated and stored with a deterministic usability grade. '}
+          Perception results below come from <strong>real OCR and symbol detection</strong> over the
+          uploaded pixels — they describe what the system <em>saw</em>, not whether the package is
+          legally compliant.
         </span>
       </div>
+
+      {perception.error && (
+        <div className="demo-note demo-note--block" style={{ borderColor: 'var(--tone-critical)' }}>
+          <Icon name="alert" size={15} />
+          <span>Could not load perception data: {perception.error}</span>
+        </div>
+      )}
 
       {images.length === 0 ? (
         <Card>
@@ -178,19 +206,78 @@ function RealInspectionWorkspace({ inspection }: { inspection: Inspection }) {
           </CardBody>
         </Card>
       ) : (
-        <div className="stack">
-          {images.map((image) => (
-            <RealImageBlock key={image.id} image={image} />
-          ))}
+        <div className="split">
+          {/* LEFT — the real package images with perception overlays */}
+          <div className="stack">
+            {images.map((image) => (
+              <div className="stack" key={image.id}>
+                <PerceptionViewer
+                  image={image}
+                  ocrLines={perception.ocr.filter((o) => o.imageId === image.id)}
+                  symbolRegions={perception.regions.filter(
+                    (r) =>
+                      r.imageId === image.id &&
+                      (r.regionType === 'QR_CODE' || r.regionType === 'BARCODE'),
+                  )}
+                  selectedRegionId={selectedRegionId}
+                />
+                <RealImageMeta image={image} />
+              </div>
+            ))}
+          </div>
+
+          {/* RIGHT — the perception panel (what was perceived, never a verdict) */}
+          <div className="stack">
+            <PerceptionControlCard
+              analysis={perception.analysis}
+              starting={perception.starting}
+              hasImages={images.length > 0}
+              onStart={() => void perception.start()}
+            />
+
+            {hasRuns && (
+              <div className="demo-note demo-note--block">
+                <Icon name="scale" size={15} />
+                <span>
+                  <strong>Awaiting regulatory evaluation.</strong> Perception lists the declarations
+                  the system detected — it does not decide whether they satisfy the Legal Metrology
+                  (Packaged Commodities) Rules. Regulatory evaluation is a later, separate step.
+                </span>
+              </div>
+            )}
+
+            <PerceptionDeclarationsCard
+              fields={perception.fields}
+              selectedFieldId={selectedFieldId}
+              onSelect={(field) =>
+                setSelectedFieldId((cur) => (cur === field.id ? null : field.id))
+              }
+            />
+
+            <PerceptionRunHistoryCard
+              runs={perception.runs}
+              onReanalyze={(imageId) => void perception.reanalyze(imageId)}
+              reanalyzing={perception.starting}
+            />
+          </div>
         </div>
+      )}
+
+      {selectedField && (
+        <FieldEvidenceDrawer
+          field={selectedField}
+          ocrLine={selectedOcrLine}
+          region={selectedRegion}
+          run={selectedRun}
+          onClose={() => setSelectedFieldId(null)}
+        />
       )}
     </>
   );
 }
 
-/** A single real stored image: the actual bytes plus full provenance + usability. */
-function RealImageBlock({ image }: { image: PackageImage }) {
-  const view = useObjectUrl(image.processedStorageKey ?? image.storageKey);
+/** Provenance + usability metadata for one real stored image. */
+function RealImageMeta({ image }: { image: PackageImage }) {
   const resolution =
     image.width && image.height ? `${image.width} × ${image.height}` : 'Pending';
   const score =
@@ -198,79 +285,65 @@ function RealImageBlock({ image }: { image: PackageImage }) {
   const shortChecksum = image.checksum ? `${image.checksum.slice(0, 12)}…` : '—';
 
   return (
-    <div className="split">
-      <div className="real-image">
-        {view.status === 'ready' ? (
-          <img src={view.url} alt={image.originalFilename} />
-        ) : view.status === 'loading' ? (
-          <span className="spinner" aria-hidden />
-        ) : (
-          <span className="intake-card__thumb-fallback" title={view.message}>
-            <Icon name="image" size={26} />
-          </span>
-        )}
-      </div>
-
-      <div className="stack">
-        <SectionCard
-          eyebrow="Provenance"
-          title={image.originalFilename}
-          subtitle="Real stored image — metadata and usability only. No OCR or compliance."
-        >
-          <div className="row row--wrap" style={{ gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
-            <span className="tag">{image.captureSource}</span>
-            <span className="tag">{image.imageType}</span>
-            <ImageProcessingBadge status={image.processingStatus} />
-            {image.qualityGrade && <ImageQualityGradeBadge grade={image.qualityGrade} />}
+    <>
+      <SectionCard
+        eyebrow="Provenance"
+        title={image.originalFilename}
+        subtitle="Real stored image — metadata and usability only."
+      >
+        <div className="row row--wrap" style={{ gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
+          <span className="tag">{image.captureSource}</span>
+          <span className="tag">{image.imageType}</span>
+          <ImageProcessingBadge status={image.processingStatus} />
+          {image.qualityGrade && <ImageQualityGradeBadge grade={image.qualityGrade} />}
+        </div>
+        <dl className="meta-grid">
+          <div>
+            <dt>Image ID</dt>
+            <dd title={image.id}>{image.id.slice(0, 8)}…</dd>
           </div>
-          <dl className="meta-grid">
-            <div>
-              <dt>Image ID</dt>
-              <dd title={image.id}>{image.id.slice(0, 8)}…</dd>
-            </div>
-            <div>
-              <dt>Source</dt>
-              <dd>{image.captureSource}</dd>
-            </div>
-            <div>
-              <dt>Resolution</dt>
-              <dd>{resolution}</dd>
-            </div>
-            <div>
-              <dt>File size</dt>
-              <dd>{formatBytes(image.fileSize)}</dd>
-            </div>
-            <div>
-              <dt>Usability score</dt>
-              <dd>{score}</dd>
-            </div>
-            <div>
-              <dt>Processing</dt>
-              <dd>{humanizeEnum(image.processingStatus)}</dd>
-            </div>
-            <div>
-              <dt>Uploaded</dt>
-              <dd>{formatDateTime(image.createdAt)}</dd>
-            </div>
-            <div>
-              <dt>Checksum (SHA-256)</dt>
-              <dd title={image.checksum ?? undefined}>{shortChecksum}</dd>
-            </div>
-          </dl>
-        </SectionCard>
+          <div>
+            <dt>Source</dt>
+            <dd>{image.captureSource}</dd>
+          </div>
+          <div>
+            <dt>Resolution</dt>
+            <dd>{resolution}</dd>
+          </div>
+          <div>
+            <dt>File size</dt>
+            <dd>{formatBytes(image.fileSize)}</dd>
+          </div>
+          <div>
+            <dt>Usability score</dt>
+            <dd>{score}</dd>
+          </div>
+          <div>
+            <dt>Processing</dt>
+            <dd>{humanizeEnum(image.processingStatus)}</dd>
+          </div>
+          <div>
+            <dt>Uploaded</dt>
+            <dd>{formatDateTime(image.createdAt)}</dd>
+          </div>
+          <div>
+            <dt>Checksum (SHA-256)</dt>
+            <dd title={image.checksum ?? undefined}>{shortChecksum}</dd>
+          </div>
+        </dl>
+      </SectionCard>
 
-        <Card>
-          <CardHead
-            eyebrow="Perception"
-            title="Image usability"
-            subtitle="Deterministic legibility signal — not compliance, not AI confidence"
-          />
-          <CardBody>
-            <QualityReadout image={image} />
-          </CardBody>
-        </Card>
-      </div>
-    </div>
+      <Card>
+        <CardHead
+          eyebrow="Perception"
+          title="Image usability"
+          subtitle="Deterministic legibility signal — not compliance, not AI confidence"
+        />
+        <CardBody>
+          <QualityReadout image={image} />
+        </CardBody>
+      </Card>
+    </>
   );
 }
 

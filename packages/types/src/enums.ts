@@ -80,6 +80,8 @@ export type ComplianceStatus = (typeof COMPLIANCE_STATUSES)[number];
 // engine operating on verified regulatory data.
 
 export const FIELD_TYPES = [
+  'PRODUCT_NAME',
+  'BRAND_NAME',
   'MRP',
   'NET_QUANTITY',
   'GENERIC_NAME',
@@ -87,6 +89,7 @@ export const FIELD_TYPES = [
   'PACKER_DETAILS',
   'IMPORTER_DETAILS',
   'COUNTRY_OF_ORIGIN',
+  'ADDRESS',
   'DATE_OF_MANUFACTURE',
   'DATE_OF_PACKING',
   'BEST_BEFORE',
@@ -132,6 +135,7 @@ export const REGION_TYPES = [
   'SYMBOL',
   'LOGO',
   'BARCODE',
+  'QR_CODE',
   'GRAPHIC',
   'OTHER',
 ] as const;
@@ -168,10 +172,36 @@ export const MODEL_SERVICE_TYPES = [
   'OCR',
   'VISION',
   'PRODUCT_CLASSIFIER',
+  'FIELD_EXTRACTOR',
   'RULE_ENGINE',
   'LLM_ASSIST',
 ] as const;
 export type ModelServiceType = (typeof MODEL_SERVICE_TYPES)[number];
+
+// --- Perception processing runs (Prompt 4) ---------------------------------
+// Lifecycle of ONE perception run over ONE image. These assert what the
+// pipeline DID to the image — never anything about compliance.
+
+export const PROCESSING_RUN_STATUSES = [
+  'QUEUED',
+  'PREPROCESSING',
+  'OCR_PROCESSING',
+  'VISION_PROCESSING',
+  'FIELD_EXTRACTION',
+  'COMPLETED',
+  'PARTIAL',
+  'FAILED',
+  'REVIEW_REQUIRED',
+] as const;
+export type ProcessingRunStatus = (typeof PROCESSING_RUN_STATUSES)[number];
+
+// Per-field perception outcome. NOT a compliance verdict: DETECTED means the
+// deterministic extractor found evidence with adequate OCR confidence;
+// REVIEW_REQUIRED means a pattern matched but OCR confidence was low;
+// NOT_EXTRACTED means the field was located but no usable value was read.
+
+export const EXTRACTION_STATUSES = ['DETECTED', 'REVIEW_REQUIRED', 'NOT_EXTRACTED'] as const;
+export type ExtractionStatus = (typeof EXTRACTION_STATUSES)[number];
 
 // --- Audit -----------------------------------------------------------------
 
@@ -192,6 +222,11 @@ export const AUDIT_EVENT_TYPES = [
   'IMAGE_PREPARED',
   'IMAGE_DELETED',
   'INSPECTION_READY',
+  // Prompt 4 — real perception pipeline
+  'PERCEPTION_STARTED',
+  'PERCEPTION_COMPLETED',
+  'PERCEPTION_FAILED',
+  'IMAGE_REANALYZED',
 ] as const;
 export type AuditEventType = (typeof AUDIT_EVENT_TYPES)[number];
 

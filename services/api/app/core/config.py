@@ -55,6 +55,23 @@ class Settings(BaseSettings):
     min_image_height: int = 400
     processed_max_dimension: int = 2000
 
+    # --- Real perception (Prompt 4) ----------------------------------------
+    # OCR backend behind the perception pipeline. "paddle" runs the real local
+    # PaddleOCR engine; "mock" falls back to the seeded demo stub (dev only —
+    # clearly-labelled, never used for real-image analysis).
+    perception_ocr_backend: str = "paddle"
+    # Comma-separated PaddleOCR language codes. Only configured languages are
+    # claimed. Available script models include: en, devanagari (Hindi/Marathi),
+    # tamil, telugu — see docs/ocr.md.
+    perception_ocr_langs: str = "en"
+    # Hard ceiling for one OCR inference call (seconds).
+    perception_ocr_timeout_seconds: float = 180.0
+    # Candidate confidence below this marks a field REVIEW_REQUIRED.
+    perception_field_review_threshold: float = 0.6
+    # OCR derivative conditioning (see PillowOcrPreprocessor).
+    perception_ocr_min_long_edge: int = 1000
+    perception_ocr_max_long_edge: int = 2400
+
     # --- Demo seeding (DEMO ONLY) -----------------------------------------
     seed_demo_data: bool = True
     demo_admin_email: str = "admin@legalmet.local"
@@ -86,6 +103,10 @@ class Settings(BaseSettings):
     @property
     def using_insecure_secret(self) -> bool:
         return self.secret_key == "dev-only-insecure-change-me"
+
+    @property
+    def perception_ocr_lang_list(self) -> list[str]:
+        return [lang.strip() for lang in self.perception_ocr_langs.split(",") if lang.strip()]
 
 
 @lru_cache

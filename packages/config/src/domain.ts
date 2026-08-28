@@ -8,12 +8,14 @@
  */
 import type {
   ComplianceStatus,
+  ExtractionStatus,
   FieldType,
   ImageProcessingStatus,
   ImageQualityGrade,
   ImageQualityStatus,
   InspectionStatus,
   PackageStatus,
+  ProcessingRunStatus,
   ReviewActionType,
   UserRole,
 } from '@legalmet/types';
@@ -129,6 +131,8 @@ export const IMAGE_QUALITY_META: Record<ImageQualityStatus, EnumMeta> = {
 
 /** Human-readable labels for perception field categories. */
 export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
+  PRODUCT_NAME: 'Product Name',
+  BRAND_NAME: 'Brand Name',
   MRP: 'Maximum Retail Price',
   NET_QUANTITY: 'Net Quantity',
   GENERIC_NAME: 'Generic / Common Name',
@@ -136,6 +140,7 @@ export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
   PACKER_DETAILS: 'Packer Details',
   IMPORTER_DETAILS: 'Importer Details',
   COUNTRY_OF_ORIGIN: 'Country of Origin',
+  ADDRESS: 'Address',
   DATE_OF_MANUFACTURE: 'Date of Manufacture',
   DATE_OF_PACKING: 'Date of Packing',
   BEST_BEFORE: 'Best Before',
@@ -145,4 +150,40 @@ export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
   DIMENSIONS: 'Dimensions',
   UNIT_SALE_PRICE: 'Unit Sale Price',
   OTHER: 'Other',
+};
+
+// --- Perception processing runs (Prompt 4) -----------------------------------
+// These describe what the perception PIPELINE did to an image. None of them
+// is a compliance verdict — the strongest statement a run can make is
+// "these are the declarations the system perceived".
+
+export const PROCESSING_RUN_STATUS_META: Record<ProcessingRunStatus, EnumMeta> = {
+  QUEUED: { label: 'Queued', tone: 'neutral', description: 'Run accepted; waiting to start.' },
+  PREPROCESSING: { label: 'Preprocessing', tone: 'info', description: 'Preparing the OCR-oriented image derivative.' },
+  OCR_PROCESSING: { label: 'Reading Text (OCR)', tone: 'info', description: 'Running real OCR over the package image.' },
+  VISION_PROCESSING: { label: 'Detecting Symbols', tone: 'info', description: 'Detecting QR codes / barcodes / visual regions.' },
+  FIELD_EXTRACTION: { label: 'Extracting Declarations', tone: 'info', description: 'Applying deterministic extraction rules to OCR output.' },
+  COMPLETED: { label: 'Completed', tone: 'positive', description: 'Perception finished. Awaiting regulatory evaluation.' },
+  PARTIAL: { label: 'Partially Completed', tone: 'warning', description: 'OCR succeeded but a later stage (e.g. symbol detection) failed; text evidence is preserved.' },
+  FAILED: { label: 'Failed', tone: 'critical', description: 'The perception pipeline could not process this image.' },
+  REVIEW_REQUIRED: { label: 'Review Required', tone: 'warning', description: 'Perception finished but some evidence is low-confidence; a human should verify.' },
+};
+
+/** Per-field perception outcome — explicitly NOT a compliance status. */
+export const EXTRACTION_STATUS_META: Record<ExtractionStatus, EnumMeta> = {
+  DETECTED: {
+    label: 'Detected',
+    tone: 'positive',
+    description: 'Deterministic evidence found with adequate OCR confidence. Awaiting regulatory evaluation.',
+  },
+  REVIEW_REQUIRED: {
+    label: 'Low Confidence',
+    tone: 'warning',
+    description: 'A pattern matched but OCR confidence is low. Verify the highlighted region before trusting the value.',
+  },
+  NOT_EXTRACTED: {
+    label: 'Not Extracted',
+    tone: 'neutral',
+    description: 'The field was located (e.g. an "MRP" label was seen) but no usable value could be read.',
+  },
 };

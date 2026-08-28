@@ -65,6 +65,10 @@ def test_settings() -> Settings:
         demo_inspector_email=INSPECTOR_EMAIL,
         demo_inspector_password=INSPECTOR_PASSWORD,
         log_level="WARNING",
+        # Never download / initialise real OCR models from the unit-test suite.
+        # The real PaddleOCR integration test opts in explicitly via its own
+        # settings (tests/integration/).
+        perception_ocr_backend="mock",
     )
 
 
@@ -86,8 +90,10 @@ def session_factory(db_engine: Engine) -> sessionmaker[Session]:
 
 
 @pytest.fixture(scope="session")
-def services(test_settings: Settings) -> Services:
-    return build_services(test_settings)
+def services(test_settings: Settings, session_factory: sessionmaker[Session]) -> Services:
+    # The session factory is injected so the perception pipeline's background
+    # execution hits the SAME in-memory engine the API overrides use.
+    return build_services(test_settings, session_factory=session_factory)
 
 
 @pytest.fixture(scope="session", autouse=True)

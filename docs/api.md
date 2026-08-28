@@ -1,6 +1,7 @@
-# LEGALMET AI — Intake API
+# LEGALMET AI — Intake & Perception API
 
-> **Status:** Real package intake (Prompt 3). These endpoints ingest **real**
+> **Status:** Real package intake (Prompt 3) — followed by the real perception
+> API (Prompt 4) in the second half of this document. These endpoints ingest **real**
 > uploaded/captured image bytes, validate them server-side, store them, grade
 > their usability, and advance an inspection to `READY_FOR_ANALYSIS`.
 >
@@ -180,3 +181,136 @@ A rejected upload records `IMAGE_UPLOAD_STARTED` then `IMAGE_REJECTED` (with the
 Storage-side configuration and the retrieval route are documented in
 [storage.md](./storage.md); the usability grader in
 [image-quality.md](./image-quality.md).
+
+---
+---
+
+# Perception API (Prompt 4)
+
+> **Status:** Real multimodal package perception. These endpoints run **real**
+> OCR (PaddleOCR, local CPU) and real QR/barcode detection (OpenCV) over the
+> stored package images and return structured, traceable perception evidence:
+> OCR text lines, visual regions, extracted field candidates and processing-run
+> history. No values are hard-coded and no confidence is fabricated — a run
+> either reads the image or fails visibly.
+>
+> **Scope guardrail:** perception answers *“what can the system see?”* — nothing
+> more. **The strongest possible outcome of these routes is perception evidence
+> plus an explicit `AWAITING_REGULATORY_EVALUATION` marker — never a compliance
+> verdict, never a compliance score.** Field statuses (`DETECTED`,
+> `REVIEW_REQUIRED`, `NOT_EXTRACTED`) describe evidence quality, not legality.
+
+Sources: `services/api/app/api/routers/perception.py`,
+`services/api/app/services/perception/` (service, pipeline, extractor),
+`services/api/app/schemas/perception.py`. Pipeline internals:
+[perception.md](./perception.md); engines: [ocr.md](./ocr.md),
+[vision.md](./vision.md).
+
+---
+
+## 1. Authentication & roles
+
+Same rules as intake: all routes require a bearer token. **Mutations**
+(`perceive`, `reanalyze`) require a perception role — `INSPECTOR`, `SUPERVISOR`
+or `ADMIN`; **reads** (analysis, OCR, regions, fields, runs) allow any
+authenticated user. Auditors are read-only.
+
+| Failure | Status | `error.code` |
+| --- | --- | --- |
+| No / invalid token | `401` | — |
+| Authenticated but wrong role | `403` | — |
+| Unknown inspection / image / run | `404` | `NOT_FOUND` |
+| Inspection has no analysable images | `422` | `VALIDATION_ERROR` |
+
+---
+
+## 2. Endpoints
+
+| Method & path | Role | Purpose |
+| --- | --- | --- |
+| `POST /inspections/{id}/perceive` | perception | Queue one run per analysable image → `202` |
+| `POST /images/{id}/reanalyze` | perception | Queue a NEW run for one image (history kept) → `202` |
+| `GET  /inspections/{id}/analysis` | any | Aggregated perception summary + poll state |
+| `GET  /inspections/{id}/ocr` | any | All OCR text lines (raw + normalized) |
+| `GET  /inspections/{id}/regions` | any | All visual regions (text/symbol) |
+| `GET  /inspections/{id}/fields` | any | Extracted field candidates + statuses |
+| `GET  /inspections/{id}/processing` | any | Processing-run history |
+| `GET  /processing-runs/{run_id}` | any | One run's full detail (incl. old runs) |
+
+---
+
+## 3. Starting perception
+
+`POST /inspections/{inspection_id}/perceive` creates one **QUEUED**
+`ProcessingRun` per attached, non-`REJECTED` image (multi-image support:
+front/back/side each get their own run and evidence). **Success `202`**:
+
+```json
+{
+  "inspectionId": "…",
+  "runs": [
+    { "runId": "…", "reference": "PR-3F9A2C1D", "imageId": "…" },
+    { "runId": "…", "reference": "PR-8B01EE44", "imageId": "…" }
+  ]
+}
+```
+
+The runs execute asynchronously in a background task (no Redis/Celery/Kafka);
+each run uses its own DB session. No images are analysable → `422`.
+
+`POST /images/{image_id}/reanalyze` behaves identically but for a single image,
+and **always creates a new run** — prior runs and all their evidence rows
+remain queryable via `GET /processing-runs/{run_id}`.
+
+---
+
+## 4. Reading results
+
+* **`GET /inspections/{id}/analysis`** — per-image summary (text lines,
+  regions, declarations, low-confidence count, duration, models), run history
+  and an `active` flag for polling. Always carries
+  `regulatoryEvaluation: "AWAITING_REGULATORY_EVALUATION"`.
+* **`GET /inspections/{id}/ocr`** — every `OcrTextResult` across runs:
+  `rawText` **verbatim** from the engine, derived `normalizedText`, normalized
+  bbox, `confidence` (the engine's **OCR confidence** — not legal confidence),
+  `language`, provider/model/version, `regionId`, `processingRunId`.
+* **`GET /inspections/{id}/regions`** — `ImageRegion` rows: `TEXT_LINE`
+  (derived from OCR boxes), `QR_CODE` / `BARCODE` with payload
+  `{symbology, value, decoded}` (undecodable-but-detected symbols are reported
+  with `decoded: false`, never given an invented value).
+* **`GET /inspections/{id}/fields`** — `ExtractedField` candidates:
+  `fieldType`, `rawText`, `normalizedValue`, `unit`,
+  `confidence` = OCR confidence × pattern weight, `extractionMethod`,
+  `status` ∈ `DETECTED` / `REVIEW_REQUIRED` / `NOT_EXTRACTED`, plus the full
+  evidence linkage (`sourceOcrResultId`, `imageRegionId`, `processingRunId`,
+  `modelVersionId`).
+
+---
+
+## 5. Failure semantics
+
+| Situation | Run outcome | API surface |
+| --- | --- | --- |
+| OCR engine unavailable / timed out / models missing | `FAILED`, `error.code = AI_SERVICE_UNAVAILABLE` (+ failing stage) | Runs readable; analysis shows the error — **never fake text** |
+| Vision stage failed | `PARTIAL`, `error.code = VISION_STAGE_FAILED`; all OCR evidence kept | OCR/fields still returned |
+| Unexpected internal error | `FAILED`, `error.code = INTERNAL_ERROR` (sanitized message, no internals leaked) | Run readable |
+| Low-confidence field candidates | `REVIEW_REQUIRED` terminal status | Fields carry `REVIEW_REQUIRED` |
+
+---
+
+## 6. Audit trail
+
+Perception appends: `PERCEPTION_STARTED` (per run, with reference),
+`PERCEPTION_COMPLETED` (with status + evidence counts) or `PERCEPTION_FAILED`
+(with code + stage), and `IMAGE_REANALYZED` on re-analysis. All events include
+the inspection id and actor (where a user initiated it).
+
+---
+
+## 7. Configuration
+
+See [perception.md](./perception.md) §4 for the full table
+(`PERCEPTION_OCR_BACKEND`, `PERCEPTION_OCR_LANGS`,
+`PERCEPTION_OCR_TIMEOUT_SECONDS`, `PERCEPTION_FIELD_REVIEW_THRESHOLD`,
+preprocessor edge bounds) and [ocr.md](./ocr.md) for engine installation and
+model caching.

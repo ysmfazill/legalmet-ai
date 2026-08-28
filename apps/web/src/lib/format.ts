@@ -39,7 +39,18 @@ export function formatRelative(iso?: string | null): string {
 
 /** Fraction in 0..1 → percentage string. */
 export function formatPercent(fraction: number, digits = 0): string {
+  if (!Number.isFinite(fraction)) return '—';
   return `${(fraction * 100).toFixed(digits)}%`;
+}
+
+/** Milliseconds → compact human duration ("1.4 s", "2 m 06 s"). */
+export function formatDurationMs(ms?: number | null): string {
+  if (ms == null || !Number.isFinite(ms)) return '—';
+  if (ms < 1000) return `${Math.round(ms)} ms`;
+  if (ms < 60_000) return `${(ms / 1000).toFixed(1)} s`;
+  const minutes = Math.floor(ms / 60_000);
+  const seconds = Math.round((ms % 60_000) / 1000);
+  return `${minutes} m ${String(seconds).padStart(2, '0')} s`;
 }
 
 /** Human-readable byte size ("2.4 MB", "812 KB"). Safe on null/undefined. */

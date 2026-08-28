@@ -8,6 +8,7 @@ from pydantic import Field
 
 from app.core.enums import (
     CaptureSource,
+    ExtractionStatus,
     FieldType,
     ImageProcessingStatus,
     ImageQualityGrade,
@@ -32,6 +33,11 @@ class ImageRegionOut(CamelModel):
     bbox: BoundingBox
     confidence: float
     created_at: datetime
+    # --- Prompt 4 ----------------------------------------------------------
+    processing_run_id: UUID | None = None
+    # Decoded symbol evidence for barcode/QR regions (e.g. {"symbology":
+    # "EAN_13", "value": "8901234123457"}). Evidence only — no legal use.
+    payload: dict | None = None
 
 
 class ExtractedFieldOut(CamelModel):
@@ -48,6 +54,15 @@ class ExtractedFieldOut(CamelModel):
     model_version_id: UUID | None = None
     is_demo: bool
     created_at: datetime
+    # --- Prompt 4: perception provenance + outcome -------------------------
+    # Perception outcome: DETECTED / REVIEW_REQUIRED / NOT_EXTRACTED. This is
+    # NOT a compliance status.
+    status: ExtractionStatus = ExtractionStatus.DETECTED
+    processing_run_id: UUID | None = None
+    source_ocr_result_id: UUID | None = None
+    # Human-correction foundation (populated only by a future human action).
+    corrected_value: str | None = None
+    corrected_at: datetime | None = None
 
 
 class ImageOut(CamelModel):

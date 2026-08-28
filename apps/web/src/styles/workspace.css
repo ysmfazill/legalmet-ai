@@ -446,3 +446,119 @@
   text-align: right;
   font-weight: var(--fw-medium);
 }
+
+/* --- Real perception viewer (Prompt 4) ------------------------------------- */
+/* Stage mirrors the image's own aspect ratio so fractional OCR/region bboxes
+ * align with the rendered pixels exactly. */
+.pviewer__stage {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #10182b, #0b1120);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-md);
+}
+.pviewer__frame {
+  position: absolute;
+  inset: 0;
+  transform-origin: center center;
+  transition: transform var(--transition-base);
+}
+.pviewer__frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  user-select: none;
+}
+.pviewer__fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  color: var(--text-faint);
+  font-size: var(--fs-sm);
+}
+.spinner--sm {
+  width: 14px;
+  height: 14px;
+}
+
+/* --- Perception declaration rows (real extraction, Prompt 4) ---------------- */
+.decl--perception {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+}
+.decl--perception .decl__main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.decl--perception .decl__label {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.decl--perception .decl__value {
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
+  overflow-wrap: anywhere;
+}
+.decl--perception .decl__side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  flex-shrink: 0;
+}
+.decl--perception .decl__conf {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.decl--perception.is-selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* --- Processing run history rows (Prompt 4) --------------------------------- */
+.run-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.run-row__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.run-row__ref {
+  font-family: var(--font-mono);
+  font-weight: var(--fw-semibold);
+}
+.run-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+.run-row__error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  color: var(--tone-critical);
+  margin: 0;
+}
