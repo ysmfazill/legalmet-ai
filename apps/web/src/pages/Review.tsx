@@ -12,12 +12,15 @@ import { Segmented } from '../components/Tabs';
 import type { TabDef } from '../components/Tabs';
 import { AsyncView, EmptyState } from '../components/states';
 import { useAsync } from '../data/useAsync';
+import { EngineReviewQueueSection } from '../compliance/EngineReviewQueueSection';
+import { useApp } from '../app/AppContext';
 import { formatDateTime } from '../lib/format';
 import { mockApi } from '../mock/adapter';
 import { allFindings } from '../mock/inspections';
 import type { FindingView, ReviewQueueItem } from '../mock/types';
 
 type RiskFilter = 'ALL' | 'HIGH' | 'MEDIUM' | 'LOW';
+type QueueSource = 'demo' | 'engine';
 
 const RISK_FILTERS: TabDef<RiskFilter>[] = [
   { id: 'ALL', label: 'All' },
@@ -29,11 +32,13 @@ const RISK_FILTERS: TabDef<RiskFilter>[] = [
 const RISK_ORDER: Record<string, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 };
 
 export function ReviewPage() {
+  const { isLive } = useApp();
   const query = useAsync(() => mockApi.getReviewQueue(), []);
   const navigate = useNavigate();
   const [risk, setRisk] = useState<RiskFilter>('ALL');
   const [openFinding, setOpenFinding] = useState<FindingView | null>(null);
   const [reviewed, setReviewed] = useState<Set<string>>(new Set());
+  const [source, setSource] = useState<QueueSource>('demo');
 
   // The full, linked finding powers the WHY / Evidence drawer (demo dataset).
   const findingsById = useMemo(() => new Map(allFindings.map((f) => [f.id, f])), []);
@@ -44,9 +49,25 @@ export function ReviewPage() {
         eyebrow="Human-in-the-loop"
         title="Review Queue"
         lead="Findings the system flagged for a human decision. Open any item to inspect the evidence and record an inspector decision — the system never decides on its own."
+        actions={
+          isLive ? (
+            <Segmented
+              options={[
+                { id: 'demo', label: 'Demo findings' },
+                { id: 'engine', label: 'Engine findings' },
+              ]}
+              active={source}
+              onChange={(next) => setSource(next)}
+              ariaLabel="Choose finding source"
+            />
+          ) : undefined
+        }
       />
 
-      <AsyncView query={query} loadingLabel="Loading review queue…">
+      {isLive && source === 'engine' ? (
+        <EngineReviewQueueSection />
+      ) : (
+        <AsyncView query={query} loadingLabel="Loading review queue…">
         {(items) => {
           const filtered = [...items]
             .filter((it) => risk === 'ALL' || it.risk === risk)
@@ -135,6 +156,7 @@ export function ReviewPage() {
           );
         }}
       </AsyncView>
+      )}
 
       {openFinding && (
         <EvidenceDrawer

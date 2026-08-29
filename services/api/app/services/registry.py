@@ -15,6 +15,8 @@ from functools import lru_cache
 from app.core.config import Settings, get_settings
 from app.services.analytics.service import AnalyticsService
 from app.services.audit.service import AuditService
+from app.services.compliance.engine import ComplianceEngine
+from app.services.compliance.service import ComplianceService
 from app.services.evidence.service import EvidenceService
 from app.services.inspection.service import InspectionService
 from app.services.intake.service import IntakeService
@@ -58,6 +60,8 @@ class Services:
     intake_quality: ImageQualityAnalyzer
     rule_engine: RuleEngine
     regulatory: RegulatoryService
+    # --- Prompt 6: deterministic compliance engine -------------------------
+    compliance: ComplianceService
     evidence: EvidenceService
     audit: AuditService
     review: ReviewService
@@ -175,6 +179,12 @@ def build_services(
     # Prompt 5: the regulatory-intelligence service shares the audit trail so
     # verification-state changes on authoritative data are recorded.
     regulatory = RegulatoryService(audit=audit)
+    # Prompt 6: the deterministic compliance engine shares the same audit
+    # trail and consumes the Prompt 5 regulatory service for version-aware
+    # requirement resolution. It is intentionally NOT configurable to an LLM
+    # backend — no model ever decides compliance.
+    compliance_engine = ComplianceEngine(regulatory=regulatory, audit=audit)
+    compliance = ComplianceService(engine=compliance_engine)
     review = ReviewService(audit)
     analytics = AnalyticsService()
 
@@ -222,6 +232,7 @@ def build_services(
         intake_quality=intake_quality,
         rule_engine=rule_engine,
         regulatory=regulatory,
+        compliance=compliance,
         evidence=evidence,
         audit=audit,
         review=review,

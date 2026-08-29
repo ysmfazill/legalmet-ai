@@ -329,6 +329,11 @@ class AuditEventType(StrEnum):
     REGULATORY_REQUIREMENT_CREATED = "REGULATORY_REQUIREMENT_CREATED"
     REGULATORY_REQUIREMENT_UPDATED = "REGULATORY_REQUIREMENT_UPDATED"
     REGULATORY_DATA_SEEDED = "REGULATORY_DATA_SEEDED"
+    # Prompt 6 — deterministic compliance engine lifecycle
+    COMPLIANCE_EVALUATION_STARTED = "COMPLIANCE_EVALUATION_STARTED"
+    COMPLIANCE_EVALUATION_COMPLETED = "COMPLIANCE_EVALUATION_COMPLETED"
+    COMPLIANCE_EVALUATION_FAILED = "COMPLIANCE_EVALUATION_FAILED"
+    COMPLIANCE_FINDING_CREATED = "COMPLIANCE_FINDING_CREATED"
 
 
 class BatchStatus(StrEnum):
@@ -336,3 +341,120 @@ class BatchStatus(StrEnum):
     PROCESSING = "PROCESSING"
     COMPLETED = "COMPLETED"
     ARCHIVED = "ARCHIVED"
+
+
+# --- Prompt 6 — deterministic compliance engine -------------------------------
+
+
+class EvaluationStatus(StrEnum):
+    """Lifecycle of one compliance evaluation over an inspection.
+
+    An evaluation is a SYSTEM-GENERATED DECISION-SUPPORT ARTIFACT. None of these
+    states is an enforcement determination — the inspector remains responsible
+    for the final enforcement decision.
+    """
+
+    NOT_EVALUATED = "NOT_EVALUATED"
+    EVALUATING = "EVALUATING"
+    COMPLETED = "COMPLETED"
+    PARTIAL = "PARTIAL"  # some rules evaluated, some could not (engine failure)
+    REVIEW_REQUIRED = "REVIEW_REQUIRED"  # one or more findings need a human
+    FAILED = "FAILED"  # engine error — no findings may be trusted from this run
+    NO_APPLICABLE_REQUIREMENT = "NO_APPLICABLE_REQUIREMENT"
+
+
+class EngineFindingStatus(StrEnum):
+    """Outcome of ONE requirement against ONE detected field.
+
+    COMPLIANT / NON_COMPLIANT are only produced with adequate valid evidence
+    AND a positive applicability determination. Insufficient evidence downgrades
+    the finding to REVIEW_REQUIRED — the engine never guesses.
+    """
+
+    COMPLIANT = "COMPLIANT"
+    NON_COMPLIANT = "NON_COMPLIANT"
+    REVIEW_REQUIRED = "REVIEW_REQUIRED"
+    NOT_DETECTED = "NOT_DETECTED"  # applicable, but no field was extracted
+    NOT_APPLICABLE = "NOT_APPLICABLE"  # applicability resolved NO — no violation
+    NOT_EVALUATED = "NOT_EVALUATED"  # rule exists but engine could not evaluate
+
+
+class FindingSeverity(StrEnum):
+    """Severity classification of a system-generated finding.
+
+    An informational severity vocabulary for triage — never a penalty or a
+    legal consequence, which only a human enforcement decision may assign.
+    """
+
+    INFO = "INFO"
+    MINOR = "MINOR"
+    MAJOR = "MAJOR"
+    CRITICAL = "CRITICAL"
+    UNKNOWN = "UNKNOWN"
+
+
+class DeterministicRuleType(StrEnum):
+    """Vocabulary of deterministic rule types the compliance engine executes.
+
+    Deliberately small: every type maps to code in
+    ``app/services/compliance/evaluators.py`` and every seeded rule must
+    correspond to a verified requirement from the Prompt 5 regulatory data —
+    the engine never invents requirements.
+    """
+
+    PRESENCE = "PRESENCE"
+    TEXT_MATCH = "TEXT_MATCH"
+    TEXT_PATTERN = "TEXT_PATTERN"
+    NUMERIC_VALUE = "NUMERIC_VALUE"
+    UNIT_MATCH = "UNIT_MATCH"
+    MRP_FORMAT = "MRP_FORMAT"
+    DATE_FORMAT = "DATE_FORMAT"
+    CONTACT_FORMAT = "CONTACT_FORMAT"
+    DECLARATION_FORMAT = "DECLARATION_FORMAT"
+    FIELD_REQUIRED = "FIELD_REQUIRED"
+    FIELD_NOT_REQUIRED = "FIELD_NOT_REQUIRED"
+    RANGE = "RANGE"
+    COMPARISON = "COMPARISON"
+
+
+class ApplicabilityOutcome(StrEnum):
+    """Result of deterministic applicability evaluation for one requirement.
+
+    UNKNOWN means the applicability inputs (category, import status, …) were
+    themselves unavailable — the requirement then goes to REVIEW_REQUIRED,
+    never to silent skip or silent violation.
+    """
+
+    YES = "YES"
+    NO = "NO"
+    UNKNOWN = "UNKNOWN"
+
+
+class ComplianceErrorCode(StrEnum):
+    """Machine-readable error codes for the compliance engine (Prompt 6).
+
+    These codes are the ONLY failure vocabulary of the engine. An engine
+    failure is NEVER converted into COMPLIANT — it surfaces as FAILED /
+    NOT_EVALUATED with one of these codes attached.
+    """
+
+    REGULATORY_DATA_UNAVAILABLE = "REGULATORY_DATA_UNAVAILABLE"
+    NO_APPLICABLE_VERSION = "NO_APPLICABLE_VERSION"
+    NO_APPLICABLE_REQUIREMENT = "NO_APPLICABLE_REQUIREMENT"
+    INSUFFICIENT_EVIDENCE = "INSUFFICIENT_EVIDENCE"
+    AMBIGUOUS_VALUE = "AMBIGUOUS_VALUE"
+    RULE_EXECUTION_FAILED = "RULE_EXECUTION_FAILED"
+    INVALID_REGULATORY_DATA = "INVALID_REGULATORY_DATA"
+
+
+class AbsenceReason(StrEnum):
+    """Why a field is missing — FIELD_NOT_FOUND is never assumed to be absent.
+
+    Phase 5 of the engine spec: missing OCR must never be automatically
+    converted into legal non-compliance. A field with no evidence is
+    FIELD_NOT_FOUND; only explicit structured evidence that the declaration
+    is absent can produce FIELD_CONFIRMED_ABSENT.
+    """
+
+    FIELD_NOT_FOUND = "FIELD_NOT_FOUND"
+    FIELD_CONFIRMED_ABSENT = "FIELD_CONFIRMED_ABSENT"

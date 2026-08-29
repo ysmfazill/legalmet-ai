@@ -86,6 +86,12 @@ class Settings(BaseSettings):
     # regulatory layer purely via import/API.
     seed_regulatory_data: bool = True
 
+    # --- Compliance engine (Prompt 6) ---------------------------------------
+    # Idempotent seed of deterministic rule configurations bound to the real
+    # (non-demo) Prompt 5 requirements. Rules are never invented — they encode
+    # how to check a requirement that already exists.
+    seed_compliance_rules: bool = True
+
     # --- Logging -----------------------------------------------------------
     log_level: str = "INFO"
     log_json: bool = False

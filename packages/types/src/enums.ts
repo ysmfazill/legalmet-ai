@@ -289,6 +289,80 @@ export const CANDIDATE_MAPPING_STATUSES = [
 ] as const;
 export type CandidateMappingStatus = (typeof CANDIDATE_MAPPING_STATUSES)[number];
 
+// --- Deterministic compliance engine (Prompt 6) -----------------------------
+// The engine converts (detected field + applicable requirement + deterministic
+// rule) into a finding. Findings are SYSTEM decision-support outputs — not, by
+// themselves, legal enforcement determinations. The inspector remains
+// responsible for the final enforcement decision.
+
+/** Lifecycle of one compliance-engine evaluation run over an inspection. */
+export const EVALUATION_STATUSES = [
+  'NOT_EVALUATED',
+  'EVALUATING',
+  'COMPLETED',
+  'PARTIAL',
+  'REVIEW_REQUIRED',
+  'FAILED',
+  'NO_APPLICABLE_REQUIREMENT',
+] as const;
+export type EvaluationStatus = (typeof EVALUATION_STATUSES)[number];
+
+/**
+ * Status of one engine finding. COMPLIANT / NON_COMPLIANT only ever appear
+ * with adequate valid evidence AND positive applicability — anything less is
+ * an honest REVIEW_REQUIRED / NOT_DETECTED / NOT_EVALUATED, never a guess.
+ */
+export const ENGINE_FINDING_STATUSES = [
+  'COMPLIANT',
+  'NON_COMPLIANT',
+  'REVIEW_REQUIRED',
+  'NOT_DETECTED',
+  'NOT_APPLICABLE',
+  'NOT_EVALUATED',
+] as const;
+export type EngineFindingStatus = (typeof ENGINE_FINDING_STATUSES)[number];
+
+/**
+ * Triage label assigned deterministically from the finding status. It is a
+ * review-prioritisation hint only — never a legal penalty.
+ */
+export const FINDING_SEVERITIES = ['INFO', 'MINOR', 'MAJOR', 'CRITICAL', 'UNKNOWN'] as const;
+export type FindingSeverity = (typeof FINDING_SEVERITIES)[number];
+
+/** Deterministic applicability resolution outcome (never guessed). */
+export const APPLICABILITY_OUTCOMES = ['YES', 'NO', 'UNKNOWN'] as const;
+export type ApplicabilityOutcome = (typeof APPLICABILITY_OUTCOMES)[number];
+
+/** The closed rule-type vocabulary of the deterministic engine (no LLM). */
+export const DETERMINISTIC_RULE_TYPES = [
+  'PRESENCE',
+  'TEXT_MATCH',
+  'TEXT_PATTERN',
+  'NUMERIC_VALUE',
+  'UNIT_MATCH',
+  'MRP_FORMAT',
+  'DATE_FORMAT',
+  'CONTACT_FORMAT',
+  'DECLARATION_FORMAT',
+  'FIELD_REQUIRED',
+  'FIELD_NOT_REQUIRED',
+  'RANGE',
+  'COMPARISON',
+] as const;
+export type DeterministicRuleType = (typeof DETERMINISTIC_RULE_TYPES)[number];
+
+/** Structured engine error codes (a failure is never COMPLIANT). */
+export const COMPLIANCE_ERROR_CODES = [
+  'REGULATORY_DATA_UNAVAILABLE',
+  'NO_APPLICABLE_VERSION',
+  'NO_APPLICABLE_REQUIREMENT',
+  'INSUFFICIENT_EVIDENCE',
+  'AMBIGUOUS_VALUE',
+  'RULE_EXECUTION_FAILED',
+  'INVALID_REGULATORY_DATA',
+] as const;
+export type ComplianceErrorCode = (typeof COMPLIANCE_ERROR_CODES)[number];
+
 // --- Audit events (Prompt 5 additions) ---------------------------------------
 
 export const REGULATORY_AUDIT_EVENT_TYPES = [

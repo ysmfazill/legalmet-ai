@@ -7,11 +7,15 @@
  * properties defined in `apps/web/src/styles/tokens.css`.
  */
 import type {
+  ApplicabilityOutcome,
   CandidateMappingStatus,
   ComplianceStatus,
   DocumentType,
+  EngineFindingStatus,
+  EvaluationStatus,
   ExtractionStatus,
   FieldType,
+  FindingSeverity,
   ImageProcessingStatus,
   ImageQualityGrade,
   ImageQualityStatus,
@@ -281,5 +285,107 @@ export const CANDIDATE_MAPPING_META: Record<CandidateMappingStatus, EnumMeta> = 
     label: 'Awaiting Compliance Engine',
     tone: 'neutral',
     description: 'No compliance conclusion exists for this field yet.',
+  },
+};
+
+// --- Deterministic compliance engine (Prompt 6) --------------------------------
+// Engine findings are SYSTEM decision-support outputs. None of the labels below
+// is an enforcement determination — the inspector remains responsible for the
+// final decision, and the UI must always say so.
+
+export const ENGINE_FINDING_STATUS_META: Record<EngineFindingStatus, EnumMeta> = {
+  COMPLIANT: {
+    label: 'Compliant',
+    tone: 'positive',
+    description:
+      'Every deterministic rule passed with adequate valid evidence. A system finding — not an enforcement determination.',
+  },
+  NON_COMPLIANT: {
+    label: 'Non-Compliant',
+    tone: 'critical',
+    description:
+      'At least one deterministic rule failed against the detected value. Requires inspector review before any enforcement decision.',
+  },
+  REVIEW_REQUIRED: {
+    label: 'Review Required',
+    tone: 'warning',
+    description:
+      'Evidence was insufficient or ambiguous — the engine does not guess. An inspector must decide.',
+  },
+  NOT_DETECTED: {
+    label: 'Not Detected',
+    tone: 'warning',
+    description:
+      'No field of this type was perceived. This is NOT evidence that the declaration is absent from the package.',
+  },
+  NOT_APPLICABLE: {
+    label: 'Not Applicable',
+    tone: 'neutral',
+    description: 'The requirement does not apply to this package (recorded with its reason).',
+  },
+  NOT_EVALUATED: {
+    label: 'Not Evaluated',
+    tone: 'neutral',
+    description: 'The engine has no deterministic check configured for this requirement.',
+  },
+};
+
+export const EVALUATION_STATUS_META: Record<EvaluationStatus, EnumMeta> = {
+  NOT_EVALUATED: {
+    label: 'Not Evaluated',
+    tone: 'neutral',
+    description: 'No compliance evaluation has been run for this inspection yet.',
+  },
+  EVALUATING: {
+    label: 'Evaluating…',
+    tone: 'info',
+    description: 'The deterministic engine is running.',
+  },
+  COMPLETED: {
+    label: 'Completed',
+    tone: 'positive',
+    description: 'Every applicable requirement was evaluated deterministically.',
+  },
+  PARTIAL: {
+    label: 'Partial',
+    tone: 'warning',
+    description: 'Some requirements could not be evaluated (no configured rule).',
+  },
+  REVIEW_REQUIRED: {
+    label: 'Review Required',
+    tone: 'warning',
+    description: 'One or more findings need an inspector decision.',
+  },
+  FAILED: {
+    label: 'Failed',
+    tone: 'critical',
+    description: 'The engine could not run (structural error recorded with a code). A failure is never compliance.',
+  },
+  NO_APPLICABLE_REQUIREMENT: {
+    label: 'No Applicable Requirement',
+    tone: 'neutral',
+    description: 'No regulatory requirement applies to this inspection.',
+  },
+};
+
+export const FINDING_SEVERITY_META: Record<FindingSeverity, EnumMeta> = {
+  INFO: { label: 'Info', tone: 'neutral' },
+  MINOR: { label: 'Minor', tone: 'info' },
+  MAJOR: { label: 'Major', tone: 'warning' },
+  CRITICAL: { label: 'Critical', tone: 'critical' },
+  UNKNOWN: { label: 'Unknown', tone: 'neutral' },
+};
+
+export const APPLICABILITY_OUTCOME_META: Record<ApplicabilityOutcome, EnumMeta> = {
+  YES: { label: 'Applies', tone: 'info', description: 'The requirement applies to this package.' },
+  NO: {
+    label: 'Does Not Apply',
+    tone: 'neutral',
+    description: 'Deterministically resolved as not applicable (reason recorded).',
+  },
+  UNKNOWN: {
+    label: 'Unknown',
+    tone: 'warning',
+    description: 'Applicability could not be determined — never guessed.',
   },
 };

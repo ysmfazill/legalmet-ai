@@ -23,12 +23,16 @@ import type {
   CaptureSource,
   CreateInspectionRequest,
   CreatePackageRequest,
+  EngineFinding,
+  EngineInfo,
   ExtractedField,
   FieldCandidates,
   HealthResponse,
   ImageRegion,
   ImageType,
   Inspection,
+  InspectionComplianceStatus,
+  ComplianceEvaluation,
   OcrTextResult,
   Package,
   PackageImage,
@@ -423,6 +427,48 @@ export const api = {
     request<FieldCandidates>(
       `/inspections/${inspectionId}/regulatory-candidates` + querySuffix({ on }),
     ),
+
+  // --- Deterministic compliance engine (Prompt 6) -----------------------------
+  // Runs the deterministic evaluation over an inspection's perceived evidence
+  // and the regulatory version in force. Findings are SYSTEM decision-support
+  // outputs — every payload carries the boundary note. There is no
+  // approve/reject call here: the inspector's final decision is a later phase.
+
+  /** Run one evaluation — a NEW run each time; history is never overwritten. */
+  evaluateCompliance: (inspectionId: string): Promise<ComplianceEvaluation> =>
+    request<{ evaluation: ComplianceEvaluation }>(
+      `/inspections/${inspectionId}/evaluate`,
+      { method: 'POST', body: {} },
+    ).then((r) => r.evaluation),
+
+  /** Latest evaluation for an inspection, or an explicit NOT_EVALUATED. */
+  getComplianceStatus: (inspectionId: string): Promise<InspectionComplianceStatus> =>
+    request<InspectionComplianceStatus>(`/inspections/${inspectionId}/compliance`),
+
+  /** Findings of the LATEST evaluation (engine vocabulary, not the demo flow). */
+  listEngineFindings: (inspectionId: string): Promise<EngineFinding[]> =>
+    request<EngineFinding[]>(`/inspections/${inspectionId}/compliance/findings`),
+
+  /** One historical evaluation — reproducible, byte-identical to its run. */
+  getComplianceEvaluation: (evaluationId: string): Promise<ComplianceEvaluation> =>
+    request<ComplianceEvaluation>(`/compliance/evaluations/${evaluationId}`),
+
+  /** One finding with its deterministic explanation and provenance snapshot. */
+  getEngineFinding: (findingId: string): Promise<EngineFinding> =>
+    request<EngineFinding>(`/compliance/findings/${findingId}`),
+
+  /** Engine metadata: version, rule-type vocabulary, no-LLM contract. */
+  getEngineInfo: (): Promise<EngineInfo> => request<EngineInfo>('/compliance/engine'),
+
+  /**
+   * Read-only review queue: system findings whose inspector decision is
+   * pending. COMPLIANT / NOT_APPLICABLE findings are never queued.
+   */
+  listComplianceReviewQueue: (params: {
+    page?: number;
+    pageSize?: number;
+  } = {}): Promise<Paginated<EngineFinding>> =>
+    request<Paginated<EngineFinding>>('/compliance/review/queue' + querySuffix(params)),
 };
 
 /** Query string for GET params (empty values dropped), '' when none. */

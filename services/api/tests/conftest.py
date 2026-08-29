@@ -110,6 +110,11 @@ def _schema_and_seed(
         from app.db.regulatory_seed import seed_regulatory_data
 
         seed_regulatory_data(db)
+        # Prompt 6: deterministic compliance rules bound to the real (non-demo)
+        # requirements. Mirrors the production lifespan.
+        from app.services.compliance.seed_rules import seed_compliance_rules
+
+        seed_compliance_rules(db)
     finally:
         db.close()
 

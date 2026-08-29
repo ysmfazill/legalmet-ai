@@ -8,6 +8,17 @@ from app.schemas.analytics import (
 )
 from app.schemas.audit import AuditEventOut, ModelVersionOut
 from app.schemas.common import HealthResponse, Message, Paginated
+from app.schemas.compliance import (
+    ComplianceErrorOut,
+    ComplianceEvaluationOut,
+    ComplianceRuleOut,
+    ComplianceStatusOut,
+    EngineFindingOut,
+    EngineInfoOut,
+    EvaluateRequest,
+    EvaluateResponse,
+    RuleTypeOut,
+)
 from app.schemas.evidence_graph import EvidenceGraph, EvidenceGraphEdge, EvidenceGraphNode
 from app.schemas.finding import EvidenceOut, FindingOut, ReviewActionOut, ReviewFindingRequest
 from app.schemas.image import (
@@ -53,6 +64,10 @@ __all__ = [
     "BatchStats",
     "BoundingBox",
     "CandidateRequirementOut",
+    "ComplianceErrorOut",
+    "ComplianceEvaluationOut",
+    "ComplianceRuleOut",
+    "ComplianceStatusOut",
     "CreateInspectionRequest",
     "DashboardSummary",
     "EvidenceGraph",
@@ -62,6 +77,10 @@ __all__ = [
     "ExtractedFieldOut",
     "FieldCandidateOut",
     "FieldCandidatesOut",
+    "EngineFindingOut",
+    "EngineInfoOut",
+    "EvaluateRequest",
+    "EvaluateResponse",
     "FindingCounts",
     "FindingOut",
     "HealthResponse",
@@ -91,6 +110,7 @@ __all__ = [
     "ReviewFindingRequest",
     "RuleApplicabilityOut",
     "RuleOut",
+    "RuleTypeOut",
     "UserOut",
     "VersionSelectionOut",
 ]

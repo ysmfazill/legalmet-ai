@@ -63,12 +63,24 @@ legalmet-ai/
   fabricated, nothing dressed up as official law) and a loud-failing
   data-quality gate. Perceived fields map to *candidate* requirements only;
   **no compliance verdict exists in this layer**.
+- **Deterministic compliance engine (Prompt 6):** (detected field + applicable
+  requirement + deterministic rule) → evaluation → finding, each with
+  detected/expected values, a seven-question explanation, a frozen regulatory
+  provenance snapshot and evidence references. No LLM anywhere; decimal-safe
+  numerics; missing OCR is `NOT_DETECTED`, never a violation; insufficient
+  evidence is `REVIEW_REQUIRED`, never a guess; summaries are counts only —
+  no fake percentages. Evaluations are immutable history; the review queue is
+  read-only. **Compliance findings are system-generated decision-support
+  outputs — they are not, by themselves, legal enforcement determinations;
+  the inspector remains responsible for the final decision.**
 
 Perception docs: [`docs/perception.md`](docs/perception.md) (pipeline),
 [`docs/ocr.md`](docs/ocr.md) (engine setup, languages, licences),
 [`docs/vision.md`](docs/vision.md) (region detection, licences).
 Regulatory docs: [`docs/regulatory.md`](docs/regulatory.md) (provenance
 hierarchy, versioning, seed honesty contract, candidate mapping).
+Compliance-engine docs: [`docs/compliance.md`](docs/compliance.md)
+(pipeline, rule vocabulary, explainability, legal-safety invariants).
 
 See [`docs/architecture.md`](docs/architecture.md) for the full design.
 

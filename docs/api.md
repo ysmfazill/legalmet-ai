@@ -400,3 +400,110 @@ force at the context date (default: the inspection's creation date):
 ```
 
 No compliance verdict exists on this route — see [regulatory.md](./regulatory.md) §5.
+
+---
+
+# Part 4 — Deterministic Compliance Engine API (Prompt 6)
+
+> **Boundary statement:** compliance findings are system-generated
+> decision-support outputs. **They are not, by themselves, legal enforcement
+> determinations.** The deterministic engine never claims that an AI model
+> determines legality — the inspector remains responsible for the final
+> enforcement decision.
+
+Sources: `services/api/app/api/routers/compliance.py`,
+`services/api/app/services/compliance/service.py`. Full design notes:
+[compliance.md](./compliance.md).
+
+All routes require a bearer token. Reads are available to any authenticated
+user. The **only** mutation is `POST /inspections/{id}/evaluate` — restricted
+to INSPECTOR / SUPERVISOR / ADMIN (it writes audit events). It creates a NEW
+evaluation row every time; historical evaluations are never overwritten.
+
+## 1. Endpoints
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| POST | `/inspections/{id}/evaluate` | **INSPECTOR+, audited**; body optional (nothing is tunable — the run is fully determined by the inspection's evidence and the version in force) |
+| GET | `/inspections/{id}/compliance` | latest evaluation, or `status=NOT_EVALUATED` + `evaluation=null` when none has run |
+| GET | `/inspections/{id}/compliance/findings` | findings of the LATEST evaluation (engine vocabulary) |
+| GET | `/compliance/evaluations/{id}` | one historical evaluation, findings included — reproducible |
+| GET | `/compliance/findings/{id}` | one finding with explanation, rule trace and frozen provenance |
+| GET | `/compliance/engine` | engine version, the 13-type rule vocabulary, `usesLlm: false` |
+| GET | `/compliance/review/queue` | paginated (page/pageSize) findings awaiting an inspector decision |
+
+Path note: `GET /inspections/{id}/findings` (no `/compliance` segment) is the
+Prompt 1 demo endpoint and is unchanged — engine findings live under the
+`/compliance` namespace so the two vocabularies never mix.
+
+## 2. Evaluation payload
+
+```json
+{
+  "evaluation": {
+    "id": "…", "inspectionId": "…",
+    "regulatoryVersionId": "…",            // version in force at context date
+    "status": "REVIEW_REQUIRED",           // NOT_EVALUATED | EVALUATING | COMPLETED | PARTIAL | FAILED | NO_APPLICABLE_REQUIREMENT
+    "engineVersion": "1.0.0",
+    "contextDate": "2026-06-01T00:00:00Z",
+    "summary": {                            // COUNTS ONLY — never a percentage
+      "totalFindings": 7,
+      "byStatus": { "COMPLIANT": 5, "REVIEW_REQUIRED": 1, "NOT_DETECTED": 1 },
+      "reviewQueueCount": 2,
+      "requirementsEvaluated": 7
+    },
+    "error": null,                          // {code, message} when FAILED
+    "findings": [ … ]
+  },
+  "boundaryNote": "System finding — inspector decision pending. …"
+}
+```
+
+## 3. Finding payload
+
+```json
+{
+  "id": "…", "evaluationId": "…", "inspectionId": "…", "requirementId": "…",
+  "extractedFieldId": "…", "evidenceRegionId": "…", "imageId": "…",
+  "status": "NON_COMPLIANT",                // COMPLIANT | NON_COMPLIANT | REVIEW_REQUIRED | NOT_DETECTED | NOT_APPLICABLE | NOT_EVALUATED
+  "severity": "MAJOR",                      // triage label, not a legal penalty
+  "applicability": "YES",                   // YES | NO | UNKNOWN
+  "detectedValue": "MRP ₹ 60.00",
+  "expectedValue": "MRP ₹__ (inclusive of all taxes)",
+  "explanation": "…seven-question deterministic explanation…",
+  "provenance": {                           // frozen at evaluation time
+    "requirementCode": "LM-PC-2011-6.1(e)",
+    "versionId": "…", "versionLabel": "as amended through G.S.R. 629(E)/2017 (consolidated)",
+    "documentTitle": "…", "sourceName": "…", "sourceVerificationStatus": "UNVERIFIED"
+  },
+  "detail": {
+    "rules": [                              // per-rule trace
+      { "ruleCode": "LM-PC-2011-6.1(e):MRP_FORMAT", "ruleType": "MRP_FORMAT",
+        "passed": false, "reason": "…", "expected": "…" }
+    ],
+    "evidenceFieldIds": ["…"], "searchedRunIds": ["…"],
+    "fieldKey": "MRP", "evidenceCount": 1
+  },
+  "boundaryNote": "System finding — inspector decision pending. …"
+}
+```
+
+`NOT_DETECTED` findings carry `detail.absence: "FIELD_NOT_FOUND"` — missing
+OCR is never legal non-compliance and never evidence the declaration is
+absent from the package.
+
+## 4. Review queue
+
+`GET /compliance/review/queue` returns the standard paginated envelope over
+findings with status `REVIEW_REQUIRED`, `NON_COMPLIANT`, `NOT_DETECTED` or
+`NOT_EVALUATED` from each inspection's **latest** evaluation only. The queue
+is read-only: no decision/approval/verdict fields exist on any item —
+recording the inspector's final enforcement decision is a later phase.
+
+## 5. Audit events
+
+`COMPLIANCE_EVALUATION_STARTED` (with engine version + context date),
+`COMPLIANCE_EVALUATION_COMPLETED` (status + finding count) or
+`COMPLIANCE_EVALUATION_FAILED` (error code + message), and
+`COMPLIANCE_FINDING_CREATED` per finding (finding id + status + requirement
+code).

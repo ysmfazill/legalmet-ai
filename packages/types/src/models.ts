@@ -9,13 +9,19 @@
  * "DEMO DATA — NOT LEGAL ADVICE" marker. It must never be silently dropped.
  */
 import type {
+  ApplicabilityOutcome,
   AuditEventType,
   CaptureSource,
+  ComplianceErrorCode,
   ComplianceStatus,
+  DeterministicRuleType,
   DocumentType,
+  EngineFindingStatus,
+  EvaluationStatus,
   EvidenceType,
   ExtractionStatus,
   FieldType,
+  FindingSeverity,
   ImageProcessingStatus,
   ImageQualityGrade,
   ImageQualityStatus,
@@ -429,6 +435,132 @@ export interface RuleApplicability {
   ruleId: string;
   productCategory: string;
   conditionExpression: Json;
+  isDemo: boolean;
+  createdAt: string;
+}
+
+// --- Deterministic compliance engine (Prompt 6) -------------------------------
+// One evaluation run + one finding per (requirement, detected field). These are
+// SYSTEM decision-support outputs: the boundary note travels with every payload
+// so no consumer can mistake a finding for a legal enforcement determination.
+
+/** Mandated boundary statement attached to every compliance-engine payload. */
+export const FINDING_BOUNDARY_NOTE =
+  'System finding — inspector decision pending. Compliance findings are ' +
+  'system-generated decision-support outputs. They are not, by themselves, ' +
+  'legal enforcement determinations.';
+
+/** One immutable evaluation run (history is never overwritten). */
+export interface ComplianceEvaluation {
+  id: string;
+  inspectionId: string;
+  imageId?: string | null;
+  regulatoryVersionId?: string | null;
+  status: EvaluationStatus;
+  engineVersion: string;
+  contextDate: string;
+  /** COUNTS ONLY — never a percentage or fake confidence score. */
+  summary: {
+    totalFindings: number;
+    byStatus: Record<string, number>;
+    reviewQueueCount: number;
+    requirementsEvaluated: number;
+  };
+  error?: { code: ComplianceErrorCode; message: string } | null;
+  startedAt: string;
+  completedAt?: string | null;
+  actorId?: string | null;
+  createdAt: string;
+  findings?: EngineFinding[];
+  boundaryNote: string;
+}
+
+/** Frozen provenance snapshot recorded on each finding at evaluation time. */
+export interface FindingProvenance {
+  requirementCode?: string;
+  requirementTitle?: string;
+  reference?: string | null;
+  versionId?: string;
+  versionLabel?: string;
+  effectiveFrom?: string | null;
+  effectiveUntil?: string | null;
+  documentTitle?: string;
+  documentIdentifier?: string | null;
+  sourceName?: string;
+  sourceVerificationStatus?: string;
+}
+
+/** Per-rule outcome entries recorded on a finding (the deterministic trace). */
+export interface EngineRuleOutcome {
+  ruleCode: string;
+  ruleType: string;
+  passed: boolean | null;
+  reason: string;
+  expected?: string;
+  errorCode?: string;
+}
+
+/** Deterministic evaluation trace stored on a finding. */
+export interface EngineFindingDetail {
+  rules?: EngineRuleOutcome[];
+  evidenceFieldIds?: string[];
+  searchedRunIds?: string[];
+  fieldKey?: string | null;
+  evidenceCount?: number;
+  absence?: 'FIELD_NOT_FOUND' | 'FIELD_CONFIRMED_ABSENT';
+  errorCode?: string;
+  message?: string;
+}
+
+/** One engine finding: requirement + evidence + deterministic conclusion. */
+export interface EngineFinding {
+  id: string;
+  evaluationId: string;
+  inspectionId: string;
+  requirementId: string;
+  ruleId?: string | null;
+  extractedFieldId?: string | null;
+  evidenceRegionId?: string | null;
+  imageId?: string | null;
+  status: EngineFindingStatus;
+  severity: FindingSeverity;
+  applicability: ApplicabilityOutcome;
+  detectedValue?: string | null;
+  expectedValue?: string | null;
+  /** Deterministic explanation answering the seven transparency questions. */
+  explanation: string;
+  provenance: FindingProvenance;
+  detail: EngineFindingDetail;
+  createdAt: string;
+  boundaryNote: string;
+}
+
+/** GET /compliance/engine — vocabulary + the no-LLM contract. */
+export interface EngineInfo {
+  engineVersion: string;
+  ruleTypes: Array<{ ruleType: DeterministicRuleType; description: string }>;
+  usesLlm: false;
+  boundaryNote: string;
+}
+
+/** GET /inspections/{id}/compliance — latest evaluation or explicit absence. */
+export interface InspectionComplianceStatus {
+  inspectionId: string;
+  status: EvaluationStatus;
+  evaluation?: ComplianceEvaluation | null;
+  boundaryNote: string;
+}
+
+/** A deterministic rule configuration bound to a real requirement. */
+export interface ComplianceRuleConfig {
+  id: string;
+  requirementId: string;
+  ruleCode: string;
+  ruleType: DeterministicRuleType;
+  ruleVersion: number;
+  configuration: Record<string, Json>;
+  description?: string | null;
+  active: boolean;
   isDemo: boolean;
   createdAt: string;
 }

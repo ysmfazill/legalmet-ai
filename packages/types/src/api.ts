@@ -8,12 +8,17 @@
  */
 import type {
   AuditEvent,
+  ComplianceEvaluation,
   ComplianceFinding,
+  ComplianceRuleConfig,
   DashboardSummary,
+  EngineFinding,
+  EngineInfo,
   Evidence,
   EvidenceGraph,
   FieldCandidates,
   Inspection,
+  InspectionComplianceStatus,
   Package,
   PackageImage,
   Product,
@@ -154,6 +159,20 @@ export type RegulatoryRequirementListResponse = Paginated<RegulatoryRequirement>
 export type RegulatoryRequirementResponse = RegulatoryRequirementDetail;
 export type VersionSelectionResponse = VersionSelection;
 export type FieldCandidatesResponse = FieldCandidates;
+
+// --- Deterministic compliance engine (Prompt 6) --------------------------------
+
+export type EvaluateInspectionResponse = {
+  evaluation: ComplianceEvaluation;
+  boundaryNote: string;
+};
+export type ComplianceStatusResponse = InspectionComplianceStatus;
+export type EngineFindingsListResponse = EngineFinding[];
+export type ComplianceEvaluationResponse = ComplianceEvaluation;
+export type EngineFindingResponse = EngineFinding;
+export type EngineInfoResponse = EngineInfo;
+export type ComplianceReviewQueueResponse = Paginated<EngineFinding>;
+export type ComplianceRuleListResponse = ComplianceRuleConfig[];
 
 export type AuditListResponse = { items: AuditEvent[] };
 export type DashboardResponse = DashboardSummary;

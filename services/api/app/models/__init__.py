@@ -6,6 +6,11 @@ Evidence Graph dependency direction.
 """
 from app.models.audit import AuditEvent
 from app.models.batch import BatchInspection
+from app.models.compliance import (
+    ComplianceEvaluation,
+    ComplianceRule,
+    EvaluationFinding,
+)
 from app.models.extraction import ExtractedField
 from app.models.finding import ComplianceFinding, Evidence
 from app.models.image import Image, ImageRegion
@@ -26,7 +31,10 @@ from app.models.user import User
 __all__ = [
     "AuditEvent",
     "BatchInspection",
+    "ComplianceEvaluation",
     "ComplianceFinding",
+    "ComplianceRule",
+    "EvaluationFinding",
     "Evidence",
     "ExtractedField",
     "Image",

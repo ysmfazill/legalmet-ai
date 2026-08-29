@@ -12,6 +12,7 @@ from app.api.routers import (
     audit,
     auth,
     batch,
+    compliance,
     findings,
     health,
     images,
@@ -29,6 +30,7 @@ api_router.include_router(inspections.router)
 api_router.include_router(images.router)
 api_router.include_router(findings.router)
 api_router.include_router(review.router)
+api_router.include_router(compliance.router)
 api_router.include_router(regulations.router)
 api_router.include_router(audit.router)
 api_router.include_router(analytics.router)

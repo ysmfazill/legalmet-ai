@@ -1,7 +1,10 @@
 import type { ReactNode } from 'react';
 
 import {
+  APPLICABILITY_OUTCOME_META,
   COMPLIANCE_STATUS_META,
+  ENGINE_FINDING_STATUS_META,
+  EVALUATION_STATUS_META,
   EXTRACTION_STATUS_META,
   IMAGE_PROCESSING_STATUS_META,
   IMAGE_QUALITY_GRADE_META,
@@ -14,7 +17,10 @@ import {
 } from '@legalmet/config';
 import type { Tone } from '@legalmet/config';
 import type {
+  ApplicabilityOutcome,
   ComplianceStatus,
+  EngineFindingStatus,
+  EvaluationStatus,
   ExtractionStatus,
   ImageProcessingStatus,
   ImageQualityGrade,
@@ -171,6 +177,40 @@ export function VerificationBadge({ status }: { status: VerificationStatus }) {
       dot
       title={meta.description ?? 'Source verification state (not OCR confidence)'}
     >
+      {meta.label}
+    </Badge>
+  );
+}
+
+/**
+ * Deterministic ENGINE finding status (Prompt 6). A system decision-support
+ * output — the badge's tooltip reiterates that this is not an enforcement
+ * determination.
+ */
+export function EngineFindingBadge({ status }: { status: EngineFindingStatus }) {
+  const meta = ENGINE_FINDING_STATUS_META[status];
+  return (
+    <Badge tone={meta.tone} dot title={meta.description}>
+      {meta.label}
+    </Badge>
+  );
+}
+
+/** Lifecycle status of one compliance-engine evaluation run (Prompt 6). */
+export function EvaluationStatusBadge({ status }: { status: EvaluationStatus }) {
+  const meta = EVALUATION_STATUS_META[status];
+  return (
+    <Badge tone={meta.tone} dot title={meta.description}>
+      {meta.label}
+    </Badge>
+  );
+}
+
+/** Deterministic applicability outcome for one finding (Prompt 6). */
+export function ApplicabilityBadge({ outcome }: { outcome: ApplicabilityOutcome }) {
+  const meta = APPLICABILITY_OUTCOME_META[outcome];
+  return (
+    <Badge tone={meta.tone} title={meta.description}>
       {meta.label}
     </Badge>
   );

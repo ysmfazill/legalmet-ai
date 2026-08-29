@@ -22,6 +22,12 @@ import { Icon } from '../components/Icon';
 import { PageHeader } from '../components/PageHeader';
 import { AsyncView, EmptyState } from '../components/states';
 import { useAsync } from '../data/useAsync';
+import {
+  ComplianceControlCard,
+  ComplianceFindingsCard,
+} from '../compliance/CompliancePanel';
+import { FindingExplanationDrawer } from '../compliance/FindingExplanationDrawer';
+import { useCompliance } from '../compliance/useCompliance';
 import { QualityReadout } from '../intake/QualityReadout';
 import { FieldEvidenceDrawer } from '../perception/FieldEvidenceDrawer';
 import {
@@ -138,6 +144,13 @@ function RealInspectionWorkspace({ inspection }: { inspection: Inspection }) {
 
   const perception = usePerception(inspection.id);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
+  const [openFindingId, setOpenFindingId] = useState<string | null>(null);
+
+  const hasRuns = perception.analysis?.hasRuns ?? false;
+
+  const compliance = useCompliance(inspection.id, hasRuns);
+  const openFinding =
+    compliance.findings.find((f) => f.id === openFindingId) ?? null;
 
   const selectedField =
     perception.fields.find((f) => f.id === selectedFieldId) ?? null;
@@ -151,8 +164,6 @@ function RealInspectionWorkspace({ inspection }: { inspection: Inspection }) {
   const selectedRun = selectedField?.processingRunId
     ? perception.runs.find((r) => r.id === selectedField.processingRunId) ?? null
     : null;
-
-  const hasRuns = perception.analysis?.hasRuns ?? false;
 
   return (
     <>
@@ -226,7 +237,7 @@ function RealInspectionWorkspace({ inspection }: { inspection: Inspection }) {
             ))}
           </div>
 
-          {/* RIGHT — the perception panel (what was perceived, never a verdict) */}
+          {/* RIGHT — the perception + compliance panels */}
           <div className="stack">
             <PerceptionControlCard
               analysis={perception.analysis}
@@ -239,9 +250,10 @@ function RealInspectionWorkspace({ inspection }: { inspection: Inspection }) {
               <div className="demo-note demo-note--block">
                 <Icon name="scale" size={15} />
                 <span>
-                  <strong>Awaiting regulatory evaluation.</strong> Perception lists the declarations
-                  the system detected — it does not decide whether they satisfy the Legal Metrology
-                  (Packaged Commodities) Rules. Regulatory evaluation is a later, separate step.
+                  <strong>Perception ≠ compliance.</strong> The declarations card lists what the
+                  system detected. The deterministic engine below checks each requirement in force
+                  against that evidence — every conclusion is traceable, and the inspector makes the
+                  final decision.
                 </span>
               </div>
             )}
@@ -253,6 +265,27 @@ function RealInspectionWorkspace({ inspection }: { inspection: Inspection }) {
                 setSelectedFieldId((cur) => (cur === field.id ? null : field.id))
               }
             />
+
+            {hasRuns && (
+              <>
+                <ComplianceControlCard
+                  evaluation={compliance.evaluation}
+                  evaluating={compliance.evaluating}
+                  error={compliance.error}
+                  hasEvidence={perception.fields.length > 0}
+                  onEvaluate={() => void compliance.evaluate()}
+                />
+                {compliance.findings.length > 0 && (
+                  <ComplianceFindingsCard
+                    findings={compliance.findings}
+                    selectedFindingId={openFindingId}
+                    onOpen={(finding) =>
+                      setOpenFindingId((cur) => (cur === finding.id ? null : finding.id))
+                    }
+                  />
+                )}
+              </>
+            )}
 
             <PerceptionRunHistoryCard
               runs={perception.runs}
@@ -271,6 +304,13 @@ function RealInspectionWorkspace({ inspection }: { inspection: Inspection }) {
           region={selectedRegion}
           run={selectedRun}
           onClose={() => setSelectedFieldId(null)}
+        />
+      )}
+
+      {openFinding && (
+        <FindingExplanationDrawer
+          finding={openFinding}
+          onClose={() => setOpenFindingId(null)}
         />
       )}
     </>

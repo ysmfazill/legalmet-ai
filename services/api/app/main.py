@@ -58,6 +58,18 @@ async def _lifespan(app: FastAPI):
         finally:
             db.close()
 
+    # Prompt 6: deterministic compliance rules bound to the real regulatory
+    # requirements (idempotent — natural key requirement_id + rule_code). Runs
+    # only against non-demo requirements; nothing is invented here.
+    if settings.seed_compliance_rules:
+        from app.services.compliance.seed_rules import seed_compliance_rules
+
+        db = SessionLocal()
+        try:
+            seed_compliance_rules(db)
+        finally:
+            db.close()
+
     if settings.using_insecure_secret and settings.is_production:
         logger.warning("insecure_secret_in_production")
 
