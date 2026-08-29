@@ -20,6 +20,12 @@ from app.schemas.compliance import (
     RuleTypeOut,
 )
 from app.schemas.evidence_graph import EvidenceGraph, EvidenceGraphEdge, EvidenceGraphNode
+from app.schemas.evidence_trace import (
+    EvidenceGraphOut,
+    EvidenceStrengthInfo,
+    TraceEdge,
+    TraceNode,
+)
 from app.schemas.finding import EvidenceOut, FindingOut, ReviewActionOut, ReviewFindingRequest
 from app.schemas.image import (
     BoundingBox,
@@ -73,7 +79,9 @@ __all__ = [
     "EvidenceGraph",
     "EvidenceGraphEdge",
     "EvidenceGraphNode",
+    "EvidenceGraphOut",
     "EvidenceOut",
+    "EvidenceStrengthInfo",
     "ExtractedFieldOut",
     "FieldCandidateOut",
     "FieldCandidatesOut",
@@ -111,6 +119,8 @@ __all__ = [
     "RuleApplicabilityOut",
     "RuleOut",
     "RuleTypeOut",
+    "TraceEdge",
+    "TraceNode",
     "UserOut",
     "VersionSelectionOut",
 ]

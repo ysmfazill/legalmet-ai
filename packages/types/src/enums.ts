@@ -376,3 +376,60 @@ export const REGULATORY_AUDIT_EVENT_TYPES = [
   'REGULATORY_DATA_SEEDED',
 ] as const;
 export type RegulatoryAuditEventType = (typeof REGULATORY_AUDIT_EVENT_TYPES)[number];
+
+// --- Evidence graph (Prompt 7) -----------------------------------------------
+// The Evidence Graph is a READ-ONLY traceability representation over real
+// persisted records (Prompt 4 perception, Prompt 5 regulatory, Prompt 6
+// compliance, audit). Node ids are `"<TYPE>:<entity-uuid>"` and every edge
+// corresponds to an actual foreign-key / provenance relationship in the
+// database — the graph never invents nodes and never determines compliance.
+
+export const EVIDENCE_GRAPH_NODE_TYPES = [
+  'INSPECTION',
+  'IMAGE',
+  'IMAGE_REGION',
+  'OCR_RESULT',
+  'EXTRACTED_FIELD',
+  'REGULATORY_SOURCE',
+  'REGULATORY_DOCUMENT',
+  'REGULATORY_VERSION',
+  'REQUIREMENT',
+  'RULE',
+  'EVALUATION',
+  'FINDING',
+  'PROCESSING_RUN',
+  'AUDIT_EVENT',
+] as const;
+export type EvidenceGraphNodeKind = (typeof EVIDENCE_GRAPH_NODE_TYPES)[number];
+
+export const EVIDENCE_GRAPH_EDGE_TYPES = [
+  'INSPECTION_CONTAINS_IMAGE',
+  'INSPECTION_HAS_EVALUATION',
+  'IMAGE_HAS_REGION',
+  'IMAGE_HAS_OCR_RESULT',
+  'REGION_HAS_OCR_RESULT',
+  'OCR_SUPPORTS_FIELD',
+  'REGION_SUPPORTS_FIELD',
+  'PROCESSING_RUN_PROCESSED_IMAGE',
+  'PROCESSING_RUN_PRODUCED_REGION',
+  'PROCESSING_RUN_PRODUCED_OCR',
+  'FIELD_EVALUATED_AGAINST_REQUIREMENT',
+  'REQUIREMENT_EVALUATED_BY_RULE',
+  'RULE_PRODUCED_FINDING',
+  'FINDING_BELONGS_TO_EVALUATION',
+  'EVALUATION_USES_REGULATORY_VERSION',
+  'REQUIREMENT_BELONGS_TO_VERSION',
+  'VERSION_ORIGINATES_FROM_DOCUMENT',
+  'DOCUMENT_HAS_SOURCE',
+  'FINDING_SUPPORTED_BY_EVIDENCE',
+  'AUDIT_RECORDS_ACTION',
+] as const;
+export type EvidenceGraphEdgeKind = (typeof EVIDENCE_GRAPH_EDGE_TYPES)[number];
+
+/**
+ * Traceability strength of the evidence behind a finding — a signal about the
+ * CHAIN, never a compliance verdict. MISSING evidence is never converted into
+ * non-compliance by the graph; it is reported as MISSING.
+ */
+export const EVIDENCE_STRENGTHS = ['DIRECT', 'DERIVED', 'AMBIGUOUS', 'MISSING'] as const;
+export type EvidenceStrength = (typeof EVIDENCE_STRENGTHS)[number];

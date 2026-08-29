@@ -21,6 +21,8 @@ import { api } from '../api/client';
 import { ConfidenceMeter, ExtractionStatusBadge, VerificationBadge } from '../components/Badge';
 import { Drawer } from '../components/Drawer';
 import { Icon } from '../components/Icon';
+import { EvidenceTracePanel } from '../evidence/EvidenceTracePanel';
+import { evidenceLoaders } from '../evidence/useEvidenceGraph';
 import { useAsync } from '../data/useAsync';
 import { formatDateTime, formatDurationMs } from '../lib/format';
 
@@ -212,6 +214,21 @@ export function FieldEvidenceDrawer({
             </p>
           )}
         </section>
+
+        {inspectionId && (
+          <section className="stack stack--sm">
+            <div className="eyebrow">Reverse trace (evidence graph)</div>
+            <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
+              Every finding that used this field as evidence, traced back through the requirement,
+              the version in force and the publishing source — the reverse direction of the
+              compliance chain.
+            </p>
+            <EvidenceTracePanel
+              loader={evidenceLoaders.field(field.id)}
+              inspectionId={inspectionId}
+            />
+          </section>
+        )}
       </div>
     </Drawer>
   );

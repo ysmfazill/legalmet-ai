@@ -10,6 +10,7 @@
  * final enforcement decision is a later phase, and the inspector remains
  * responsible for it.
  */
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import type { EngineFinding } from '@legalmet/types';
@@ -19,12 +20,16 @@ import { EngineFindingBadge } from '../components/Badge';
 import { Card, CardBody, CardHead } from '../components/Card';
 import type { Column } from '../components/DataTable';
 import { DataTable } from '../components/DataTable';
+import { Drawer } from '../components/Drawer';
+import { EvidenceTracePanel } from '../evidence/EvidenceTracePanel';
+import { evidenceLoaders } from '../evidence/useEvidenceGraph';
 import { EmptyState } from '../components/states';
 import { useAsync } from '../data/useAsync';
 import { formatDateTime } from '../lib/format';
 
 export function EngineReviewQueueSection() {
   const navigate = useNavigate();
+  const [traceFinding, setTraceFinding] = useState<EngineFinding | null>(null);
   const query = useAsync(
     () => api.listComplianceReviewQueue({ page: 1, pageSize: 100 }),
     [],
@@ -108,6 +113,23 @@ export function EngineReviewQueueSection() {
         </span>
       ),
     },
+    {
+      key: 'trace',
+      header: '',
+      render: (f) => (
+        <button
+          type="button"
+          className="btn btn--ghost btn--sm"
+          title="Open the evidence-graph trace for this finding"
+          onClick={(e) => {
+            e.stopPropagation();
+            setTraceFinding(f);
+          }}
+        >
+          Trace
+        </button>
+      ),
+    },
   ];
 
   return (
@@ -143,6 +165,20 @@ export function EngineReviewQueueSection() {
         system-generated decision-support outputs; they are not, by themselves, legal enforcement
         determinations.
       </p>
+
+      {traceFinding && (
+        <Drawer
+          wide
+          title={traceFinding.provenance?.requirementCode ?? 'Finding trace'}
+          subtitle="Evidence graph — read-only traceability, not a compliance determination"
+          onClose={() => setTraceFinding(null)}
+        >
+          <EvidenceTracePanel
+            loader={evidenceLoaders.finding(traceFinding.id)}
+            inspectionId={traceFinding.inspectionId}
+          />
+        </Drawer>
+      )}
     </>
   );
 }

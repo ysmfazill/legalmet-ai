@@ -458,3 +458,77 @@ class AbsenceReason(StrEnum):
 
     FIELD_NOT_FOUND = "FIELD_NOT_FOUND"
     FIELD_CONFIRMED_ABSENT = "FIELD_CONFIRMED_ABSENT"
+
+
+# --- Evidence graph / traceability (Prompt 7) ---------------------------------
+
+
+class EvidenceNodeType(StrEnum):
+    """Node vocabulary of the Evidence Graph.
+
+    Every node corresponds to ONE persisted database record — the graph is a
+    read-only traceability view over existing entities, never a stored copy of
+    them and never a fabricated demonstration structure.
+    """
+
+    INSPECTION = "INSPECTION"
+    IMAGE = "IMAGE"
+    IMAGE_REGION = "IMAGE_REGION"
+    OCR_RESULT = "OCR_RESULT"
+    EXTRACTED_FIELD = "EXTRACTED_FIELD"
+    REGULATORY_SOURCE = "REGULATORY_SOURCE"
+    REGULATORY_DOCUMENT = "REGULATORY_DOCUMENT"
+    REGULATORY_VERSION = "REGULATORY_VERSION"
+    REQUIREMENT = "REQUIREMENT"
+    RULE = "RULE"
+    EVALUATION = "EVALUATION"
+    FINDING = "FINDING"
+    PROCESSING_RUN = "PROCESSING_RUN"
+    AUDIT_EVENT = "AUDIT_EVENT"
+
+
+class EvidenceEdgeType(StrEnum):
+    """Relationship vocabulary of the Evidence Graph.
+
+    Every edge points at two REAL entity ids (node ids are ``"<type>:<uuid>"``).
+    Edge semantics are fixed by this enum — never free-form strings.
+    """
+
+    INSPECTION_CONTAINS_IMAGE = "INSPECTION_CONTAINS_IMAGE"
+    INSPECTION_HAS_EVALUATION = "INSPECTION_HAS_EVALUATION"
+    IMAGE_HAS_REGION = "IMAGE_HAS_REGION"
+    IMAGE_HAS_OCR_RESULT = "IMAGE_HAS_OCR_RESULT"
+    REGION_HAS_OCR_RESULT = "REGION_HAS_OCR_RESULT"
+    OCR_SUPPORTS_FIELD = "OCR_SUPPORTS_FIELD"
+    REGION_SUPPORTS_FIELD = "REGION_SUPPORTS_FIELD"
+    PROCESSING_RUN_PROCESSED_IMAGE = "PROCESSING_RUN_PROCESSED_IMAGE"
+    PROCESSING_RUN_PRODUCED_REGION = "PROCESSING_RUN_PRODUCED_REGION"
+    PROCESSING_RUN_PRODUCED_OCR = "PROCESSING_RUN_PRODUCED_OCR"
+    FIELD_EVALUATED_AGAINST_REQUIREMENT = "FIELD_EVALUATED_AGAINST_REQUIREMENT"
+    REQUIREMENT_EVALUATED_BY_RULE = "REQUIREMENT_EVALUATED_BY_RULE"
+    RULE_PRODUCED_FINDING = "RULE_PRODUCED_FINDING"
+    FINDING_BELONGS_TO_EVALUATION = "FINDING_BELONGS_TO_EVALUATION"
+    EVALUATION_USES_REGULATORY_VERSION = "EVALUATION_USES_REGULATORY_VERSION"
+    REQUIREMENT_BELONGS_TO_VERSION = "REQUIREMENT_BELONGS_TO_VERSION"
+    VERSION_ORIGINATES_FROM_DOCUMENT = "VERSION_ORIGINATES_FROM_DOCUMENT"
+    DOCUMENT_HAS_SOURCE = "DOCUMENT_HAS_SOURCE"
+    FINDING_SUPPORTED_BY_EVIDENCE = "FINDING_SUPPORTED_BY_EVIDENCE"
+    AUDIT_RECORDS_ACTION = "AUDIT_RECORDS_ACTION"
+
+
+class EvidenceStrength(StrEnum):
+    """Evidence-quality label on the FINDING_SUPPORTED_BY_EVIDENCE relation.
+
+    A traceability signal ONLY — it never upgrades a finding's compliance
+    status and MISSING evidence is never converted into compliance.
+
+    DIRECT — the finding has direct evidence from an image region / OCR line.
+    DERIVED — the value was deterministically normalized/derived from source.
+    AMBIGUOUS — evidence exists but is insufficient (low confidence / review).
+    MISSING — no valid evidence exists (e.g. a NOT_DETECTED finding).
+    """
+
+    DIRECT = "DIRECT"
+    DERIVED = "DERIVED"
+    AMBIGUOUS = "AMBIGUOUS"
+    MISSING = "MISSING"

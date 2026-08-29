@@ -1,0 +1,180 @@
+/**
+ * Evidence traceability graph (Prompt 7) — graph view, WHY chain and the
+ * combined trace layout. Deterministic SVG rendering; no animations that
+ * could suggest the graph is "computing" something live.
+ */
+
+/* --- Graph view --------------------------------------------------------- */
+
+.egraph {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.egraph__cap {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) solid var(--tone-warning);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+
+.egraph__scroll {
+  overflow: auto;
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  padding: var(--space-2);
+}
+
+.egraph__edge {
+  stroke: var(--border);
+  stroke-width: 1.5;
+}
+
+.egraph__edge.is-active {
+  stroke-width: 2.5;
+}
+
+.egraph__node {
+  cursor: pointer;
+}
+
+.egraph__node rect {
+  fill: var(--surface);
+  stroke: var(--border);
+  stroke-width: 1.5;
+}
+
+.egraph__node:hover rect,
+.egraph__node:focus-visible rect {
+  stroke: var(--tone-info);
+}
+
+.egraph__node.is-selected rect {
+  stroke: var(--tone-info);
+  stroke-width: 2.5;
+}
+
+.egraph__node.is-dimmed {
+  opacity: 0.35;
+}
+
+.egraph__node-type {
+  font-size: 10px;
+  font-weight: var(--fw-semibold);
+  fill: var(--text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.egraph__node-label {
+  font-size: 11px;
+  font-weight: var(--fw-semibold);
+  fill: var(--text);
+}
+
+.egraph__legend {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.egraph__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.egraph-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(220px, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.egraph-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 520px;
+  overflow: auto;
+  padding: var(--space-3);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+@media (max-width: 960px) {
+  .egraph-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- WHY chain ---------------------------------------------------------- */
+
+.why-chain {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.why-chain__step {
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--border);
+  border-left: 3px solid var(--tone-info);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.why-chain__step.is-missing {
+  border-left-color: var(--tone-warning);
+}
+
+.why-chain__title {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.why-chain__missing {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: var(--space-2) 0 0;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.why-chain__lines {
+  margin: var(--space-2) 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.why-chain__line {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+}
+
+.why-chain__line dt {
+  color: var(--text-muted);
+}
+
+.why-chain__line dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}

@@ -28,6 +28,7 @@ import {
 } from '../compliance/CompliancePanel';
 import { FindingExplanationDrawer } from '../compliance/FindingExplanationDrawer';
 import { useCompliance } from '../compliance/useCompliance';
+import { EvidenceTraceCard } from '../evidence/EvidenceTraceCard';
 import { QualityReadout } from '../intake/QualityReadout';
 import { FieldEvidenceDrawer } from '../perception/FieldEvidenceDrawer';
 import {
@@ -284,6 +285,11 @@ function RealInspectionWorkspace({ inspection }: { inspection: Inspection }) {
                     }
                   />
                 )}
+                <EvidenceTraceCard
+                  inspectionId={inspection.id}
+                  evaluationId={compliance.evaluation?.id ?? null}
+                  hasEvaluation={Boolean(compliance.evaluation)}
+                />
               </>
             )}
 

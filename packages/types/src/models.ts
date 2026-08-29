@@ -41,6 +41,9 @@ import type {
   VerificationStatus,
   VersionSelectionStatus,
   CandidateMappingStatus,
+  EvidenceGraphEdgeKind,
+  EvidenceGraphNodeKind,
+  EvidenceStrength,
 } from './enums';
 
 /** Arbitrary JSON payload (e.g. jsonb columns). */
@@ -701,4 +704,60 @@ export interface EvidenceGraph {
   findingId: string;
   nodes: EvidenceGraphNode[];
   edges: EvidenceGraphEdge[];
+}
+
+// --- Evidence traceability graph (Prompt 7) ------------------------------------
+// Read-only traceability over REAL persisted records. Every node is one
+// persisted entity (`id` is `"<TYPE>:<uuid>"`), every edge is an actual
+// foreign-key / provenance relationship. This graph is a representation of
+// system inputs, transformations, regulatory references and findings — it does
+// not independently determine legal compliance.
+
+/** Mandated boundary statement attached to every evidence-graph payload. */
+export const EVIDENCE_GRAPH_BOUNDARY_NOTE =
+  'The Evidence Graph is a traceability representation of system inputs, ' +
+  'transformations, regulatory references, and findings. It does not ' +
+  'independently determine legal compliance.';
+
+/** One traceability node == one persisted record. */
+export interface TraceNode {
+  id: string;
+  type: EvidenceGraphNodeKind;
+  label: string;
+  /** Whitelisted, non-sensitive metadata (no storage keys, paths or secrets). */
+  metadata?: Record<string, Json> | null;
+}
+
+/** One typed relationship between two real entity nodes. */
+export interface TraceEdge {
+  id: string;
+  source: string;
+  target: string;
+  type: EvidenceGraphEdgeKind;
+  metadata?: Record<string, Json> | null;
+}
+
+/** A bounded, cycle-free traceability graph (node/edge caps server-enforced). */
+export interface EvidenceTraceGraph {
+  rootType: string;
+  rootId: string;
+  inspectionId: string;
+  evaluationId?: string | null;
+  nodes: TraceNode[];
+  edges: TraceEdge[];
+  nodeCount: number;
+  edgeCount: number;
+  /** True when the server hit a traversal cap — the graph is a bounded view. */
+  truncated: boolean;
+  boundaryNote: string;
+}
+
+/** GET /evidence-graph — vocabulary + evidence-strength semantics. */
+export interface EvidenceGraphVocabulary {
+  strengths: Array<{
+    strength: EvidenceStrength;
+    label: string;
+    description: string;
+  }>;
+  boundaryNote: string;
 }

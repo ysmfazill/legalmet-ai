@@ -18,6 +18,7 @@ from app.services.audit.service import AuditService
 from app.services.compliance.engine import ComplianceEngine
 from app.services.compliance.service import ComplianceService
 from app.services.evidence.service import EvidenceService
+from app.services.evidence_graph import EvidenceGraphService
 from app.services.inspection.service import InspectionService
 from app.services.intake.service import IntakeService
 from app.services.interfaces import (
@@ -63,6 +64,8 @@ class Services:
     # --- Prompt 6: deterministic compliance engine -------------------------
     compliance: ComplianceService
     evidence: EvidenceService
+    # --- Prompt 7: evidence graph / traceability (read-only) ----------------
+    evidence_graph: EvidenceGraphService
     audit: AuditService
     review: ReviewService
     analytics: AnalyticsService
@@ -185,6 +188,8 @@ def build_services(
     # backend — no model ever decides compliance.
     compliance_engine = ComplianceEngine(regulatory=regulatory, audit=audit)
     compliance = ComplianceService(engine=compliance_engine)
+    # Prompt 7: read-only traceability view over the Prompt 4/5/6 + audit data.
+    evidence_graph = EvidenceGraphService()
     review = ReviewService(audit)
     analytics = AnalyticsService()
 
@@ -234,6 +239,7 @@ def build_services(
         regulatory=regulatory,
         compliance=compliance,
         evidence=evidence,
+        evidence_graph=evidence_graph,
         audit=audit,
         review=review,
         analytics=analytics,

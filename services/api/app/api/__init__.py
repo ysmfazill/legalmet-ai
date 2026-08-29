@@ -13,6 +13,7 @@ from app.api.routers import (
     auth,
     batch,
     compliance,
+    evidence_graph,
     findings,
     health,
     images,
@@ -37,5 +38,6 @@ api_router.include_router(analytics.router)
 api_router.include_router(batch.router)
 api_router.include_router(storage.router)
 api_router.include_router(perception.router)
+api_router.include_router(evidence_graph.router)
 
 __all__ = ["api_router"]

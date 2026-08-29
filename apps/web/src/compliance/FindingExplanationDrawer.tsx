@@ -6,7 +6,8 @@
  *
  *   STATUS → DETECTED vs EXPECTED → THE SEVEN-QUESTION EXPLANATION →
  *   PER-RULE OUTCOMES (pass/fail/indeterminate + reason) → FROZEN PROVENANCE
- *   (requirement → version → document → source)
+ *   (requirement → version → document → source) → FULL TRACE (Prompt 7
+ *   evidence graph: the six-step WHY chain + graph view + node details)
  *
  * Boundary statement: this drawer renders a SYSTEM finding. It never offers
  * an approve/reject action — recording the inspector's final enforcement
@@ -22,6 +23,8 @@ import type { EngineFinding } from '@legalmet/types';
 import { ApplicabilityBadge, EngineFindingBadge } from '../components/Badge';
 import { Drawer } from '../components/Drawer';
 import { Icon } from '../components/Icon';
+import { EvidenceTracePanel } from '../evidence/EvidenceTracePanel';
+import { evidenceLoaders } from '../evidence/useEvidenceGraph';
 import { formatDateTime } from '../lib/format';
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -197,6 +200,19 @@ export function FindingExplanationDrawer({
               {finding.detail?.evidenceCount ?? 0}
             </Row>
           </div>
+        </section>
+
+        <section className="stack stack--sm">
+          <div className="eyebrow">Full trace (evidence graph)</div>
+          <p style={{ margin: 0, fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>
+            The six-step WHY chain below is built from the real traceability graph for this finding —
+            regulatory source → document → version in force → requirement &amp; rule → perceived
+            evidence → finding — in both directions.
+          </p>
+          <EvidenceTracePanel
+            loader={evidenceLoaders.finding(finding.id)}
+            inspectionId={finding.inspectionId}
+          />
         </section>
 
         <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)' }}>

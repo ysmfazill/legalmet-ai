@@ -16,6 +16,8 @@ import type {
   EngineInfo,
   Evidence,
   EvidenceGraph,
+  EvidenceGraphVocabulary,
+  EvidenceTraceGraph,
   FieldCandidates,
   Inspection,
   InspectionComplianceStatus,
@@ -178,3 +180,10 @@ export type AuditListResponse = { items: AuditEvent[] };
 export type DashboardResponse = DashboardSummary;
 export type ProductResponse = Product;
 export type UserResponse = User;
+
+// --- Evidence traceability graph (Prompt 7) -----------------------------------
+
+/** GET /inspections/{id}/evidence-graph (full) — same shape for all three roots. */
+export type EvidenceTraceGraphResponse = EvidenceTraceGraph;
+/** GET /evidence-graph — strength vocabulary + boundary note. */
+export type EvidenceGraphVocabularyResponse = EvidenceGraphVocabulary;

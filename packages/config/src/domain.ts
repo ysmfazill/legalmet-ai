@@ -13,6 +13,9 @@ import type {
   DocumentType,
   EngineFindingStatus,
   EvaluationStatus,
+  EvidenceGraphEdgeKind,
+  EvidenceGraphNodeKind,
+  EvidenceStrength,
   ExtractionStatus,
   FieldType,
   FindingSeverity,
@@ -387,5 +390,78 @@ export const APPLICABILITY_OUTCOME_META: Record<ApplicabilityOutcome, EnumMeta> 
     label: 'Unknown',
     tone: 'warning',
     description: 'Applicability could not be determined — never guessed.',
+  },
+};
+
+// --- Evidence traceability graph (Prompt 7) -------------------------------------
+// Presentation metadata for the read-only traceability graph. Every node kind
+// maps to one persisted record type; none of these labels is a compliance
+// verdict — the graph traces what the system recorded, nothing more.
+
+export const EVIDENCE_GRAPH_NODE_META: Record<EvidenceGraphNodeKind, EnumMeta> = {
+  INSPECTION: { label: 'Inspection', tone: 'neutral', description: 'The inspection this trace belongs to.' },
+  IMAGE: { label: 'Package Image', tone: 'info', description: 'A real stored image captured for the inspection.' },
+  IMAGE_REGION: { label: 'Image Region', tone: 'info', description: 'A detected region on the image (text line, symbol, etc.).' },
+  OCR_RESULT: { label: 'OCR Result', tone: 'info', description: 'Raw OCR output for one region — verbatim engine text.' },
+  EXTRACTED_FIELD: { label: 'Extracted Field', tone: 'info', description: 'A declaration candidate extracted from OCR evidence.' },
+  REGULATORY_SOURCE: { label: 'Regulatory Source', tone: 'info', description: 'The publishing source of regulatory material.' },
+  REGULATORY_DOCUMENT: { label: 'Regulatory Document', tone: 'info', description: 'The legal instrument a requirement belongs to.' },
+  REGULATORY_VERSION: { label: 'Regulatory Version', tone: 'info', description: 'The version in force at the evaluation context date.' },
+  REQUIREMENT: { label: 'Requirement', tone: 'info', description: 'A requirement definition in force.' },
+  RULE: { label: 'Compliance Rule', tone: 'info', description: 'A deterministic rule bound to the requirement.' },
+  EVALUATION: { label: 'Evaluation Run', tone: 'neutral', description: 'One immutable engine evaluation run.' },
+  FINDING: { label: 'System Finding', tone: 'warning', description: 'A system-generated decision-support output — not an enforcement determination.' },
+  PROCESSING_RUN: { label: 'Processing Run', tone: 'neutral', description: 'One perception pipeline run over an image.' },
+  AUDIT_EVENT: { label: 'Audit Event', tone: 'neutral', description: 'An immutable audit-trail record.' },
+};
+
+export const EVIDENCE_GRAPH_EDGE_META: Record<EvidenceGraphEdgeKind, EnumMeta> = {
+  INSPECTION_CONTAINS_IMAGE: { label: 'contains image', tone: 'neutral' },
+  INSPECTION_HAS_EVALUATION: { label: 'has evaluation', tone: 'neutral' },
+  IMAGE_HAS_REGION: { label: 'has region', tone: 'neutral' },
+  IMAGE_HAS_OCR_RESULT: { label: 'has OCR result', tone: 'neutral' },
+  REGION_HAS_OCR_RESULT: { label: 'read as', tone: 'neutral' },
+  OCR_SUPPORTS_FIELD: { label: 'supports field', tone: 'neutral' },
+  REGION_SUPPORTS_FIELD: { label: 'supports field', tone: 'neutral' },
+  PROCESSING_RUN_PROCESSED_IMAGE: { label: 'processed image', tone: 'neutral' },
+  PROCESSING_RUN_PRODUCED_REGION: { label: 'produced region', tone: 'neutral' },
+  PROCESSING_RUN_PRODUCED_OCR: { label: 'produced OCR', tone: 'neutral' },
+  FIELD_EVALUATED_AGAINST_REQUIREMENT: { label: 'evaluated against', tone: 'neutral' },
+  REQUIREMENT_EVALUATED_BY_RULE: { label: 'evaluated by', tone: 'neutral' },
+  RULE_PRODUCED_FINDING: { label: 'produced finding', tone: 'neutral' },
+  FINDING_BELONGS_TO_EVALUATION: { label: 'belongs to evaluation', tone: 'neutral' },
+  EVALUATION_USES_REGULATORY_VERSION: { label: 'uses version', tone: 'neutral' },
+  REQUIREMENT_BELONGS_TO_VERSION: { label: 'belongs to version', tone: 'neutral' },
+  VERSION_ORIGINATES_FROM_DOCUMENT: { label: 'originates from', tone: 'neutral' },
+  DOCUMENT_HAS_SOURCE: { label: 'published by', tone: 'neutral' },
+  FINDING_SUPPORTED_BY_EVIDENCE: { label: 'supported by evidence', tone: 'neutral' },
+  AUDIT_RECORDS_ACTION: { label: 'records action', tone: 'neutral' },
+};
+
+/**
+ * Traceability strength of the evidence behind a finding. A signal about the
+ * CHAIN only — never a compliance verdict, and MISSING is never converted
+ * into non-compliance.
+ */
+export const EVIDENCE_STRENGTH_META: Record<EvidenceStrength, EnumMeta> = {
+  DIRECT: {
+    label: 'Direct',
+    tone: 'positive',
+    description: 'The finding links to a specific OCR result and/or image region.',
+  },
+  DERIVED: {
+    label: 'Derived',
+    tone: 'info',
+    description: 'An extracted field exists but no specific OCR result or region is linked to it.',
+  },
+  AMBIGUOUS: {
+    label: 'Ambiguous',
+    tone: 'warning',
+    description: 'The field is marked for review or its OCR confidence is below 0.6 — verify before relying on it.',
+  },
+  MISSING: {
+    label: 'Missing',
+    tone: 'critical',
+    description: 'No extracted field backs this finding. This is NOT evidence of absence and never a violation.',
   },
 };

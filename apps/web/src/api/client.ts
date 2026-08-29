@@ -25,6 +25,8 @@ import type {
   CreatePackageRequest,
   EngineFinding,
   EngineInfo,
+  EvidenceGraphVocabulary,
+  EvidenceTraceGraph,
   ExtractedField,
   FieldCandidates,
   HealthResponse,
@@ -469,6 +471,44 @@ export const api = {
     pageSize?: number;
   } = {}): Promise<Paginated<EngineFinding>> =>
     request<Paginated<EngineFinding>>('/compliance/review/queue' + querySuffix(params)),
+
+  // --- Evidence traceability graph (Prompt 7) -----------------------------------
+  // Read-only traceability over REAL persisted records: images, OCR, regions,
+  // extracted fields, regulatory sources/documents/versions/requirements,
+  // rules, evaluations, findings and audit events. These endpoints never
+  // write, never decide compliance, and expose no credentials or storage
+  // paths in node metadata.
+
+  /**
+   * Full evidence graph for one inspection (latest evaluation, or a historical
+   * one via `evaluationId` — the frozen provenance of that run is traced).
+   */
+  getInspectionEvidenceGraph: (
+    inspectionId: string,
+    evaluationId?: string,
+  ): Promise<EvidenceTraceGraph> =>
+    request<EvidenceTraceGraph>(
+      `/inspections/${inspectionId}/evidence-graph` + querySuffix({ evaluationId }),
+    ),
+
+  /**
+   * Focused trace for ONE engine finding, both directions:
+   * Finding → Rule → Requirement → Version → Document → Source AND
+   * Finding → Field → OCR → Region → Image.
+   */
+  getFindingEvidenceGraph: (findingId: string): Promise<EvidenceTraceGraph> =>
+    request<EvidenceTraceGraph>(`/compliance/findings/${findingId}/evidence-graph`),
+
+  /**
+   * Reverse trace for ONE extracted field: its evidence chain plus every
+   * finding that used this field as evidence.
+   */
+  getFieldEvidenceGraph: (fieldId: string): Promise<EvidenceTraceGraph> =>
+    request<EvidenceTraceGraph>(`/fields/${fieldId}/evidence-graph`),
+
+  /** Node/edge/evidence-strength vocabulary + the traceability boundary note. */
+  getEvidenceGraphVocabulary: (): Promise<EvidenceGraphVocabulary> =>
+    request<EvidenceGraphVocabulary>('/evidence-graph'),
 };
 
 /** Query string for GET params (empty values dropped), '' when none. */
