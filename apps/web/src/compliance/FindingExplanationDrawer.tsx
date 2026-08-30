@@ -1,5 +1,5 @@
 /**
- * Engine-finding explanation drawer (Prompt 6).
+ * Engine-finding explanation drawer (Prompt 6 + Prompt 8).
  *
  * Opens when an inspector clicks a compliance-engine finding. Shows the full
  * deterministic trace for that single finding:
@@ -7,11 +7,12 @@
  *   STATUS → DETECTED vs EXPECTED → THE SEVEN-QUESTION EXPLANATION →
  *   PER-RULE OUTCOMES (pass/fail/indeterminate + reason) → FROZEN PROVENANCE
  *   (requirement → version → document → source) → FULL TRACE (Prompt 7
- *   evidence graph: the six-step WHY chain + graph view + node details)
+ *   evidence graph: the six-step WHY chain + graph view + node details) →
+ *   INSPECTOR REVIEW (Prompt 8: confirm / correct / reject / escalate)
  *
- * Boundary statement: this drawer renders a SYSTEM finding. It never offers
- * an approve/reject action — recording the inspector's final enforcement
- * decision is a later phase, and the inspector remains responsible for it.
+ * Boundary statement: the AI half of this drawer renders a SYSTEM finding and
+ * is strictly read-only. The review controls REQUEST actions — the backend
+ * owns the state machine, and the final decision stays with the inspector.
  */
 import {
   APPLICABILITY_OUTCOME_META,
@@ -20,11 +21,13 @@ import {
 
 import type { EngineFinding } from '@legalmet/types';
 
-import { ApplicabilityBadge, EngineFindingBadge } from '../components/Badge';
+import { ApplicabilityBadge, EngineFindingBadge, FindingReviewStateBadge } from '../components/Badge';
 import { Drawer } from '../components/Drawer';
 import { Icon } from '../components/Icon';
 import { EvidenceTracePanel } from '../evidence/EvidenceTracePanel';
 import { evidenceLoaders } from '../evidence/useEvidenceGraph';
+import { FindingReviewControls } from '../hitl/FindingReviewControls';
+import type { HitlState } from '../hitl/useHitl';
 import { formatDateTime } from '../lib/format';
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -51,9 +54,15 @@ function ruleWord(passed: boolean | null) {
 export function FindingExplanationDrawer({
   finding,
   onClose,
+  hitl,
+  onReviewed,
 }: {
   finding: EngineFinding;
   onClose: () => void;
+  /** Prompt 8 review model — when absent the drawer stays read-only. */
+  hitl?: HitlState;
+  /** Refresh findings after a review action (review state changes). */
+  onReviewed?: () => void;
 }) {
   const provenance = finding.provenance ?? {};
   const rules = finding.detail?.rules ?? [];
@@ -70,6 +79,7 @@ export function FindingExplanationDrawer({
         <div className="row row--wrap">
           <EngineFindingBadge status={finding.status} />
           <ApplicabilityBadge outcome={finding.applicability} />
+          <FindingReviewStateBadge state={finding.reviewState} />
           {provenance.versionLabel && <span className="tag">{provenance.versionLabel}</span>}
         </div>
 
@@ -214,6 +224,15 @@ export function FindingExplanationDrawer({
             inspectionId={finding.inspectionId}
           />
         </section>
+
+        {hitl && (
+          <section
+            className="stack stack--sm"
+            style={{ borderTop: '1px solid var(--border)', paddingTop: 'var(--space-4)' }}
+          >
+            <FindingReviewControls finding={finding} hitl={hitl} onReviewed={onReviewed} />
+          </section>
+        )}
 
         <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)' }}>
           {ENGINE_FINDING_STATUS_META[finding.status].description} Applicability:{' '}

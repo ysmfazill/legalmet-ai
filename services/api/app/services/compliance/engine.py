@@ -419,9 +419,13 @@ class ComplianceEngine:
             status = EngineFindingStatus.COMPLIANT
             headline = outcomes[0]["reason"] if outcomes else "No rules evaluated."
         detected = None
+        human_corrected = best is not None and (
+            getattr(best, "corrected_value", None) is not None
+        )
         if best is not None:
             detected = (
-                getattr(best, "normalized_value", None)
+                getattr(best, "corrected_value", None)
+                or getattr(best, "normalized_value", None)
                 or getattr(best, "raw_text", None)
             )
 
@@ -462,6 +466,9 @@ class ComplianceEngine:
                 "searchedRunIds": [str(r) for r in bundle.searched_run_ids],
                 "fieldKey": bundle.field_key,
                 "evidenceCount": len(bundle.fields),
+                # Prompt 8: whether the evaluated value came from the AI
+                # extraction or from a human-confirmed correction.
+                "valueSource": "HUMAN_CORRECTED" if human_corrected else "AI_EXTRACTED",
                 **({"absence": absence} if absence else {}),
             },
         )
@@ -617,8 +624,15 @@ class ComplianceEngine:
         flagged for review (perception status) or its OCR confidence is below
         the floor; None when the evidence is strong enough to evaluate. The
         gate never fails a requirement — it only routes it to a human.
+
+        Prompt 8: a HUMAN-CORRECTED field is verified evidence — the gate
+        inspects the ORIGINAL AI reading, so once an inspector has confirmed a
+        corrected value the gate no longer routes the requirement to review on
+        the strength of that original reading.
         """
         if best is None:
+            return None
+        if getattr(best, "corrected_value", None) is not None:
             return None
         status = getattr(best, "status", None)
         confidence = getattr(best, "confidence", None)
@@ -654,13 +668,25 @@ class ComplianceEngine:
     ) -> str:
         """Deterministic explanation answering the seven questions."""
         detected = bundle.best
+        corrected = getattr(detected, "corrected_value", None) if detected else None
         detected_value = (
-            getattr(detected, "normalized_value", None)
-            or getattr(detected, "raw_text", None)
+            corrected
+            or (
+                getattr(detected, "normalized_value", None)
+                or getattr(detected, "raw_text", None)
+            )
+            if detected is not None
+            else None
         )
         detected_desc = (
-            f"detected value '{detected_value}' "
-            f"(raw: '{getattr(detected, 'raw_text', None)}')"
+            (
+                f"detected value '{detected_value}' "
+                f"(raw: '{getattr(detected, 'raw_text', None)}', "
+                "human-confirmed correction)"
+                if corrected is not None
+                else f"detected value '{detected_value}' "
+                f"(raw: '{getattr(detected, 'raw_text', None)}')"
+            )
             if detected is not None
             else "no field of this type was detected (FIELD_NOT_FOUND)"
         )

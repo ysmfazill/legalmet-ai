@@ -23,17 +23,25 @@ import type {
   CaptureSource,
   CreateInspectionRequest,
   CreatePackageRequest,
+  DecisionHistory,
+  DecisionRequest,
   EngineFinding,
   EngineInfo,
   EvidenceGraphVocabulary,
   EvidenceTraceGraph,
   ExtractedField,
   FieldCandidates,
+  FieldCorrectRequest,
+  FieldCorrection,
+  FieldReview,
+  FindingReview,
+  FindingReviewActionRequest,
   HealthResponse,
   ImageRegion,
   ImageType,
   Inspection,
   InspectionComplianceStatus,
+  InspectionDecision,
   ComplianceEvaluation,
   OcrTextResult,
   Package,
@@ -48,6 +56,7 @@ import type {
   RegulatoryRequirement,
   RegulatoryRequirementDetail,
   RegulatorySource,
+  ReviewStatus,
   User,
   VersionSelection,
 } from '@legalmet/types';
@@ -509,6 +518,67 @@ export const api = {
   /** Node/edge/evidence-strength vocabulary + the traceability boundary note. */
   getEvidenceGraphVocabulary: (): Promise<EvidenceGraphVocabulary> =>
     request<EvidenceGraphVocabulary>('/evidence-graph'),
+
+  // --- Human-in-the-loop review & decision (Prompt 8) ---------------------------
+  // AI ASSISTS. THE INSPECTOR DECIDES. These calls record AUTHORISED HUMAN
+  // actions only — the engine has no corresponding write path. The backend
+  // enforces roles (INSPECTOR/SUPERVISOR/ADMIN write, AUDITOR read-only),
+  // the review state machine, and the decision gate; this client merely
+  // surfaces the results and errors honestly.
+
+  /** Inspector corrects one extracted value. The AI original is never overwritten. */
+  correctField: (
+    fieldId: string,
+    body: FieldCorrectRequest,
+  ): Promise<FieldCorrection> =>
+    request<FieldCorrection>(`/fields/${fieldId}/correct`, {
+      method: 'POST',
+      body,
+    }),
+
+  /** Append-only correction history of one field (oldest first). */
+  listFieldCorrections: (fieldId: string): Promise<FieldCorrection[]> =>
+    request<FieldCorrection[]>(`/fields/${fieldId}/corrections`),
+
+  /** Original AI value vs the latest human correction of one field. */
+  getFieldReview: (fieldId: string): Promise<FieldReview> =>
+    request<FieldReview>(`/fields/${fieldId}/review`),
+
+  /** Apply one review action (CONFIRM/CORRECT/REJECT/OVERRIDE/ESCALATE). */
+  reviewFinding: (
+    findingId: string,
+    body: FindingReviewActionRequest,
+  ): Promise<FindingReview> =>
+    request<FindingReview>(`/compliance/findings/${findingId}/review`, {
+      method: 'POST',
+      body,
+    }),
+
+  /** The review state + full transition history of one finding. */
+  getFindingReview: (findingId: string): Promise<FindingReview> =>
+    request<FindingReview>(`/compliance/findings/${findingId}/review`),
+
+  /** Record the FINAL human decision. Critical unresolved findings gate it. */
+  submitDecision: (
+    inspectionId: string,
+    body: DecisionRequest,
+  ): Promise<InspectionDecision> =>
+    request<InspectionDecision>(`/inspections/${inspectionId}/decision`, {
+      method: 'POST',
+      body,
+    }),
+
+  /** The CURRENT decision — 404 when none has been recorded yet. */
+  getCurrentDecision: (inspectionId: string): Promise<InspectionDecision> =>
+    request<InspectionDecision>(`/inspections/${inspectionId}/decision`),
+
+  /** The full decision chain — previous decisions are never deleted. */
+  getDecisionHistory: (inspectionId: string): Promise<DecisionHistory> =>
+    request<DecisionHistory>(`/inspections/${inspectionId}/decision-history`),
+
+  /** Review progress + the decision gate for one inspection. */
+  getReviewStatus: (inspectionId: string): Promise<ReviewStatus> =>
+    request<ReviewStatus>(`/inspections/${inspectionId}/review-status`),
 };
 
 /** Query string for GET params (empty values dropped), '' when none. */

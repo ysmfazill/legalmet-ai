@@ -21,11 +21,14 @@ import type {
   EvidenceType,
   ExtractionStatus,
   FieldType,
+  FindingReviewAction,
+  FindingReviewState,
   FindingSeverity,
   ImageProcessingStatus,
   ImageQualityGrade,
   ImageQualityStatus,
   ImageType,
+  InspectionDecisionType,
   InspectionStatus,
   ModelServiceType,
   PackageStatus,
@@ -534,6 +537,14 @@ export interface EngineFinding {
   explanation: string;
   provenance: FindingProvenance;
   detail: EngineFindingDetail;
+  /**
+   * Human review overlay (Prompt 8): PENDING_REVIEW until an authorised
+   * inspector acts. The engine NEVER writes this field beyond the default.
+   */
+  reviewState: FindingReviewState;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
+  reviewReason?: string | null;
   createdAt: string;
   boundaryNote: string;
 }
@@ -759,5 +770,158 @@ export interface EvidenceGraphVocabulary {
     label: string;
     description: string;
   }>;
+  boundaryNote: string;
+}
+
+// --- Human-in-the-loop review & decision (Prompt 8) ----------------------------
+// AI ASSISTS. THE INSPECTOR DECIDES. Every payload below carries the mandated
+// boundary note, and every write is an authorised human action — the engine
+// can never produce any of these records.
+
+/** Mandated boundary statement attached to every HITL payload. */
+export const HITL_BOUNDARY_NOTE =
+  'LegalMet AI provides AI-assisted inspection analysis and traceability. ' +
+  'The authorized inspector remains responsible for the final inspection ' +
+  'decision.';
+
+/** POST /fields/{fieldId}/correct — inspector corrects an AI-extracted value. */
+export interface FieldCorrectRequest {
+  correctedValue: string;
+  reason: string;
+  triggeredByEvaluationId?: string | null;
+}
+
+/**
+ * One append-only correction row. The original AI extraction is NEVER
+ * overwritten — previousValue/newValue are both preserved here.
+ */
+export interface FieldCorrection {
+  id: string;
+  extractedFieldId: string;
+  inspectionId: string;
+  correctedBy: string;
+  correctedByName?: string | null;
+  correctedAt: string;
+  previousValue?: string | null;
+  previousRawText?: string | null;
+  correctedValue: string;
+  reason: string;
+  triggeredByEvaluationId?: string | null;
+  createdAt: string;
+}
+
+/** GET /fields/{fieldId}/review — original AI value vs latest human correction. */
+export interface FieldReview {
+  fieldId: string;
+  inspectionId: string;
+  originalValue?: string | null;
+  originalRawText?: string | null;
+  aiConfidence?: number | null;
+  aiExtractionStatus?: string | null;
+  correctedValue?: string | null;
+  correctedAt?: string | null;
+  correctedBy?: string | null;
+  correctedByName?: string | null;
+  correctionReason?: string | null;
+  correctionCount: number;
+  boundaryNote: string;
+}
+
+/** One immutable transition in a finding's review history. */
+export interface FindingReviewEvent {
+  id: string;
+  reviewId: string;
+  actorId?: string | null;
+  actorRole?: string | null;
+  action: string;
+  previousState?: FindingReviewState | null;
+  newState?: FindingReviewState | null;
+  reason?: string | null;
+  payload: Record<string, Json>;
+  createdAt: string;
+}
+
+/**
+ * The human review overlay of one engine finding. The finding itself is a
+ * frozen system output; this records what the AUTHORISED HUMAN decided.
+ */
+export interface FindingReview {
+  id: string;
+  findingId: string;
+  inspectionId: string;
+  evaluationId?: string | null;
+  state: FindingReviewState;
+  reviewedBy?: string | null;
+  reviewedByName?: string | null;
+  reviewedAt?: string | null;
+  reason?: string | null;
+  correctionId?: string | null;
+  escalatedToRole?: string | null;
+  events: FindingReviewEvent[];
+  boundaryNote: string;
+}
+
+/** POST /compliance/findings/{findingId}/review — one review action. */
+export interface FindingReviewActionRequest {
+  action?: FindingReviewAction;
+  reason?: string | null;
+  note?: string | null;
+  correctedValue?: string | null;
+}
+
+/** POST /inspections/{inspectionId}/decision — the final human decision. */
+export interface DecisionRequest {
+  decision: InspectionDecisionType;
+  reason?: string | null;
+  note?: string | null;
+  evaluationId?: string | null;
+}
+
+/**
+ * The FINAL human decision on an inspection — the only legal conclusion the
+ * system ever records. Superseded, never deleted.
+ */
+export interface InspectionDecision {
+  id: string;
+  inspectionId: string;
+  decision: InspectionDecisionType;
+  decidedBy: string;
+  decidedByName?: string | null;
+  decidedAt: string;
+  reason?: string | null;
+  evaluationId?: string | null;
+  supersedesDecisionId?: string | null;
+  payload: Record<string, Json>;
+  createdAt: string;
+  boundaryNote: string;
+}
+
+/** GET /inspections/{inspectionId}/decision-history — the full chain. */
+export interface DecisionHistory {
+  inspectionId: string;
+  current?: InspectionDecision | null;
+  history: InspectionDecision[];
+  boundaryNote: string;
+}
+
+/**
+ * GET /inspections/{inspectionId}/review-status — review progress + the
+ * decision gate (critical unresolved findings block a final decision).
+ */
+export interface ReviewStatus {
+  inspectionId: string;
+  totalFindings: number;
+  pendingReview: number;
+  confirmed: number;
+  corrected: number;
+  rejected: number;
+  overridden: number;
+  escalated: number;
+  /** Findings with no review row yet — implicitly PENDING_REVIEW. */
+  unreviewed: number;
+  criticalUnresolved: number;
+  decision?: InspectionDecision | null;
+  decisionAllowed: boolean;
+  decisionBlockers: string[];
   boundaryNote: string;
 }

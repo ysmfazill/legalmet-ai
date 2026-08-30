@@ -22,6 +22,7 @@ import {
   ApplicabilityBadge,
   EngineFindingBadge,
   EvaluationStatusBadge,
+  FindingReviewStateBadge,
 } from '../components/Badge';
 import { Card, CardBody, CardHead } from '../components/Card';
 import { EmptyState } from '../components/states';
@@ -216,6 +217,7 @@ export function ComplianceFindingsCard({
                 </div>
                 <div className="stack" style={{ gap: 4, alignItems: 'flex-end' }}>
                   <EngineFindingBadge status={finding.status} />
+                  <FindingReviewStateBadge state={finding.reviewState} />
                   {finding.applicability !== 'YES' && (
                     <ApplicabilityBadge outcome={finding.applicability} />
                   )}
@@ -223,9 +225,10 @@ export function ComplianceFindingsCard({
               </button>
             ))}
             <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)', margin: 0 }}>
-              System findings — inspector decision pending. Compliance findings are
-              system-generated decision-support outputs; they are not, by themselves, legal
-              enforcement determinations.
+              System findings with their human review state — open a finding to review it (confirm,
+              correct, reject or escalate). Compliance findings are system-generated
+              decision-support outputs; they are not, by themselves, legal enforcement
+              determinations. The final decision is recorded separately by the inspector.
             </p>
           </div>
         )}

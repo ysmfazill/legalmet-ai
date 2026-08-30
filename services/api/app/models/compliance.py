@@ -196,8 +196,32 @@ class EvaluationFinding(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     requirement = relationship("Rule")
     rule = relationship("ComplianceRule", back_populates="findings")
     extracted_field = relationship("ExtractedField")
+    # Prompt 8: human review overlay (one row per finding, created on the
+    # first human action; absence means PENDING_REVIEW).
+    review = relationship(
+        "FindingReview", back_populates="finding", uselist=False
+    )
 
     @property
     def inspection_id(self) -> uuid.UUID:
         """The inspection this finding belongs to (via its evaluation)."""
         return self.evaluation.inspection_id
+
+    @property
+    def review_state(self) -> str:
+        """Human review state — PENDING_REVIEW until a human acts."""
+        if self.review is None:
+            return "PENDING_REVIEW"
+        return self.review.state
+
+    @property
+    def reviewed_by(self) -> uuid.UUID | None:
+        return self.review.reviewed_by if self.review else None
+
+    @property
+    def reviewed_at(self) -> datetime | None:
+        return self.review.reviewed_at if self.review else None
+
+    @property
+    def review_reason(self) -> str | None:
+        return self.review.reason if self.review else None

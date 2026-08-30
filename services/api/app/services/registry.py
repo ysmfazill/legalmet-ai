@@ -19,6 +19,7 @@ from app.services.compliance.engine import ComplianceEngine
 from app.services.compliance.service import ComplianceService
 from app.services.evidence.service import EvidenceService
 from app.services.evidence_graph import EvidenceGraphService
+from app.services.hitl.service import HitlService
 from app.services.inspection.service import InspectionService
 from app.services.intake.service import IntakeService
 from app.services.interfaces import (
@@ -66,6 +67,8 @@ class Services:
     evidence: EvidenceService
     # --- Prompt 7: evidence graph / traceability (read-only) ----------------
     evidence_graph: EvidenceGraphService
+    # --- Prompt 8: human-in-the-loop review, correction, final decision -----
+    hitl: HitlService
     audit: AuditService
     review: ReviewService
     analytics: AnalyticsService
@@ -190,6 +193,10 @@ def build_services(
     compliance = ComplianceService(engine=compliance_engine)
     # Prompt 7: read-only traceability view over the Prompt 4/5/6 + audit data.
     evidence_graph = EvidenceGraphService()
+    # Prompt 8: every human-in-the-loop write (corrections, finding reviews,
+    # final decisions) — the ONLY path from a human action to the decision
+    # tables, sharing the same audit trail.
+    hitl = HitlService(audit)
     review = ReviewService(audit)
     analytics = AnalyticsService()
 
@@ -240,6 +247,7 @@ def build_services(
         compliance=compliance,
         evidence=evidence,
         evidence_graph=evidence_graph,
+        hitl=hitl,
         audit=audit,
         review=review,
         analytics=analytics,

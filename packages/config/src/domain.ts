@@ -15,13 +15,16 @@ import type {
   EvaluationStatus,
   EvidenceGraphEdgeKind,
   EvidenceGraphNodeKind,
+  EvidenceNodeOrigin,
   EvidenceStrength,
   ExtractionStatus,
   FieldType,
+  FindingReviewState,
   FindingSeverity,
   ImageProcessingStatus,
   ImageQualityGrade,
   ImageQualityStatus,
+  InspectionDecisionType,
   InspectionStatus,
   PackageStatus,
   ProcessingRunStatus,
@@ -413,6 +416,9 @@ export const EVIDENCE_GRAPH_NODE_META: Record<EvidenceGraphNodeKind, EnumMeta> =
   FINDING: { label: 'System Finding', tone: 'warning', description: 'A system-generated decision-support output — not an enforcement determination.' },
   PROCESSING_RUN: { label: 'Processing Run', tone: 'neutral', description: 'One perception pipeline run over an image.' },
   AUDIT_EVENT: { label: 'Audit Event', tone: 'neutral', description: 'An immutable audit-trail record.' },
+  FIELD_CORRECTION: { label: 'Human Correction', tone: 'positive', description: 'A human correction of an AI-extracted value — append-only, actor-attributed.' },
+  FINDING_REVIEW: { label: 'Human Review', tone: 'positive', description: 'An inspector review action on a system finding.' },
+  INSPECTION_DECISION: { label: 'Final Decision', tone: 'positive', description: 'The final human decision — the only legal conclusion, never an AI output.' },
 };
 
 export const EVIDENCE_GRAPH_EDGE_META: Record<EvidenceGraphEdgeKind, EnumMeta> = {
@@ -436,6 +442,12 @@ export const EVIDENCE_GRAPH_EDGE_META: Record<EvidenceGraphEdgeKind, EnumMeta> =
   DOCUMENT_HAS_SOURCE: { label: 'published by', tone: 'neutral' },
   FINDING_SUPPORTED_BY_EVIDENCE: { label: 'supported by evidence', tone: 'neutral' },
   AUDIT_RECORDS_ACTION: { label: 'records action', tone: 'neutral' },
+  FIELD_CORRECTION_CORRECTS_FIELD: { label: 'corrects field', tone: 'positive' },
+  FINDING_REVIEW_REVIEWS_FINDING: { label: 'reviews finding', tone: 'positive' },
+  FINDING_REVIEW_LINKS_CORRECTION: { label: 'links correction', tone: 'positive' },
+  DECISION_FOR_INSPECTION: { label: 'decides on', tone: 'positive' },
+  DECISION_BASED_ON_EVALUATION: { label: 'based on evaluation', tone: 'positive' },
+  DECISION_SUPERSEDES_DECISION: { label: 'supersedes', tone: 'positive' },
 };
 
 /**
@@ -463,5 +475,89 @@ export const EVIDENCE_STRENGTH_META: Record<EvidenceStrength, EnumMeta> = {
     label: 'Missing',
     tone: 'critical',
     description: 'No extracted field backs this finding. This is NOT evidence of absence and never a violation.',
+  },
+};
+
+// --- Human-in-the-loop review & decision (Prompt 8) ---------------------------
+// AI ASSISTS. THE INSPECTOR DECIDES. These vocabularies describe authorised
+// human actions only — the engine can never produce any of these values.
+
+/**
+ * Who produced an evidence-graph node. The graph NEVER represents an AI
+ * output and a human action as identical — origin is the visual distinction.
+ */
+export const EVIDENCE_NODE_ORIGIN_META: Record<EvidenceNodeOrigin, EnumMeta> = {
+  AI: {
+    label: 'AI',
+    tone: 'info',
+    description: 'Machine output from the perception / compliance pipeline.',
+  },
+  HUMAN: {
+    label: 'Human',
+    tone: 'positive',
+    description: 'An authorised human action with an actor — correction, review or final decision.',
+  },
+  SYSTEM: {
+    label: 'System',
+    tone: 'neutral',
+    description: 'Neutral recorded data — neither an AI inference nor a human review judgement.',
+  },
+};
+
+/** Human review state of one system finding (backend-enforced transitions). */
+export const FINDING_REVIEW_STATE_META: Record<FindingReviewState, EnumMeta> = {
+  PENDING_REVIEW: {
+    label: 'Pending Review',
+    tone: 'warning',
+    description: 'The system has produced a finding; the authorised inspector has not yet reviewed it.',
+  },
+  CONFIRMED: {
+    label: 'Confirmed',
+    tone: 'positive',
+    description: 'The inspector agrees with the system finding.',
+  },
+  CORRECTED: {
+    label: 'Corrected',
+    tone: 'info',
+    description: 'The underlying value was human-corrected; the finding was re-evaluated against the correction.',
+  },
+  REJECTED: {
+    label: 'Rejected',
+    tone: 'critical',
+    description: 'The inspector rejects the system finding (a reason is mandatory).',
+  },
+  OVERRIDDEN: {
+    label: 'Overridden',
+    tone: 'warning',
+    description: 'A supervisor overrode the reviewed outcome (supervisor/admin only, reason mandatory).',
+  },
+  ESCALATED: {
+    label: 'Escalated',
+    tone: 'warning',
+    description: 'Routed to a supervisor / senior review (reason mandatory).',
+  },
+};
+
+/** The final human decision — the only legal conclusion the system records. */
+export const INSPECTION_DECISION_META: Record<InspectionDecisionType, EnumMeta> = {
+  COMPLIANT: {
+    label: 'Compliant',
+    tone: 'positive',
+    description: 'The authorised inspector decided the package is compliant. Recorded by a human, never by the engine.',
+  },
+  NON_COMPLIANT: {
+    label: 'Non-Compliant',
+    tone: 'critical',
+    description: 'The authorised inspector decided the package is non-compliant. A reason is mandatory.',
+  },
+  REQUIRES_FURTHER_REVIEW: {
+    label: 'Requires Further Review',
+    tone: 'warning',
+    description: 'Deferred — unresolved findings need attention before a final conclusion. A reason is mandatory.',
+  },
+  NOT_EVALUATED: {
+    label: 'Not Evaluated',
+    tone: 'neutral',
+    description: 'No decision recorded yet.',
   },
 };

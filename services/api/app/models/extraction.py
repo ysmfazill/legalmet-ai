@@ -53,11 +53,19 @@ class ExtractedField(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     status: Mapped[str] = mapped_column(
         String(24), default=ExtractionStatus.DETECTED.value, nullable=False
     )
-    # --- Human-correction foundation (future Inspector Copilot) -------------
+    # --- Human-correction foundation (Prompt 8) ------------------------------
     # Populated only by a human action; the pipeline NEVER writes these. The
-    # raw evidence above stays untouched when a correction is recorded.
+    # raw evidence above stays untouched when a correction is recorded — the
+    # full append-only before/after history lives in FieldCorrection; these
+    # columns are pointers to the LATEST correction only.
     corrected_value: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    corrected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    corrected_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    corrected_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True, nullable=True
+    )
+    corrected_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     image = relationship("Image", back_populates="extracted_fields")
     region = relationship("ImageRegion", back_populates="extracted_fields")

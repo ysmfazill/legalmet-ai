@@ -399,6 +399,10 @@ export const EVIDENCE_GRAPH_NODE_TYPES = [
   'FINDING',
   'PROCESSING_RUN',
   'AUDIT_EVENT',
+  // Prompt 8 — human-in-the-loop records (origin=HUMAN nodes with an actor).
+  'FIELD_CORRECTION',
+  'FINDING_REVIEW',
+  'INSPECTION_DECISION',
 ] as const;
 export type EvidenceGraphNodeKind = (typeof EVIDENCE_GRAPH_NODE_TYPES)[number];
 
@@ -423,8 +427,24 @@ export const EVIDENCE_GRAPH_EDGE_TYPES = [
   'DOCUMENT_HAS_SOURCE',
   'FINDING_SUPPORTED_BY_EVIDENCE',
   'AUDIT_RECORDS_ACTION',
+  // Prompt 8 — human-in-the-loop relations (sources are HUMAN nodes).
+  'FIELD_CORRECTION_CORRECTS_FIELD',
+  'FINDING_REVIEW_REVIEWS_FINDING',
+  'FINDING_REVIEW_LINKS_CORRECTION',
+  'DECISION_FOR_INSPECTION',
+  'DECISION_BASED_ON_EVALUATION',
+  'DECISION_SUPERSEDES_DECISION',
 ] as const;
 export type EvidenceGraphEdgeKind = (typeof EVIDENCE_GRAPH_EDGE_TYPES)[number];
+
+/**
+ * Who produced a graph node — the Phase 15 AI-vs-HUMAN distinction.
+ * AI outputs and human actions are never represented as identical:
+ * a correction / review / decision is its own HUMAN node with an actor,
+ * never a mutation of the AI node it acts upon.
+ */
+export const EVIDENCE_NODE_ORIGINS = ['AI', 'HUMAN', 'SYSTEM'] as const;
+export type EvidenceNodeOrigin = (typeof EVIDENCE_NODE_ORIGINS)[number];
 
 /**
  * Traceability strength of the evidence behind a finding — a signal about the
@@ -433,3 +453,60 @@ export type EvidenceGraphEdgeKind = (typeof EVIDENCE_GRAPH_EDGE_TYPES)[number];
  */
 export const EVIDENCE_STRENGTHS = ['DIRECT', 'DERIVED', 'AMBIGUOUS', 'MISSING'] as const;
 export type EvidenceStrength = (typeof EVIDENCE_STRENGTHS)[number];
+
+// --- Human-in-the-loop review & decision (Prompt 8) ---------------------------
+// AI ASSISTS. THE INSPECTOR DECIDES. The engine never produces a review state
+// or a final decision — these vocabularies exist ONLY for authorised human
+// actions, enforced by the backend state machine (never the frontend).
+
+/**
+ * Human review state of one engine finding. PENDING_REVIEW is the default:
+ * the system has spoken, the human has not. Transitions are enforced in the
+ * backend service layer — the frontend can only request them.
+ */
+export const FINDING_REVIEW_STATES = [
+  'PENDING_REVIEW',
+  'CONFIRMED',
+  'CORRECTED',
+  'REJECTED',
+  'OVERRIDDEN',
+  'ESCALATED',
+] as const;
+export type FindingReviewState = (typeof FINDING_REVIEW_STATES)[number];
+
+/**
+ * The FINAL human decision on an inspection — the only legal conclusion.
+ * The deterministic engine NEVER produces any of these values.
+ */
+export const INSPECTION_DECISION_TYPES = [
+  'COMPLIANT',
+  'NON_COMPLIANT',
+  'REQUIRES_FURTHER_REVIEW',
+  'NOT_EVALUATED',
+] as const;
+export type InspectionDecisionType = (typeof INSPECTION_DECISION_TYPES)[number];
+
+/** Review actions an authorised human can request for a finding. */
+export const FINDING_REVIEW_ACTIONS = [
+  'CONFIRM',
+  'CORRECT',
+  'REJECT',
+  'OVERRIDE',
+  'ESCALATE',
+] as const;
+export type FindingReviewAction = (typeof FINDING_REVIEW_ACTIONS)[number];
+
+// --- Audit events (Prompt 8 additions) ----------------------------------------
+
+export const HITL_AUDIT_EVENT_TYPES = [
+  'FIELD_REVIEWED',
+  'FIELD_CORRECTED',
+  'FINDING_CONFIRMED',
+  'FINDING_REJECTED',
+  'FINDING_OVERRIDDEN',
+  'FINDING_ESCALATED',
+  'DECISION_SUBMITTED',
+  'DECISION_CHANGED',
+  'SUPERVISOR_REVIEWED',
+] as const;
+export type HitlAuditEventType = (typeof HITL_AUDIT_EVENT_TYPES)[number];

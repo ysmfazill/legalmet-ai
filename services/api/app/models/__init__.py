@@ -13,6 +13,12 @@ from app.models.compliance import (
 )
 from app.models.extraction import ExtractedField
 from app.models.finding import ComplianceFinding, Evidence
+from app.models.hitl import (
+    FieldCorrection,
+    FindingReview,
+    FindingReviewEvent,
+    InspectionDecision,
+)
 from app.models.image import Image, ImageRegion
 from app.models.inspection import Inspection, Package
 from app.models.model_version import ModelVersion
@@ -37,9 +43,13 @@ __all__ = [
     "EvaluationFinding",
     "Evidence",
     "ExtractedField",
+    "FieldCorrection",
+    "FindingReview",
+    "FindingReviewEvent",
     "Image",
     "ImageRegion",
     "Inspection",
+    "InspectionDecision",
     "ModelVersion",
     "OcrTextResult",
     "Package",

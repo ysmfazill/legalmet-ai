@@ -19,6 +19,7 @@ from app.core.enums import (
     DeterministicRuleType,
     EngineFindingStatus,
     EvaluationStatus,
+    FindingReviewState,
     FindingSeverity,
 )
 from app.schemas.base import CamelModel
@@ -61,6 +62,13 @@ class EngineFindingOut(CamelModel):
     provenance: dict[str, Any]
     detail: dict[str, Any]
     created_at: datetime
+    # --- Prompt 8: human review overlay -------------------------------------
+    # PENDING_REVIEW until an authorised human acts. This is the INSPECTOR's
+    # verdict on the system finding — distinct from the frozen system status.
+    review_state: FindingReviewState = FindingReviewState.PENDING_REVIEW
+    reviewed_by: UUID | None = None
+    reviewed_at: datetime | None = None
+    review_reason: str | None = None
     boundary_note: str = FINDING_BOUNDARY_NOTE
 
 

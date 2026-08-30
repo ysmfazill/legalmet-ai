@@ -23,6 +23,8 @@ from sqlalchemy import select
 from app.core.enums import (
     EvidenceEdgeType,
     EvidenceStrength,
+    InspectionDecisionType,
+    UserRole,
 )
 from app.models import (
     EvaluationFinding,
@@ -31,6 +33,7 @@ from app.models import (
     OcrTextResult,
     ProcessingRun,
     Rule,
+    User,
 )
 from app.services.evidence_graph.builder import (
     EVIDENCE_GRAPH_BOUNDARY_NOTE,
@@ -884,3 +887,275 @@ class TestEvidenceGraphApi:
             headers=inspector_headers,
         )
         assert resp.status_code == 404
+
+
+# ===========================================================================
+# 4. HUMAN NODES (Prompt 8, Phase 15) — AI vs HUMAN distinction
+# ===========================================================================
+
+
+def _make_low_conf_field(db, inspection_id, *, corrected=None):
+    """A REVIEW_REQUIRED / low-confidence field, optionally human-corrected."""
+    from app.models import Package
+
+    package = db.execute(
+        select(Package).where(Package.inspection_id == inspection_id)
+    ).scalars().first()
+    field = ExtractedField(
+        package_id=package.id,
+        image_id=package.images[0].id,
+        field_type="OTHER",
+        raw_text="maybe a value",
+        normalized_value="maybe a value",
+        confidence=0.2,
+        status="REVIEW_REQUIRED",
+        extraction_method="REGEX",
+    )
+    if corrected is not None:
+        field.corrected_value = corrected
+    db.add(field)
+    db.flush()
+    return field
+
+
+class TestHumanNodes:
+    """The graph must represent AI outputs and human actions as DISTINCT
+    nodes: a correction/review/decision is its own origin=HUMAN node with an
+    actor, never a mutation of the origin=AI node it acts upon."""
+
+    @pytest.fixture()
+    def inspector(self, db):
+        return db.execute(
+            select(User).where(User.role == UserRole.INSPECTOR.value)
+        ).scalars().first()
+
+    @pytest.fixture()
+    def human_flow(self, db, services, evaluated, inspector):
+        """A corrected field + a confirmed finding + a recorded decision."""
+        from app.models import Package
+
+        hitl = services.hitl
+        inspection, evaluation = evaluated
+        package = db.execute(
+            select(Package).where(Package.inspection_id == inspection.id)
+        ).scalars().first()
+        field = db.execute(
+            select(ExtractedField).where(
+                ExtractedField.package_id == package.id,
+                ExtractedField.field_type == "MRP",
+            )
+        ).scalars().first()
+        correction = hitl.correct_field(
+            db,
+            field_id=field.id,
+            actor=inspector,
+            corrected_value="65.00",
+            reason="Inspector verified MRP against the physical package.",
+        )
+        finding = db.execute(
+            select(EvaluationFinding).where(
+                EvaluationFinding.evaluation_id == evaluation.id,
+                EvaluationFinding.extracted_field_id == field.id,
+            )
+        ).scalars().first()
+        review = hitl.review_finding(
+            db, finding_id=finding.id, actor=inspector, action="CONFIRM"
+        ).review
+        decision = hitl.submit_decision(
+            db,
+            inspection_id=inspection.id,
+            actor=inspector,
+            decision=InspectionDecisionType.COMPLIANT,
+        )
+        db.commit()
+        return inspection, evaluation, field, correction, finding, review, decision
+
+    def test_human_nodes_exist_with_human_origin(self, db, graph_service, human_flow):
+        inspection, _ev, _field, correction, _f, review, decision = human_flow
+        payload = graph_service.graph_for_inspection(db, inspection.id)
+        nodes = _nodes(payload)
+        assert f"FIELD_CORRECTION:{correction.id}" in nodes
+        assert f"FINDING_REVIEW:{review.id}" in nodes
+        assert f"INSPECTION_DECISION:{decision.id}" in nodes
+        for nid in (
+            f"FIELD_CORRECTION:{correction.id}",
+            f"FINDING_REVIEW:{review.id}",
+            f"INSPECTION_DECISION:{decision.id}",
+        ):
+            assert nodes[nid]["metadata"]["origin"] == "HUMAN"
+
+    def test_correction_metadata_carries_before_after(self, db, graph_service,
+                                                      human_flow):
+        inspection, _ev, _field, correction, _f, _r, _d = human_flow
+        payload = graph_service.graph_for_inspection(db, inspection.id)
+        node = _nodes(payload)[f"FIELD_CORRECTION:{correction.id}"]
+        assert node["metadata"]["correctedValue"] == "65.00"
+        assert node["metadata"]["previousValue"] == correction.previous_value
+        assert "Inspector verified" in node["metadata"]["reason"]
+
+    def test_correction_edge_points_at_ai_field_node(self, db, graph_service,
+                                                     human_flow):
+        inspection, _ev, field, correction, _f, _r, _d = human_flow
+        payload = graph_service.graph_for_inspection(db, inspection.id)
+        edge = _find_edge(
+            payload,
+            EvidenceEdgeType.FIELD_CORRECTION_CORRECTS_FIELD,
+            source=f"FIELD_CORRECTION:{correction.id}",
+            target=f"EXTRACTED_FIELD:{field.id}",
+        )
+        assert edge is not None
+        # The AI field node is STILL in the graph, still origin=AI, still
+        # carrying its ORIGINAL values — the correction never mutated it.
+        field_node = _nodes(payload)[f"EXTRACTED_FIELD:{field.id}"]
+        assert field_node["metadata"]["origin"] == "AI"
+        assert field_node["metadata"]["normalizedValue"] == field.normalized_value
+        assert field_node["metadata"]["hasHumanCorrection"] is True
+        assert field_node["metadata"]["correctedValue"] == "65.00"
+
+    def test_review_edge_points_at_ai_finding_node(self, db, graph_service,
+                                                   human_flow):
+        inspection, _ev, _field, _c, finding, review, _d = human_flow
+        payload = graph_service.graph_for_inspection(db, inspection.id)
+        edge = _find_edge(
+            payload,
+            EvidenceEdgeType.FINDING_REVIEW_REVIEWS_FINDING,
+            source=f"FINDING_REVIEW:{review.id}",
+            target=f"FINDING:{finding.id}",
+        )
+        assert edge is not None
+        finding_node = _nodes(payload)[f"FINDING:{finding.id}"]
+        assert finding_node["metadata"]["origin"] == "AI"
+        assert finding_node["metadata"]["reviewState"] == "CONFIRMED"
+
+    def test_decision_edges_and_supersede_chain(self, db, services, graph_service,
+                                                human_flow, inspector):
+        inspection, evaluation, _field, _c, _f, _r, first = human_flow
+        hitl = services.hitl
+        second = hitl.submit_decision(
+            db,
+            inspection_id=inspection.id,
+            actor=inspector,
+            decision=InspectionDecisionType.NON_COMPLIANT,
+            reason="Post-review violation confirmed on reinspection.",
+        )
+        db.commit()
+        payload = graph_service.graph_for_inspection(db, inspection.id)
+        nodes = _nodes(payload)
+        # BOTH decisions remain — decisions are superseded, never deleted.
+        assert f"INSPECTION_DECISION:{first.id}" in nodes
+        assert f"INSPECTION_DECISION:{second.id}" in nodes
+        edge = _find_edge(
+            payload,
+            EvidenceEdgeType.DECISION_SUPERSEDES_DECISION,
+            source=f"INSPECTION_DECISION:{second.id}",
+            target=f"INSPECTION_DECISION:{first.id}",
+        )
+        assert edge is not None
+        assert _find_edge(
+            payload,
+            EvidenceEdgeType.DECISION_FOR_INSPECTION,
+            source=f"INSPECTION_DECISION:{second.id}",
+            target=f"INSPECTION:{inspection.id}",
+        ) is not None
+        assert _find_edge(
+            payload,
+            EvidenceEdgeType.DECISION_BASED_ON_EVALUATION,
+            source=f"INSPECTION_DECISION:{second.id}",
+            target=f"EVALUATION:{evaluation.id}",
+        ) is not None
+
+    def test_ai_and_system_nodes_carry_origins(self, db, graph_service, human_flow):
+        """AI outputs are origin=AI; neutral records are origin=SYSTEM —
+        the three origins are never conflated."""
+        inspection, _ev, _field, _c, _f, _r, _d = human_flow
+        payload = graph_service.graph_for_inspection(db, inspection.id)
+        origins: dict[str, set] = {}
+        for node in payload["nodes"]:
+            origins.setdefault(node["type"], set()).add(node["metadata"]["origin"])
+        for ai_type in (
+            "OCR_RESULT",
+            "IMAGE_REGION",
+            "EXTRACTED_FIELD",
+            "EVALUATION",
+            "FINDING",
+            "PROCESSING_RUN",
+        ):
+            assert origins.get(ai_type) == {"AI"}, ai_type
+        for system_type in (
+            "INSPECTION",
+            "IMAGE",
+            "REQUIREMENT",
+            "RULE",
+            "REGULATORY_VERSION",
+        ):
+            assert origins.get(system_type) == {"SYSTEM"}, system_type
+        assert origins.get("FIELD_CORRECTION") == {"HUMAN"}
+        assert origins.get("FINDING_REVIEW") == {"HUMAN"}
+        assert origins.get("INSPECTION_DECISION") == {"HUMAN"}
+
+    def test_hitl_audit_events_link_to_human_nodes(self, db, graph_service, human_flow):
+        """FIELD_CORRECTED / decision audit events are overlaid and point at
+        the HUMAN nodes they record (not vaguely at the evaluation)."""
+        inspection, _ev, _field, correction, _f, _r, decision = human_flow
+        payload = graph_service.graph_for_inspection(db, inspection.id)
+        assert _find_edge(
+            payload,
+            EvidenceEdgeType.AUDIT_RECORDS_ACTION,
+            target=f"FIELD_CORRECTION:{correction.id}",
+        ) is not None
+        assert _find_edge(
+            payload,
+            EvidenceEdgeType.AUDIT_RECORDS_ACTION,
+            target=f"INSPECTION_DECISION:{decision.id}",
+        ) is not None
+
+    def test_finding_graph_includes_its_review(self, db, graph_service, human_flow):
+        _insp, _ev, _field, _c, finding, review, _d = human_flow
+        payload = graph_service.graph_for_finding(db, finding.id)
+        nodes = _nodes(payload)
+        assert f"FINDING_REVIEW:{review.id}" in nodes
+        assert _find_edge(
+            payload,
+            EvidenceEdgeType.FINDING_REVIEW_REVIEWS_FINDING,
+            source=f"FINDING_REVIEW:{review.id}",
+            target=f"FINDING:{finding.id}",
+        ) is not None
+
+    def test_field_graph_includes_its_corrections(self, db, graph_service, human_flow):
+        _insp, _ev, field, correction, _f, _r, _d = human_flow
+        payload = graph_service.graph_for_field(db, field.id)
+        nodes = _nodes(payload)
+        assert f"FIELD_CORRECTION:{correction.id}" in nodes
+        assert nodes[f"FIELD_CORRECTION:{correction.id}"]["metadata"]["origin"] == (
+            "HUMAN"
+        )
+
+    def test_no_human_nodes_without_human_actions(self, db, graph_service, evaluated):
+        """A machine-only inspection has ZERO HUMAN-origin nodes — the origin
+        labels are not decorative defaults."""
+        inspection, _ev = evaluated
+        payload = graph_service.graph_for_inspection(db, inspection.id)
+        human_nodes = [
+            n
+            for n in payload["nodes"]
+            if (n["metadata"] or {}).get("origin") == "HUMAN"
+        ]
+        assert human_nodes == []
+        assert all(
+            (n["metadata"] or {}).get("origin") in ("AI", "SYSTEM")
+            for n in payload["nodes"]
+        )
+
+    def test_corrected_low_confidence_field_is_not_ambiguous(self, db, graph_service,
+                                                             evaluated):
+        """A human-confirmed correction is sufficient evidence — the ORIGINAL
+        low AI confidence never downgrades it to AMBIGUOUS (mirrors the
+        engine's corrected-value bypass of the quality gate)."""
+        inspection, _ev = evaluated
+        field = _make_low_conf_field(db, inspection.id, corrected="60.00")
+        assert evidence_strength(None, None) == EvidenceStrength.MISSING.value
+        strength = evidence_strength(None, field)
+        assert strength in (
+            EvidenceStrength.DIRECT.value,
+            EvidenceStrength.DERIVED.value,
+        )

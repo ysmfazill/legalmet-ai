@@ -334,6 +334,19 @@ class AuditEventType(StrEnum):
     COMPLIANCE_EVALUATION_COMPLETED = "COMPLIANCE_EVALUATION_COMPLETED"
     COMPLIANCE_EVALUATION_FAILED = "COMPLIANCE_EVALUATION_FAILED"
     COMPLIANCE_FINDING_CREATED = "COMPLIANCE_FINDING_CREATED"
+    # Prompt 8 — human-in-the-loop review, correction and final decision.
+    # Every event records WHO acted (actor), with WHAT authority (role), on
+    # WHICH entity, and WHY (reason) in the payload. The AI never appears as
+    # the actor of any of these events.
+    FIELD_REVIEWED = "FIELD_REVIEWED"
+    FIELD_CORRECTED = "FIELD_CORRECTED"
+    FINDING_CONFIRMED = "FINDING_CONFIRMED"
+    FINDING_REJECTED = "FINDING_REJECTED"
+    FINDING_OVERRIDDEN = "FINDING_OVERRIDDEN"
+    FINDING_ESCALATED = "FINDING_ESCALATED"
+    DECISION_SUBMITTED = "DECISION_SUBMITTED"
+    DECISION_CHANGED = "DECISION_CHANGED"
+    SUPERVISOR_REVIEWED = "SUPERVISOR_REVIEWED"
 
 
 class BatchStatus(StrEnum):
@@ -485,6 +498,33 @@ class EvidenceNodeType(StrEnum):
     FINDING = "FINDING"
     PROCESSING_RUN = "PROCESSING_RUN"
     AUDIT_EVENT = "AUDIT_EVENT"
+    # Prompt 8 — human-in-the-loop records. Every one of these nodes is a
+    # persisted human action with an actor, and carries origin=HUMAN in its
+    # metadata. AI outputs and human actions are NEVER represented as
+    # identical in the graph.
+    FIELD_CORRECTION = "FIELD_CORRECTION"
+    FINDING_REVIEW = "FINDING_REVIEW"
+    INSPECTION_DECISION = "INSPECTION_DECISION"
+
+
+class EvidenceNodeOrigin(StrEnum):
+    """Who produced a graph node (Phase 15 — AI vs HUMAN distinction).
+
+    AI      — machine output (OCR line, region, extracted field, evaluation,
+              finding): produced by a pipeline, confidence-annotated.
+    HUMAN   — an authorised human action with an actor id (correction,
+              review, decision).
+    SYSTEM  — neutral recorded data (inspection, image, regulatory records,
+              system audit events): neither an AI inference nor a human
+              review judgement.
+
+    The distinction is a traceability guarantee: an AI node is never
+    relabelled as a human decision and vice versa.
+    """
+
+    AI = "AI"
+    HUMAN = "HUMAN"
+    SYSTEM = "SYSTEM"
 
 
 class EvidenceEdgeType(StrEnum):
@@ -514,6 +554,14 @@ class EvidenceEdgeType(StrEnum):
     DOCUMENT_HAS_SOURCE = "DOCUMENT_HAS_SOURCE"
     FINDING_SUPPORTED_BY_EVIDENCE = "FINDING_SUPPORTED_BY_EVIDENCE"
     AUDIT_RECORDS_ACTION = "AUDIT_RECORDS_ACTION"
+    # Prompt 8 — human-in-the-loop relations. Sources of these edges are
+    # always origin=HUMAN nodes (correction / review / decision records).
+    FIELD_CORRECTION_CORRECTS_FIELD = "FIELD_CORRECTION_CORRECTS_FIELD"
+    FINDING_REVIEW_REVIEWS_FINDING = "FINDING_REVIEW_REVIEWS_FINDING"
+    FINDING_REVIEW_LINKS_CORRECTION = "FINDING_REVIEW_LINKS_CORRECTION"
+    DECISION_FOR_INSPECTION = "DECISION_FOR_INSPECTION"
+    DECISION_BASED_ON_EVALUATION = "DECISION_BASED_ON_EVALUATION"
+    DECISION_SUPERSEDES_DECISION = "DECISION_SUPERSEDES_DECISION"
 
 
 class EvidenceStrength(StrEnum):
@@ -532,3 +580,38 @@ class EvidenceStrength(StrEnum):
     DERIVED = "DERIVED"
     AMBIGUOUS = "AMBIGUOUS"
     MISSING = "MISSING"
+
+
+# --- Human-in-the-loop review & decision (Prompt 8) ----------------------------
+
+
+class FindingReviewState(StrEnum):
+    """Human review state of ONE engine finding — the inspector's verdict.
+
+    The engine finding itself (status, explanation, evidence) is a frozen
+    system output; this state records what the AUTHORISED HUMAN decided about
+    it. PENDING_REVIEW is the default: the system has spoken, the human has
+    not. Transitions are enforced in the backend service layer — never in the
+    frontend.
+    """
+
+    PENDING_REVIEW = "PENDING_REVIEW"
+    CONFIRMED = "CONFIRMED"  # inspector agrees with the system finding
+    CORRECTED = "CORRECTED"  # the underlying value was human-corrected
+    REJECTED = "REJECTED"  # inspector rejects the system finding
+    OVERRIDDEN = "OVERRIDDEN"  # supervisor overrode a confirmed outcome
+    ESCALATED = "ESCALATED"  # routed to a supervisor / senior review
+
+
+class InspectionDecisionType(StrEnum):
+    """The FINAL human decision on an inspection — the only legal conclusion.
+
+    The deterministic engine NEVER produces any of these values. An inspector
+    (or supervisor) records the decision explicitly, with reason and audit
+    trail. NOT_EVALUATED records the honest "no decision yet" state.
+    """
+
+    COMPLIANT = "COMPLIANT"
+    NON_COMPLIANT = "NON_COMPLIANT"
+    REQUIRES_FURTHER_REVIEW = "REQUIRES_FURTHER_REVIEW"
+    NOT_EVALUATED = "NOT_EVALUATED"

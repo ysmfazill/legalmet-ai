@@ -1,14 +1,14 @@
 /**
- * Engine review queue (Prompt 6, Phase 18) — REAL backend findings.
+ * Engine review queue (Prompt 6 + Prompt 8) — REAL backend findings.
  *
  * Lists the deterministic engine findings awaiting an inspector decision:
  * REVIEW_REQUIRED, NON_COMPLIANT, NOT_DETECTED and NOT_EVALUATED from each
  * inspection's LATEST evaluation (superseded evaluations never re-queue).
  *
- * Read-only by design: each row says "System finding — inspector decision
- * pending". This queue performs no approval or rejection — recording the
- * final enforcement decision is a later phase, and the inspector remains
- * responsible for it.
+ * Each row shows BOTH verdicts, never conflated:
+ *   - the SYSTEM finding (what the engine concluded — badge)
+ *   - the HUMAN review state (what the inspector decided — badge)
+ * Clicking a row opens the inspection workspace where the review actions live.
  */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -16,7 +16,7 @@ import { useNavigate } from 'react-router-dom';
 import type { EngineFinding } from '@legalmet/types';
 
 import { api } from '../api/client';
-import { EngineFindingBadge } from '../components/Badge';
+import { EngineFindingBadge, FindingReviewStateBadge } from '../components/Badge';
 import { Card, CardBody, CardHead } from '../components/Card';
 import type { Column } from '../components/DataTable';
 import { DataTable } from '../components/DataTable';
@@ -83,6 +83,11 @@ export function EngineReviewQueueSection() {
       ),
     },
     { key: 'status', header: 'System finding', render: (f) => <EngineFindingBadge status={f.status} /> },
+    {
+      key: 'review',
+      header: 'Human review',
+      render: (f) => <FindingReviewStateBadge state={f.reviewState} />,
+    },
     {
       key: 'detected',
       header: 'Detected',
@@ -161,9 +166,11 @@ export function EngineReviewQueueSection() {
       </Card>
       <p style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-faint)' }}>
         Queued statuses: Non-Compliant, Review Required, Not Detected and Not Evaluated — COMPLIANT
-        and Not Applicable findings are informational and never queued. Compliance findings are
-        system-generated decision-support outputs; they are not, by themselves, legal enforcement
-        determinations.
+        and Not Applicable findings are informational and never queued. Each row shows both verdicts
+        separately: the system finding (AI) and the inspector's review state (human). Compliance
+        findings are system-generated decision-support outputs; they are not, by themselves, legal
+        enforcement determinations. LegalMet AI provides AI-assisted inspection analysis and
+        traceability — the authorized inspector remains responsible for the final inspection decision.
       </p>
 
       {traceFinding && (

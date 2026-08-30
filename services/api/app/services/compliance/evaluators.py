@@ -85,18 +85,39 @@ def _decimal(value: str | None) -> Decimal | None:
 
 
 def _text(field) -> str | None:
-    """Best deterministic text of a field: normalized value, else raw text."""
+    """Best deterministic text of a field: human correction, else normalized, else raw.
+
+    Prompt 8: when an inspector has corrected the value, the correction IS the
+    verified reading of the label and therefore what evaluation consumes. The
+    original AI values remain untouched on the field record.
+    """
     if field is None:
         return None
-    value = getattr(field, "normalized_value", None) or getattr(field, "raw_text", None)
+    value = (
+        getattr(field, "corrected_value", None)
+        or getattr(field, "normalized_value", None)
+        or getattr(field, "raw_text", None)
+    )
     return str(value).strip() if value else None
 
 
 def _raw(field) -> str | None:
+    """Raw reading consumed by evaluation — the human correction when one exists.
+
+    Format checks (e.g. MRP wording) must evaluate the corrected reading after
+    an inspector correction, because the correction is what the human verified
+    on the label. The ORIGINAL OCR raw text is never overwritten on the field.
+    """
     if field is None:
         return None
-    raw = getattr(field, "raw_text", None)
+    corrected = getattr(field, "corrected_value", None)
+    raw = corrected if corrected is not None else getattr(field, "raw_text", None)
     return str(raw).strip() if raw else None
+
+
+def _human_corrected(field) -> bool:
+    """True when a human correction has been recorded for this field."""
+    return field is not None and getattr(field, "corrected_value", None) is not None
 
 
 def _field_confidence(field) -> float | None:
@@ -137,6 +158,15 @@ def evaluate_presence(field, config: dict) -> EvaluatorOutcome:
             "normalization) — insufficient evidence to conclude either way.",
             expected="A non-empty declaration value.",
             outcome_code="INSUFFICIENT_EVIDENCE",
+        )
+    if _human_corrected(field):
+        # Prompt 8: a human-confirmed correction IS verified evidence — the
+        # perception confidence/review flags describe the ORIGINAL AI reading
+        # and no longer gate this requirement.
+        return _outcome(
+            True,
+            f"Declaration detected with value '{text}' "
+            "(human-confirmed correction).",
         )
     conf = _field_confidence(field)
     if status == "REVIEW_REQUIRED" or (conf is not None and conf < 0.6):

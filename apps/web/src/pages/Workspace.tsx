@@ -28,6 +28,8 @@ import {
 } from '../compliance/CompliancePanel';
 import { FindingExplanationDrawer } from '../compliance/FindingExplanationDrawer';
 import { useCompliance } from '../compliance/useCompliance';
+import { FinalDecisionCard } from '../hitl/FinalDecisionCard';
+import { useHitl } from '../hitl/useHitl';
 import { EvidenceTraceCard } from '../evidence/EvidenceTraceCard';
 import { QualityReadout } from '../intake/QualityReadout';
 import { FieldEvidenceDrawer } from '../perception/FieldEvidenceDrawer';
@@ -150,6 +152,7 @@ function RealInspectionWorkspace({ inspection }: { inspection: Inspection }) {
   const hasRuns = perception.analysis?.hasRuns ?? false;
 
   const compliance = useCompliance(inspection.id, hasRuns);
+  const hitl = useHitl(inspection.id, hasRuns);
   const openFinding =
     compliance.findings.find((f) => f.id === openFindingId) ?? null;
 
@@ -290,6 +293,10 @@ function RealInspectionWorkspace({ inspection }: { inspection: Inspection }) {
                   evaluationId={compliance.evaluation?.id ?? null}
                   hasEvaluation={Boolean(compliance.evaluation)}
                 />
+                <FinalDecisionCard
+                  hitl={hitl}
+                  hasFindings={compliance.findings.length > 0}
+                />
               </>
             )}
 
@@ -317,6 +324,8 @@ function RealInspectionWorkspace({ inspection }: { inspection: Inspection }) {
         <FindingExplanationDrawer
           finding={openFinding}
           onClose={() => setOpenFindingId(null)}
+          hitl={hitl}
+          onReviewed={() => void compliance.reload()}
         />
       )}
     </>

@@ -7,6 +7,7 @@ exist in the database:
     Prompt 4 (perception)   IMAGE → REGION → OCR → EXTRACTED FIELD → RUN
     Prompt 5 (regulatory)   SOURCE → DOCUMENT → VERSION → REQUIREMENT
     Prompt 6 (compliance)   FINDING → RULE / REQUIREMENT / EVALUATION
+    Prompt 8 (human review) FIELD CORRECTION → FINDING REVIEW → DECISION
     audit                   AUDIT_EVENT → entity
 
 Every node is ONE persisted record (node id = ``"<type>:<uuid>"``) and every
@@ -14,6 +15,13 @@ edge is a typed relationship between two real entity ids. Nothing is invented:
 a missing link is simply absent, and evidence quality is labelled explicitly
 (DIRECT / DERIVED / AMBIGUOUS / MISSING) — MISSING evidence is never converted
 into compliance.
+
+AI vs HUMAN (Phase 15): every node carries ``metadata.origin`` —
+"AI" for machine output (OCR, regions, fields, evaluations, findings),
+"HUMAN" for authorised human actions (corrections, reviews, decisions),
+"SYSTEM" for neutral recorded data (inspections, images, regulatory records).
+The two are never represented as identical: a correction is its own node with
+its own actor, never a mutation of the AI node it corrects.
 
 BOUNDARY: the graph is a traceability representation of system inputs,
 transformations, regulatory references and findings. It does not independently
@@ -29,6 +37,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.core.enums import (
     EvidenceEdgeType,
+    EvidenceNodeOrigin,
     EvidenceNodeType,
     EvidenceStrength,
     ExtractionStatus,
@@ -40,9 +49,12 @@ from app.models import (
     ComplianceRule,
     EvaluationFinding,
     ExtractedField,
+    FieldCorrection,
+    FindingReview,
     Image,
     ImageRegion,
     Inspection,
+    InspectionDecision,
     OcrTextResult,
     Package,
     ProcessingRun,
@@ -69,6 +81,19 @@ MAX_REGIONS_PER_IMAGE = 40
 MAX_FINDINGS = 60
 MAX_FIELD_FINDINGS = 20
 MAX_AUDIT_EVENTS = 50
+MAX_CORRECTIONS = 40
+MAX_DECISIONS = 20
+
+# Entity types whose audit events are overlaid on the inspection graph. The
+# Prompt 8 HITL events (field corrections, finding reviews, decisions) are
+# included so the audit trail and the human nodes stay linked in one view.
+_AUDIT_ENTITY_TYPES = (
+    "compliance_evaluation",
+    "extracted_field",
+    "evaluation_finding",
+    "inspection",
+    "inspection_decision",
+)
 
 # Label truncation for readable node chips.
 _LABEL_MAX = 48
@@ -94,8 +119,13 @@ def evidence_strength(finding: EvaluationFinding, field: ExtractedField | None) 
     """
     if field is None:
         return EvidenceStrength.MISSING.value
-    if field.status == ExtractionStatus.REVIEW_REQUIRED.value or (
-        float(field.confidence or 0.0) < _AMBIGUOUS_CONFIDENCE_FLOOR
+    # A human-confirmed correction is sufficient evidence by definition (the
+    # engine's quality gate is bypassed for corrected values) — it is never
+    # downgraded to AMBIGUOUS by the original AI confidence.
+    corrected = getattr(field, "corrected_value", None) is not None
+    if not corrected and (
+        field.status == ExtractionStatus.REVIEW_REQUIRED.value
+        or (float(field.confidence or 0.0) < _AMBIGUOUS_CONFIDENCE_FLOOR)
     ):
         return EvidenceStrength.AMBIGUOUS.value
     if field.source_ocr_result_id is not None or field.image_region_id is not None:
@@ -223,6 +253,13 @@ class EvidenceGraphService:
             if len(findings) == MAX_FINDINGS:
                 g.truncated = True
 
+        # Human-in-the-loop overlay (Phase 15): corrections, reviews and the
+        # final decision — present even when no evaluation exists yet.
+        self._add_human_review_for_inspection(db, g, inspection_id, insp, ev_node)
+
+        # Audit overlay LAST: HITL audit events link to the correction /
+        # decision nodes created above, so those must already exist.
+        if evaluation is not None:
             self._add_audit_events(db, g, inspection_id, evaluation=evaluation)
 
         return g.out(
@@ -249,6 +286,8 @@ class EvidenceGraphService:
         ev_node = self._add_evaluation(g, evaluation)
         g.edge(insp, ev_node, EvidenceEdgeType.INSPECTION_HAS_EVALUATION)
         self._add_finding_chain(db, g, finding, ev_node, insp)
+        # Human overlay for this finding: its review (if any) + linked correction.
+        self._add_review_for_finding(db, g, finding)
 
         # Audit trail specific to THIS finding (lifecycle events attach to the
         # evaluation node instead).
@@ -306,6 +345,8 @@ class EvidenceGraphService:
         g = _Graph()
         insp = self._add_inspection(g, inspection)
         self._add_field_chain(db, g, field, insp)
+        # Human overlay for this field: its full correction history.
+        self._add_corrections_for_field(db, g, field)
 
         # Reverse: every finding whose evidence was this field.
         findings = list(
@@ -707,13 +748,14 @@ class EvidenceGraphService:
         *,
         evaluation: ComplianceEvaluation,
     ) -> None:
-        """Inspection-level audit overlay: evaluation + finding events."""
+        """Inspection-level audit overlay: evaluation, finding, field and
+        decision events — the human actions are audited alongside the AI run."""
         events = list(
             db.execute(
                 select(AuditEvent)
                 .where(
                     AuditEvent.inspection_id == inspection_id,
-                    AuditEvent.entity_type == "compliance_evaluation",
+                    AuditEvent.entity_type.in_(_AUDIT_ENTITY_TYPES),
                 )
                 .order_by(AuditEvent.created_at.asc())
                 .limit(MAX_AUDIT_EVENTS)
@@ -734,8 +776,36 @@ class EvidenceGraphService:
                     g.node(EvidenceNodeType.FINDING, target_fid, ""),
                     EvidenceEdgeType.AUDIT_RECORDS_ACTION,
                 )
-            else:
-                g.edge(audit_node, ev_node, EvidenceEdgeType.AUDIT_RECORDS_ACTION)
+                continue
+            correction_id = payload.get("correctionId")
+            if correction_id and g.has_node(
+                EvidenceNodeType.FIELD_CORRECTION, correction_id
+            ):
+                g.edge(
+                    audit_node,
+                    g.node(EvidenceNodeType.FIELD_CORRECTION, correction_id, ""),
+                    EvidenceEdgeType.AUDIT_RECORDS_ACTION,
+                )
+                continue
+            decision_id = payload.get("decisionId")
+            if decision_id and g.has_node(
+                EvidenceNodeType.INSPECTION_DECISION, decision_id
+            ):
+                g.edge(
+                    audit_node,
+                    g.node(EvidenceNodeType.INSPECTION_DECISION, decision_id, ""),
+                    EvidenceEdgeType.AUDIT_RECORDS_ACTION,
+                )
+                continue
+            field_id = payload.get("fieldId")
+            if field_id and g.has_node(EvidenceNodeType.EXTRACTED_FIELD, field_id):
+                g.edge(
+                    audit_node,
+                    g.node(EvidenceNodeType.EXTRACTED_FIELD, field_id, ""),
+                    EvidenceEdgeType.AUDIT_RECORDS_ACTION,
+                )
+                continue
+            g.edge(audit_node, ev_node, EvidenceEdgeType.AUDIT_RECORDS_ACTION)
 
     # ------------------------------------------------------- node factories
 
@@ -750,6 +820,7 @@ class EvidenceGraphService:
                 "contextDate": _iso(inspection.context_date),
                 "createdAt": _iso(inspection.created_at),
                 "isDemo": inspection.is_demo,
+                "origin": EvidenceNodeOrigin.SYSTEM.value,
             },
         )
 
@@ -769,6 +840,7 @@ class EvidenceGraphService:
                 "height": image.height,
                 "checksum": (image.checksum[:16] + "…") if image.checksum else None,
                 "createdAt": _iso(image.created_at),
+                "origin": EvidenceNodeOrigin.SYSTEM.value,
             },
         )
 
@@ -784,6 +856,7 @@ class EvidenceGraphService:
                 "confidence": region.confidence,
                 "payload": region.payload,
                 "imageId": str(region.image_id),
+                "origin": EvidenceNodeOrigin.AI.value,
             },
         )
 
@@ -804,6 +877,7 @@ class EvidenceGraphService:
                 "modelVersion": ocr.model_version,
                 "processingRunId": str(ocr.processing_run_id),
                 "imageId": str(ocr.image_id),
+                "origin": EvidenceNodeOrigin.AI.value,
             },
         )
 
@@ -830,6 +904,13 @@ class EvidenceGraphService:
                     str(field.processing_run_id) if field.processing_run_id else None
                 ),
                 "createdAt": _iso(field.created_at),
+                # Human overlay pointers (the corrections themselves are
+                # separate HUMAN nodes — never merged into this AI node).
+                "correctedValue": field.corrected_value,
+                "correctedAt": _iso(field.corrected_at),
+                "correctedBy": str(field.corrected_by) if field.corrected_by else None,
+                "hasHumanCorrection": field.corrected_value is not None,
+                "origin": EvidenceNodeOrigin.AI.value,
             },
         )
 
@@ -849,6 +930,7 @@ class EvidenceGraphService:
                 "sourceReference": requirement.source_reference,
                 "versionId": str(requirement.regulation_version_id),
                 "isDemo": requirement.is_demo,
+                "origin": EvidenceNodeOrigin.SYSTEM.value,
             },
         )
 
@@ -864,6 +946,7 @@ class EvidenceGraphService:
                 "ruleVersion": rule.rule_version,
                 "active": rule.active,
                 "description": rule.description,
+                "origin": EvidenceNodeOrigin.SYSTEM.value,
             },
         )
 
@@ -881,6 +964,7 @@ class EvidenceGraphService:
                 "publicationDate": _iso(version.publication_date),
                 "documentId": str(version.regulation_id),
                 "isDemo": version.is_demo,
+                "origin": EvidenceNodeOrigin.SYSTEM.value,
             },
         )
 
@@ -899,6 +983,7 @@ class EvidenceGraphService:
                 "officialSourceUrl": document.official_source_url,
                 "sourceId": str(document.source_id) if document.source_id else None,
                 "isDemo": document.is_demo,
+                "origin": EvidenceNodeOrigin.SYSTEM.value,
             },
         )
 
@@ -915,6 +1000,7 @@ class EvidenceGraphService:
                 "jurisdiction": source.jurisdiction,
                 "verificationStatus": source.verification_status,
                 "canonicalUrl": source.canonical_url,
+                "origin": EvidenceNodeOrigin.SYSTEM.value,
             },
         )
 
@@ -936,6 +1022,7 @@ class EvidenceGraphService:
                     else None
                 ),
                 "summary": evaluation.summary,
+                "origin": EvidenceNodeOrigin.AI.value,
             },
         )
 
@@ -967,6 +1054,11 @@ class EvidenceGraphService:
                     str(finding.evidence_region_id) if finding.evidence_region_id else None
                 ),
                 "createdAt": _iso(finding.created_at),
+                # Human review overlay pointer (the review itself, if any, is a
+                # separate HUMAN node linked by FINDING_REVIEW_REVIEWS_FINDING).
+                "reviewState": finding.review_state,
+                "hasHumanReview": finding.review_state != "PENDING_REVIEW",
+                "origin": EvidenceNodeOrigin.AI.value,
             },
         )
 
@@ -989,10 +1081,18 @@ class EvidenceGraphService:
                 "durationMs": run.duration_ms,
                 "startedAt": _iso(run.started_at),
                 "completedAt": _iso(run.completed_at),
+                "origin": EvidenceNodeOrigin.AI.value,
             },
         )
 
     def _add_audit_event(self, g: _Graph, event: AuditEvent) -> str | None:
+        # An audit row records an action: HUMAN when an actor performed it,
+        # SYSTEM otherwise (pipeline / engine lifecycle events).
+        origin = (
+            EvidenceNodeOrigin.HUMAN.value
+            if event.actor_id is not None
+            else EvidenceNodeOrigin.SYSTEM.value
+        )
         return g.node(
             EvidenceNodeType.AUDIT_EVENT,
             event.id,
@@ -1005,8 +1105,251 @@ class EvidenceGraphService:
                 "actorId": str(event.actor_id) if event.actor_id else None,
                 "payload": event.payload,
                 "createdAt": _iso(event.created_at),
+                "origin": origin,
             },
         )
+
+
+    # ------------------------------------------------- human review factories
+
+    def _add_field_correction(self, g: _Graph, correction: FieldCorrection) -> str | None:
+        """One HUMAN node: an append-only correction of an AI-extracted value.
+
+        The original AI node is never mutated — this node points AT it via
+        FIELD_CORRECTION_CORRECTS_FIELD and carries the before/after pair.
+        """
+        return g.node(
+            EvidenceNodeType.FIELD_CORRECTION,
+            correction.id,
+            f"Correction: {_short(correction.corrected_value, 24)}",
+            {
+                "correctionId": str(correction.id),
+                "previousValue": correction.previous_value,
+                "previousRawText": correction.previous_raw_text,
+                "correctedValue": correction.corrected_value,
+                "reason": correction.reason,
+                "correctedBy": str(correction.corrected_by)
+                if correction.corrected_by
+                else None,
+                "correctedAt": _iso(correction.corrected_at),
+                "fieldId": str(correction.extracted_field_id),
+                "inspectionId": str(correction.inspection_id),
+                "triggeredByEvaluationId": (
+                    str(correction.triggered_by_evaluation_id)
+                    if correction.triggered_by_evaluation_id
+                    else None
+                ),
+                "origin": EvidenceNodeOrigin.HUMAN.value,
+            },
+        )
+
+    def _add_finding_review(self, g: _Graph, review: FindingReview) -> str | None:
+        """One HUMAN node: an inspector's review action on an AI finding."""
+        return g.node(
+            EvidenceNodeType.FINDING_REVIEW,
+            review.id,
+            f"Review: {review.state}",
+            {
+                "reviewId": str(review.id),
+                "state": review.state,
+                "findingId": str(review.finding_id),
+                "reviewedBy": str(review.reviewed_by) if review.reviewed_by else None,
+                "reviewedAt": _iso(review.reviewed_at),
+                "reason": review.reason,
+                "correctionId": str(review.correction_id) if review.correction_id else None,
+                "escalatedToRole": review.escalated_to_role,
+                "inspectionId": str(review.inspection_id),
+                "origin": EvidenceNodeOrigin.HUMAN.value,
+            },
+        )
+
+    def _add_inspection_decision(self, g: _Graph, decision: InspectionDecision) -> str | None:
+        """One HUMAN node: the final legal decision — never an AI output."""
+        return g.node(
+            EvidenceNodeType.INSPECTION_DECISION,
+            decision.id,
+            f"Decision: {decision.decision}",
+            {
+                "decisionId": str(decision.id),
+                "decision": decision.decision,
+                "decidedBy": str(decision.decided_by) if decision.decided_by else None,
+                "decidedAt": _iso(decision.decided_at),
+                "reason": decision.reason,
+                "evaluationId": str(decision.evaluation_id)
+                if decision.evaluation_id
+                else None,
+                "supersedesDecisionId": str(decision.supersedes_decision_id)
+                if decision.supersedes_decision_id
+                else None,
+                "inspectionId": str(decision.inspection_id),
+                "origin": EvidenceNodeOrigin.HUMAN.value,
+            },
+        )
+
+    # ------------------------------------------------------ human traversal
+
+    def _add_human_review_for_inspection(
+        self,
+        db: Session,
+        g: _Graph,
+        inspection_id: uuid.UUID,
+        insp_node: str | None,
+        ev_node: str | None,
+    ) -> None:
+        """Human-in-the-loop overlay (Phase 15): corrections, reviews, decisions.
+
+        Every node here has origin=HUMAN and points at the AI / system record
+        it acts upon — the graph never merges a human action into the AI node
+        it corrects or reviews.
+        """
+        # Corrections → the AI field nodes they correct.
+        corrections = list(
+            db.execute(
+                select(FieldCorrection)
+                .where(FieldCorrection.inspection_id == inspection_id)
+                .order_by(FieldCorrection.created_at.asc())
+                .limit(MAX_CORRECTIONS)
+            )
+            .scalars()
+            .all()
+        )
+        if len(corrections) == MAX_CORRECTIONS:
+            g.truncated = True
+        for correction in corrections:
+            corr_node = self._add_field_correction(g, correction)
+            if g.has_node(EvidenceNodeType.EXTRACTED_FIELD, correction.extracted_field_id):
+                g.edge(
+                    corr_node,
+                    g.node(
+                        EvidenceNodeType.EXTRACTED_FIELD,
+                        correction.extracted_field_id,
+                        "",
+                    ),
+                    EvidenceEdgeType.FIELD_CORRECTION_CORRECTS_FIELD,
+                )
+
+        # Reviews → the AI finding nodes they review.
+        reviews = list(
+            db.execute(
+                select(FindingReview)
+                .where(FindingReview.inspection_id == inspection_id)
+                .order_by(FindingReview.created_at.asc())
+                .limit(MAX_FINDINGS)
+            )
+            .scalars()
+            .all()
+        )
+        for review in reviews:
+            rev_node = self._add_finding_review(g, review)
+            if g.has_node(EvidenceNodeType.FINDING, review.finding_id):
+                g.edge(
+                    rev_node,
+                    g.node(EvidenceNodeType.FINDING, review.finding_id, ""),
+                    EvidenceEdgeType.FINDING_REVIEW_REVIEWS_FINDING,
+                )
+            if review.correction_id is not None and g.has_node(
+                EvidenceNodeType.FIELD_CORRECTION, review.correction_id
+            ):
+                g.edge(
+                    rev_node,
+                    g.node(EvidenceNodeType.FIELD_CORRECTION, review.correction_id, ""),
+                    EvidenceEdgeType.FINDING_REVIEW_LINKS_CORRECTION,
+                )
+
+        # Decisions → inspection (+ evaluation basis + supersede chain).
+        decisions = list(
+            db.execute(
+                select(InspectionDecision)
+                .where(InspectionDecision.inspection_id == inspection_id)
+                .order_by(InspectionDecision.created_at.asc())
+                .limit(MAX_DECISIONS)
+            )
+            .scalars()
+            .all()
+        )
+        if len(decisions) == MAX_DECISIONS:
+            g.truncated = True
+        for decision in decisions:
+            dec_node = self._add_inspection_decision(g, decision)
+            g.edge(dec_node, insp_node, EvidenceEdgeType.DECISION_FOR_INSPECTION)
+            if decision.evaluation_id is not None and g.has_node(
+                EvidenceNodeType.EVALUATION, decision.evaluation_id
+            ):
+                g.edge(
+                    dec_node,
+                    g.node(EvidenceNodeType.EVALUATION, decision.evaluation_id, ""),
+                    EvidenceEdgeType.DECISION_BASED_ON_EVALUATION,
+                )
+            if decision.supersedes_decision_id is not None and g.has_node(
+                EvidenceNodeType.INSPECTION_DECISION, decision.supersedes_decision_id
+            ):
+                g.edge(
+                    dec_node,
+                    g.node(
+                        EvidenceNodeType.INSPECTION_DECISION,
+                        decision.supersedes_decision_id,
+                        "",
+                    ),
+                    EvidenceEdgeType.DECISION_SUPERSEDES_DECISION,
+                )
+        _ = ev_node  # decisions reference evaluations directly, not the latest
+
+    def _add_corrections_for_field(self, db: Session, g: _Graph, field: ExtractedField) -> None:
+        """Correction history of ONE field (focused field graph)."""
+        corrections = list(
+            db.execute(
+                select(FieldCorrection)
+                .where(FieldCorrection.extracted_field_id == field.id)
+                .order_by(FieldCorrection.created_at.asc())
+                .limit(MAX_CORRECTIONS)
+            )
+            .scalars()
+            .all()
+        )
+        field_node = g.node(EvidenceNodeType.EXTRACTED_FIELD, field.id, "")
+        for correction in corrections:
+            corr_node = self._add_field_correction(g, correction)
+            g.edge(
+                corr_node,
+                field_node,
+                EvidenceEdgeType.FIELD_CORRECTION_CORRECTS_FIELD,
+            )
+
+    def _add_review_for_finding(self, db: Session, g: _Graph, finding: EvaluationFinding) -> None:
+        """The review (if any) of ONE finding (focused finding graph)."""
+        review = (
+            db.execute(
+                select(FindingReview).where(FindingReview.finding_id == finding.id)
+            )
+            .scalars()
+            .first()
+        )
+        if review is None:
+            return
+        rev_node = self._add_finding_review(g, review)
+        finding_node = g.node(EvidenceNodeType.FINDING, finding.id, "")
+        g.edge(
+            rev_node, finding_node, EvidenceEdgeType.FINDING_REVIEW_REVIEWS_FINDING
+        )
+        if review.correction_id is not None:
+            correction = db.get(FieldCorrection, review.correction_id)
+            if correction is not None:
+                corr_node = self._add_field_correction(g, correction)
+                g.edge(
+                    rev_node, corr_node, EvidenceEdgeType.FINDING_REVIEW_LINKS_CORRECTION
+                )
+                if g.has_node(
+                    EvidenceNodeType.EXTRACTED_FIELD, correction.extracted_field_id
+                ):
+                    g.edge(
+                        corr_node,
+                        g.node(
+                            EvidenceNodeType.EXTRACTED_FIELD,
+                            correction.extracted_field_id,
+                            "",
+                        ),
+                        EvidenceEdgeType.FIELD_CORRECTION_CORRECTS_FIELD,
+                    )
 
 
 _STRENGTH_DESCRIPTIONS = {

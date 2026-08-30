@@ -103,12 +103,15 @@ export function ReportPreview({
       </div>
 
       <div className="report__section" style={{ borderBottom: 'none' }}>
-        <div className="report__section-title">Inspector decision</div>
+        <div className="report__section-title">Inspector decision (human record)</div>
         <div className="demo-note demo-note--block">
           <Icon name="shield" size={15} />
           <span>
-            This report records AI-assisted analysis. Legal compliance decisions rest with the
-            inspector. Prepared by <strong>{inspector}</strong>.
+            <strong>AI-assisted analysis, human decision.</strong> The analysis above was produced
+            by the deterministic engine; this decision was recorded by the authorised inspector.
+            LegalMet AI provides AI-assisted inspection analysis and traceability — the authorized
+            inspector remains responsible for the final inspection decision. Prepared by{' '}
+            <strong>{inspector}</strong>.
             {status === 'DRAFT' ? ' Awaiting inspector sign-off.' : ' Signed off by inspector.'}
           </span>
         </div>

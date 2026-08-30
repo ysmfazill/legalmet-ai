@@ -5,9 +5,12 @@ import {
   COMPLIANCE_STATUS_META,
   ENGINE_FINDING_STATUS_META,
   EVALUATION_STATUS_META,
+  EVIDENCE_NODE_ORIGIN_META,
   EXTRACTION_STATUS_META,
+  FINDING_REVIEW_STATE_META,
   IMAGE_PROCESSING_STATUS_META,
   IMAGE_QUALITY_GRADE_META,
+  INSPECTION_DECISION_META,
   INSPECTION_STATUS_META,
   IMAGE_QUALITY_META,
   PACKAGE_STATUS_META,
@@ -21,10 +24,13 @@ import type {
   ComplianceStatus,
   EngineFindingStatus,
   EvaluationStatus,
+  EvidenceNodeOrigin,
   ExtractionStatus,
+  FindingReviewState,
   ImageProcessingStatus,
   ImageQualityGrade,
   ImageQualityStatus,
+  InspectionDecisionType,
   InspectionStatus,
   PackageStatus,
   ProcessingRunStatus,
@@ -211,6 +217,49 @@ export function ApplicabilityBadge({ outcome }: { outcome: ApplicabilityOutcome 
   const meta = APPLICABILITY_OUTCOME_META[outcome];
   return (
     <Badge tone={meta.tone} title={meta.description}>
+      {meta.label}
+    </Badge>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Human-in-the-loop (Prompt 8)                                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Human review state of one system finding. The tooltip always says who owns
+ * the conclusion: the authorised inspector, never the engine.
+ */
+export function FindingReviewStateBadge({ state }: { state: FindingReviewState }) {
+  const meta = FINDING_REVIEW_STATE_META[state];
+  return (
+    <Badge tone={meta.tone} dot title={meta.description}>
+      {meta.label}
+    </Badge>
+  );
+}
+
+/**
+ * The FINAL human decision — the only legal conclusion the system records.
+ * The tooltip reiterates that the engine never produces this value.
+ */
+export function DecisionBadge({ decision }: { decision: InspectionDecisionType }) {
+  const meta = INSPECTION_DECISION_META[decision];
+  return (
+    <Badge tone={meta.tone} dot title={meta.description}>
+      {meta.label}
+    </Badge>
+  );
+}
+
+/**
+ * Origin of an evidence-graph node — the Phase 15 AI-vs-HUMAN distinction.
+ * Renders as a compact chip so human actions are visually unmistakable.
+ */
+export function OriginBadge({ origin }: { origin: EvidenceNodeOrigin }) {
+  const meta = EVIDENCE_NODE_ORIGIN_META[origin];
+  return (
+    <Badge tone={meta.tone} outline title={meta.description}>
       {meta.label}
     </Badge>
   );
