@@ -86,11 +86,34 @@ export function FieldEvidenceDrawer({
             <Row label="Field">
               {FIELD_TYPE_LABELS[field.fieldType]}
             </Row>
-            <Row label="Extracted value">
-              <span style={{ fontFamily: 'var(--font-mono)' }}>
-                {field.normalizedValue ?? '— (no usable value read)'}
-              </span>
-            </Row>
+            {field.correctedValue != null && field.correctedValue !== '' ? (
+              <>
+                <Row label="Current value (human correction)">
+                  <span style={{ fontFamily: 'var(--font-mono)' }}>{field.correctedValue}</span>{' '}
+                  <span className="tag" title="Corrected by an authorized inspector">
+                    HUMAN
+                  </span>
+                </Row>
+                <Row label="AI-extracted value (preserved)">
+                  <span style={{ fontFamily: 'var(--font-mono)' }}>
+                    {field.normalizedValue ?? '— (no usable value read)'}
+                  </span>{' '}
+                  <span className="tag" title="Original pipeline output — never overwritten">
+                    AI
+                  </span>
+                </Row>
+                {field.correctedAt && <Row label="Corrected at">{formatDateTime(field.correctedAt)}</Row>}
+              </>
+            ) : (
+              <Row label="Extracted value">
+                <span style={{ fontFamily: 'var(--font-mono)' }}>
+                  {field.normalizedValue ?? '— (no usable value read)'}
+                </span>{' '}
+                <span className="tag" title="Original pipeline output — not yet reviewed">
+                  AI
+                </span>
+              </Row>
+            )}
             {field.unit && (
               <Row label="Unit">{field.unit}</Row>
             )}

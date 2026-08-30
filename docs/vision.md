@@ -1,4 +1,4 @@
-# LEGALMET AI — Vision / Region Detection (OpenCV)
+# METRASIGHT — Vision / Region Detection (OpenCV)
 
 > **Status:** the vision stage of package perception is a REAL local OpenCV
 > detector pass: QR codes and 1D barcodes (EAN/UPC/Code-128 family) are located

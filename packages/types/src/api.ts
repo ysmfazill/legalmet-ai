@@ -1,5 +1,5 @@
 /**
- * API request/response contracts for LEGALMET AI.
+ * API request/response contracts for METRASIGHT.
  *
  * Mirrors the live FastAPI contract (OpenAPI schema at `/openapi.json`, Swagger
  * UI at `/docs`); see also docs/architecture.md → "API layer". Response

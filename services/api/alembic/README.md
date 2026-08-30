@@ -1,6 +1,6 @@
 # Database migrations (Alembic)
 
-Alembic is the **production** source of truth for the LEGALMET AI database
+Alembic is the **production** source of truth for the METRASIGHT database
 schema. For zero-config local development and tests we materialise the schema
 directly from the ORM models via `Base.metadata.create_all` (see
 `app/db/init_db.py`), so you do not strictly need migrations to run the demo.

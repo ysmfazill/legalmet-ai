@@ -133,7 +133,7 @@ _UNRESOLVED_STATES = frozenset(
 )
 
 DECISION_BOUNDARY_NOTE = (
-    "LegalMet AI provides AI-assisted inspection analysis and traceability. "
+    "METRASIGHT provides AI-assisted inspection analysis and traceability. "
     "The authorized inspector remains responsible for the final inspection "
     "decision."
 )

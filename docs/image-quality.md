@@ -1,4 +1,4 @@
-# LEGALMET AI — Image Usability Grading
+# METRASIGHT — Image Usability Grading
 
 > **Status:** Real package intake (Prompt 3). Unlike the perception mocks, this
 > subsystem is a **real, working** implementation — it computes a reproducible

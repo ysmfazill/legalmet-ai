@@ -34,6 +34,9 @@ class ErrorCode(str, Enum):
     OCR_UNAVAILABLE = "OCR_UNAVAILABLE"
     VISION_UNAVAILABLE = "VISION_UNAVAILABLE"
     AI_SERVICE_UNAVAILABLE = "AI_SERVICE_UNAVAILABLE"
+    # A requested language is not supported by the installed/tested OCR
+    # configuration — returned instead of silently degrading recognition.
+    UNSUPPORTED_LANGUAGE = "UNSUPPORTED_LANGUAGE"
 
     # Regulatory / rule engine
     NO_APPLICABLE_RULE = "NO_APPLICABLE_RULE"

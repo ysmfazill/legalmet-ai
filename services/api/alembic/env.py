@@ -1,4 +1,4 @@
-"""Alembic migration environment for LEGALMET AI.
+"""Alembic migration environment for METRASIGHT.
 
 Design notes:
 

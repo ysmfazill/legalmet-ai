@@ -148,21 +148,34 @@ export function PerceptionDeclarationsCard({
           {fields.map((field) => {
             const meta = EXTRACTION_STATUS_META[field.status];
             const selected = field.id === selectedFieldId;
+            // Prompt 9 (Phase 12): a corrected field shows the HUMAN value —
+            // clearly marked, never presented as an AI read.
+            const corrected = field.correctedValue != null && field.correctedValue !== '';
+            const shown = corrected ? field.correctedValue : (field.normalizedValue ?? '—');
             return (
               <button
                 key={field.id}
                 type="button"
                 className={`decl decl--perception${selected ? ' is-selected' : ''}`}
                 onClick={() => onSelect(field)}
-                title={meta.description}
+                title={
+                  corrected
+                    ? `Human-corrected value (AI original: ${field.normalizedValue ?? '—'})`
+                    : meta.description
+                }
               >
                 <span className="decl__main">
                   <span className="decl__label">{FIELD_TYPE_LABELS[field.fieldType]}</span>
                   <span className="decl__value" style={{ fontFamily: 'var(--font-mono)' }}>
-                    {field.normalizedValue ?? '—'}
+                    {shown}
                   </span>
                 </span>
                 <span className="decl__side">
+                  {corrected && (
+                    <span className="tag" title="Corrected by an inspector — the AI value is preserved in history">
+                      human correction
+                    </span>
+                  )}
                   <ExtractionStatusBadge status={field.status} />
                   <span className="decl__conf" title="OCR confidence × pattern weight — not legal confidence">
                     {formatPercent(field.confidence)}

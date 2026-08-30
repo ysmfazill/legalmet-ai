@@ -13,8 +13,14 @@ from pydantic import Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import Pagination, get_current_user, get_services_dep, pagination
-from app.core.enums import BatchStatus
+from app.api.deps import (
+    Pagination,
+    get_current_user,
+    get_services_dep,
+    pagination,
+    require_role,
+)
+from app.core.enums import BatchStatus, UserRole
 from app.core.errors import NotFoundError
 from app.db.session import get_db
 from app.models import BatchInspection, User
@@ -34,7 +40,9 @@ class CreateBatchRequest(CamelModel):
 @router.post("", response_model=BatchInspectionOut, status_code=201)
 def create_batch(
     body: CreateBatchRequest,
-    user: User = Depends(get_current_user),
+    user: User = Depends(
+        require_role(UserRole.INSPECTOR, UserRole.SUPERVISOR, UserRole.ADMIN)
+    ),
     db: Session = Depends(get_db),
 ) -> BatchInspectionOut:
     batch = BatchInspection(

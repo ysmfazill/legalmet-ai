@@ -1,4 +1,4 @@
-# LEGALMET AI — OCR Engine (PaddleOCR, local CPU)
+# METRASIGHT — OCR Engine (PaddleOCR, local CPU)
 
 > **Status:** the OCR stage of package perception is a REAL local engine
 > (PaddleOCR on PaddlePaddle CPU). No OCR text is ever fabricated: every

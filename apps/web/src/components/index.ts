@@ -1,4 +1,4 @@
-/** Barrel for the LEGALMET AI component library. */
+/** Barrel for the METRASIGHT component library. */
 export * from './Icon';
 export * from './Badge';
 export * from './Card';

@@ -1,4 +1,4 @@
-# LEGALMET AI — Package Perception Pipeline (Prompt 4)
+# METRASIGHT — Package Perception Pipeline (Prompt 4)
 
 > **Status:** Real multimodal package perception. A REAL uploaded package image
 > is processed by a REAL OCR engine (PaddleOCR, CPU) and a REAL symbol detector

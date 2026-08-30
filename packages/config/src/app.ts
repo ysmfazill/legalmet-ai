@@ -1,11 +1,10 @@
 /**
- * Application-wide constants and identity for LEGALMET AI.
+ * Application-wide constants and identity for METRASIGHT.
  */
 
-export const APP_NAME = 'LEGALMET AI';
+export const APP_NAME = 'METRASIGHT';
 
-export const APP_TAGLINE =
-  'Evidence-grounded, version-aware AI-assisted compliance inspection for packaged commodities.';
+export const APP_TAGLINE = 'AI-Assisted Legal Metrology Inspection Intelligence';
 
 export const PROBLEM_STATEMENT = {
   id: 'SIH26034',

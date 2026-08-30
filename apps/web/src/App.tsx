@@ -17,7 +17,7 @@ import { SettingsPage } from './pages/Settings';
 import { WorkspacePage } from './pages/Workspace';
 
 /**
- * Root of the LegalMet AI inspection platform. A single BrowserRouter wraps the
+ * Root of the METRASIGHT inspection platform. A single BrowserRouter wraps the
  * AppProvider (backend connectivity + demo inspector context); every primary
  * destination renders inside the AppShell layout via <Outlet />.
  */

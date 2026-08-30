@@ -2,7 +2,7 @@
   "name": "legalmet-ai",
   "version": "0.1.0",
   "private": true,
-  "description": "LEGALMET AI — evidence-grounded, version-aware AI-assisted compliance inspection platform for packaged commodities (SIH26034).",
+  "description": "METRASIGHT — evidence-grounded, version-aware AI-assisted compliance inspection platform for packaged commodities (SIH26034).",
   "license": "UNLICENSED",
   "workspaces": [
     "packages/*",

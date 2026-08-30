@@ -1,5 +1,5 @@
 /**
- * Typed API client for the LEGALMET AI backend.
+ * Typed API client for the METRASIGHT backend.
  *
  * Two transports live here:
  *   - `request()` — JSON over `fetch`, used for every non-upload call. It injects

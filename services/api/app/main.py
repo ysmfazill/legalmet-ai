@@ -70,6 +70,21 @@ async def _lifespan(app: FastAPI):
         finally:
             db.close()
 
+    # Prompt 9 (Phase 18): three full-lifecycle demo inspections (DEMO-FOOD /
+    # DEMO-WATER / DEMO-OIL) produced through the REAL services — real intake,
+    # real local OCR, real evaluation, real review + decision. Idempotent; the
+    # first boot on a fresh DB pays the real-OCR cost.
+    if settings.seed_demo_inspections:
+        from app.db.demo_inspections_seed import seed_demo_inspections
+
+        db = SessionLocal()
+        try:
+            seed_demo_inspections(db)
+        except Exception:  # noqa: BLE001 - demo data must never block startup
+            logger.exception("demo_inspections_failed")
+        finally:
+            db.close()
+
     if settings.using_insecure_secret and settings.is_production:
         logger.warning("insecure_secret_in_production")
 

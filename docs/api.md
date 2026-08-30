@@ -1,4 +1,4 @@
-# LEGALMET AI — Intake & Perception API
+# METRASIGHT — Intake & Perception API
 
 > **Status:** Real package intake (Prompt 3) — followed by the real perception
 > API (Prompt 4) in the second half of this document. These endpoints ingest **real**

@@ -1,4 +1,4 @@
-"""Shared test fixtures for the LEGALMET AI API.
+"""Shared test fixtures for the METRASIGHT API.
 
 Isolation strategy
 ------------------

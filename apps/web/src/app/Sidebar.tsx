@@ -48,8 +48,8 @@ export function Sidebar() {
           <Icon name="scale" size={20} />
         </span>
         <span className="sidebar__wordmark">
-          LEGALMET AI
-          <span>LEGAL METROLOGY INSPECTION</span>
+          METRASIGHT
+          <span>LEGAL METROLOGY INSPECTION INTELLIGENCE</span>
         </span>
       </div>
 

@@ -1,5 +1,5 @@
 /**
- * Canonical enumerations for the LEGALMET AI domain.
+ * Canonical enumerations for the METRASIGHT domain.
  *
  * These values are the single source of truth for the frontend. The Python
  * backend mirrors the exact same string values in `app/core/enums.py`. When a

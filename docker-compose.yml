@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# LEGALMET AI — local infrastructure (PostgreSQL)
+# METRASIGHT — local infrastructure (PostgreSQL)
 #
 # This provides the production-intended database (PostgreSQL) for local
 # development. The backend can also run zero-config against SQLite for quick

@@ -1,4 +1,4 @@
-# LEGALMET AI — Object Storage
+# METRASIGHT — Object Storage
 
 > **Status:** Real package intake (Prompt 3). The storage layer is a **real,
 > working** implementation that persists actual uploaded image bytes and serves

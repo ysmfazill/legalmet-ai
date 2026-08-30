@@ -13,10 +13,24 @@ Compatibility notes (verified on this project's environment):
   3.7.x changes ``PaddlePredictorOption.__init__`` and breaks paddleocr 3.1.
 - CPU-only inference; no GPU required. Accuracy not yet benchmarked.
 
-Multilingual: one engine per configured language code (e.g. ``en``,
-``devanagari``, ``tamil``, ``telugu``). Results are merged and each line is
-tagged with the language whose engine read it. Only languages actually
-configured are claimed — see docs/ocr.md for the supported list.
+Multilingual: one engine per configured language code (e.g. ``en``, ``hi``,
+``ka``). Results are merged and each line is tagged with the language whose
+engine read it. Only languages in :data:`SUPPORTED_LANGS` are accepted — the
+set contains languages whose models are PRESENT in the pinned paddleocr
+install AND verified by the integration suite; anything else raises
+``UNSUPPORTED_LANGUAGE`` at service construction (never a silent fallback to
+another script's models). See docs/ocr.md for the supported list.
+
+Language support status (paddleocr 3.1.0 / PP-OCRv5, verified locally):
+- ``en``  — English (default; verified).
+- ``hi``  — Hindi / Devanagari script (verified: real recognition of rendered
+  Devanagari text, PP-OCRv5 devanagari rec models auto-download on first use).
+- ``ka``  — Kannada (verified: engine initialises and recognizes Kannada
+  script; accuracy NOT benchmarked).
+- Malayalam (``ml``) — NO models exist in this paddleocr version: unsupported.
+- ``ta`` / ``te`` — models exist in the library but are NOT verified by our
+  tests, so they are not claimed; extend SUPPORTED_LANGS only after adding a
+  verification test.
 """
 from __future__ import annotations
 
@@ -25,7 +39,7 @@ from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeoutError
 
 from app.core.enums import ModelServiceType
-from app.core.errors import ServiceUnavailableError
+from app.core.errors import ErrorCode, ServiceUnavailableError, ValidationError
 from app.core.logging import get_logger
 from app.services.interfaces import BBox, OcrLine, OcrResult, OCRService, ServiceDescriptor
 
@@ -34,6 +48,11 @@ logger = get_logger(__name__)
 # Model files used per language (recorded in run configuration / ModelVersion
 # meta for auditability).
 _MODEL_FAMILY = "PP-OCRv5"
+
+# Languages that are BOTH model-backed in the pinned install AND verified by
+# tests/test_ocr_languages_integration.py. Anything else is unsupported —
+# see the module docstring for the per-language status.
+SUPPORTED_LANGS = frozenset({"en", "hi", "ka"})
 
 
 class PaddleOCRService(OCRService):
@@ -49,6 +68,18 @@ class PaddleOCRService(OCRService):
         use_textline_orientation: bool = False,
     ) -> None:
         self._langs = [lang.strip() for lang in (langs or ["en"]) if lang.strip()]
+        unsupported = [lang for lang in self._langs if lang not in SUPPORTED_LANGS]
+        if unsupported:
+            # Fail fast with an explicit code — never silently fall back to
+            # another script's models (that would misread the label).
+            raise ValidationError(
+                "Unsupported OCR language(s): "
+                f"{', '.join(unsupported)}. Verified languages: "
+                f"{', '.join(sorted(SUPPORTED_LANGS))}. Malayalam has no "
+                "models in this paddleocr version; see docs/ocr.md.",
+                code=ErrorCode.UNSUPPORTED_LANGUAGE,
+                details={"unsupported": unsupported, "supported": sorted(SUPPORTED_LANGS)},
+            )
         self._timeout_seconds = timeout_seconds
         self._engine_flags = {
             "use_doc_orientation_classify": use_doc_orientation_classify,
@@ -92,7 +123,18 @@ class PaddleOCRService(OCRService):
         import cv2  # numpy/cv2 come with the paddleocr install
         import numpy as np
 
-        array = cv2.imdecode(np.frombuffer(image_bytes, np.uint8), cv2.IMREAD_COLOR)
+        if not image_bytes:
+            raise ServiceUnavailableError(
+                "Real OCR requires image bytes; an empty payload was provided.",
+                details={"storageKey": storage_key},
+            )
+        try:
+            array = cv2.imdecode(np.frombuffer(image_bytes, np.uint8), cv2.IMREAD_COLOR)
+        except cv2.error as exc:  # malformed bytes must fail cleanly, not crash
+            raise ServiceUnavailableError(
+                "The OCR input could not be decoded as an image.",
+                details={"storageKey": storage_key, "reason": type(exc).__name__},
+            ) from exc
         if array is None:
             raise ServiceUnavailableError(
                 "The OCR derivative could not be decoded for inference.",

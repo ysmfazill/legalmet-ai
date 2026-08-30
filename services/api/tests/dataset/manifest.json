@@ -1,0 +1,469 @@
+{
+  "name": "METRASIGHT packaged-commodity test dataset",
+  "version": "1.0",
+  "origin": "All images are locally rendered synthetic labels (Pillow) — no copyrighted or third-party material.",
+  "accuracyDisclaimer": "expected fields describe what is printed on the synthetic label, not measured OCR accuracy. No accuracy percentage is claimed for any condition.",
+  "usage": "integration tests + image-quality gate tests + manual demo walkthrough",
+  "images": [
+    {
+      "id": "FOOD-CLEAN-001",
+      "file": "images/food-clean-001.png",
+      "category": "packaged-food",
+      "language": "en",
+      "condition": "clean-front-label",
+      "pixelSize": "1000x624",
+      "labelLines": [
+        "SUNRISE CRUNCHY MASALA",
+        "Net Qty: 250 g",
+        "M.R.P. Rs. 149.00 (inclusive of all taxes)",
+        "Batch No: SM-2481",
+        "Mfg. Date: 03/2026",
+        "Country of Origin: India",
+        "Consumer Care: care@sunrise.example",
+        "Best Before 6 months from packaging"
+      ],
+      "expectedVisibleFields": {
+        "net_quantity": "250 g",
+        "mrp": "Rs. 149.00",
+        "batch_number": "SM-2481",
+        "date_of_manufacture": "03/2026",
+        "country_of_origin": "India",
+        "consumer_care": "care@sunrise.example"
+      },
+      "expectedExtraction": "MRP / NET_QUANTITY / BATCH_NUMBER / DATE_OF_MANUFACTURE / COUNTRY_OF_ORIGIN / CONSUMER_CARE candidates expected",
+      "expectedReview": "clean render: no perception review expected"
+    },
+    {
+      "id": "WATER-CLEAN-001",
+      "file": "images/water-clean-001.png",
+      "category": "drinking-water",
+      "language": "en",
+      "condition": "clean-front-label",
+      "pixelSize": "1000x560",
+      "labelLines": [
+        "AQUAPURE PACKAGED DRINKING WATER",
+        "Net Quantity: 1 L",
+        "M.R.P. Rs. 20.00",
+        "Batch No: AQ-77120",
+        "Mfg. Date: 07/2026",
+        "Best Before: 6 months",
+        "Packaged by: AQUAPURE Beverages, Kochi, Kerala"
+      ],
+      "expectedVisibleFields": {
+        "net_quantity": "1 L",
+        "mrp": "Rs. 20.00",
+        "batch_number": "AQ-77120"
+      },
+      "expectedExtraction": "MRP / NET_QUANTITY / BATCH_NUMBER / DATE_OF_MANUFACTURE / BEST_BEFORE candidates expected",
+      "expectedReview": "clean render: no perception review expected"
+    },
+    {
+      "id": "OIL-CLEAN-001",
+      "file": "images/oil-clean-001.png",
+      "category": "edible-oil",
+      "language": "en",
+      "condition": "clean-front-label",
+      "pixelSize": "1000x562",
+      "labelLines": [
+        "GOLDLEAF SUNFLOWER OIL",
+        "Net Quantity: 1 L",
+        "M.R.P. Rs. 165.00 (inclusive of all taxes)",
+        "Batch No: GL-40516",
+        "Mfg. Date: 05/2026",
+        "Country of Origin: India",
+        "Packed by: GOLDLEAF Foods Pvt Ltd, Chennai"
+      ],
+      "expectedVisibleFields": {
+        "net_quantity": "1 L",
+        "mrp": "Rs. 165.00",
+        "batch_number": "GL-40516"
+      },
+      "expectedExtraction": "MRP / NET_QUANTITY / BATCH_NUMBER / DATE_OF_MANUFACTURE / COUNTRY_OF_ORIGIN candidates expected",
+      "expectedReview": "clean render: no perception review expected"
+    },
+    {
+      "id": "SNACKS-CLEAN-001",
+      "file": "images/snacks-clean-001.png",
+      "category": "snacks",
+      "language": "en",
+      "condition": "clean-front-label",
+      "pixelSize": "1000x500",
+      "labelLines": [
+        "CRISPYBITES CHIPS",
+        "Net Qty: 52 g",
+        "M.R.P. Rs. 10.00",
+        "Batch No: CB-99012",
+        "Best Before: 4 months",
+        "Manufactured by: CRISPYBITES Snacks, Indore"
+      ],
+      "expectedVisibleFields": {
+        "net_quantity": "52 g",
+        "mrp": "Rs. 10.00",
+        "batch_number": "CB-99012"
+      },
+      "expectedExtraction": "MRP / NET_QUANTITY / BATCH_NUMBER / BEST_BEFORE candidates expected",
+      "expectedReview": "clean render: no perception review expected"
+    },
+    {
+      "id": "HOUSEHOLD-CLEAN-001",
+      "file": "images/household-clean-001.png",
+      "category": "household-goods",
+      "language": "en",
+      "condition": "clean-front-label",
+      "pixelSize": "1000x544",
+      "labelLines": [
+        "SPARKLEWASH DETERGENT POWDER",
+        "Net Quantity: 500 g",
+        "M.R.P. Rs. 65.00 (inclusive of all taxes)",
+        "Batch No: SW-33081",
+        "Mfg. Date: 02/2026",
+        "Country of Origin: India",
+        "Consumer Care: 1800-222-345"
+      ],
+      "expectedVisibleFields": {
+        "net_quantity": "500 g",
+        "mrp": "Rs. 65.00",
+        "batch_number": "SW-33081"
+      },
+      "expectedExtraction": "MRP / NET_QUANTITY / BATCH_NUMBER / DATE_OF_MANUFACTURE / COUNTRY_OF_ORIGIN candidates expected",
+      "expectedReview": "clean render: no perception review expected"
+    },
+    {
+      "id": "COSMETIC-CLEAN-001",
+      "file": "images/cosmetic-clean-001.png",
+      "category": "cosmetic-personal-care",
+      "language": "en",
+      "condition": "clean-front-label",
+      "pixelSize": "1000x552",
+      "labelLines": [
+        "PETALFRESH FACE WASH",
+        "Net Quantity: 100 ml",
+        "M.R.P. Rs. 199.00",
+        "Batch No: PF-20461",
+        "Mfg. Date: 01/2026",
+        "Best Before 24 months",
+        "Address: PETALFRESH Care Ltd, Mumbai 400001"
+      ],
+      "expectedVisibleFields": {
+        "net_quantity": "100 ml",
+        "mrp": "Rs. 199.00",
+        "batch_number": "PF-20461"
+      },
+      "expectedExtraction": "MRP / NET_QUANTITY / BATCH_NUMBER / DATE_OF_MANUFACTURE / BEST_BEFORE candidates expected",
+      "expectedReview": "clean render: no perception review expected"
+    },
+    {
+      "id": "FOOD-LOWLIGHT-002",
+      "file": "images/food-lowlight-002.png",
+      "category": "packaged-food",
+      "language": "en",
+      "condition": "low-lighting",
+      "pixelSize": "1000x624",
+      "labelLines": [
+        "SUNRISE CRUNCHY MASALA",
+        "Net Qty: 250 g",
+        "M.R.P. Rs. 149.00 (inclusive of all taxes)",
+        "Batch No: SM-2481",
+        "Mfg. Date: 03/2026",
+        "Country of Origin: India",
+        "Consumer Care: care@sunrise.example",
+        "Best Before 6 months from packaging"
+      ],
+      "expectedVisibleFields": {
+        "net_quantity": "250 g",
+        "mrp": "Rs. 149.00"
+      },
+      "expectedExtraction": "diminished contrast: some candidates missed or flagged REVIEW_REQUIRED (relative expectation, no accuracy claim)",
+      "expectedReview": "REVIEW_REQUIRED possible; image quality grade may drop to POOR"
+    },
+    {
+      "id": "FOOD-GLARE-003",
+      "file": "images/food-glare-003.png",
+      "category": "packaged-food",
+      "language": "en",
+      "condition": "glare",
+      "pixelSize": "1000x624",
+      "labelLines": [
+        "SUNRISE CRUNCHY MASALA",
+        "Net Qty: 250 g",
+        "M.R.P. Rs. 149.00 (inclusive of all taxes)",
+        "Batch No: SM-2481",
+        "Mfg. Date: 03/2026",
+        "Country of Origin: India",
+        "Consumer Care: care@sunrise.example",
+        "Best Before 6 months from packaging"
+      ],
+      "expectedVisibleFields": {
+        "net_quantity": "250 g",
+        "mrp": "Rs. 149.00"
+      },
+      "expectedExtraction": "glare streaks may obscure MRP lines: missed or low-confidence candidates expected",
+      "expectedReview": "REVIEW_REQUIRED possible for obscured lines"
+    },
+    {
+      "id": "FOOD-ROTATED-004",
+      "file": "images/food-rotated-004.png",
+      "category": "packaged-food",
+      "language": "en",
+      "condition": "rotation",
+      "pixelSize": "1094x790",
+      "labelLines": [
+        "SUNRISE CRUNCHY MASALA",
+        "Net Qty: 250 g",
+        "M.R.P. Rs. 149.00 (inclusive of all taxes)",
+        "Batch No: SM-2481",
+        "Mfg. Date: 03/2026",
+        "Country of Origin: India",
+        "Consumer Care: care@sunrise.example",
+        "Best Before 6 months from packaging"
+      ],
+      "expectedVisibleFields": {
+        "net_quantity": "250 g",
+        "mrp": "Rs. 149.00"
+      },
+      "expectedExtraction": "10-degree rotation: most English lines still expected; degrades with angle",
+      "expectedReview": "possible partial misses; not guaranteed"
+    },
+    {
+      "id": "FOOD-PERSPECTIVE-005",
+      "file": "images/food-perspective-005.png",
+      "category": "packaged-food",
+      "language": "en",
+      "condition": "perspective-distortion",
+      "pixelSize": "1000x624",
+      "labelLines": [
+        "SUNRISE CRUNCHY MASALA",
+        "Net Qty: 250 g",
+        "M.R.P. Rs. 149.00 (inclusive of all taxes)",
+        "Batch No: SM-2481",
+        "Mfg. Date: 03/2026",
+        "Country of Origin: India",
+        "Consumer Care: care@sunrise.example",
+        "Best Before 6 months from packaging"
+      ],
+      "expectedVisibleFields": {
+        "net_quantity": "250 g",
+        "mrp": "Rs. 149.00"
+      },
+      "expectedExtraction": "keystoned plane: variable recognition, no accuracy claim",
+      "expectedReview": "REVIEW_REQUIRED possible"
+    },
+    {
+      "id": "FOOD-SMALLTEXT-006",
+      "file": "images/food-smalltext-006.png",
+      "category": "packaged-food",
+      "language": "en",
+      "condition": "small-text",
+      "pixelSize": "800x478",
+      "labelLines": [
+        "SUNRISE CRUNCHY MASALA",
+        "Net Qty: 250 g",
+        "M.R.P. Rs. 149.00 (inclusive of all taxes)",
+        "Batch No: SM-2481",
+        "Mfg. Date: 03/2026",
+        "Country of Origin: India",
+        "Consumer Care: care@sunrise.example",
+        "Best Before 6 months from packaging"
+      ],
+      "expectedVisibleFields": {
+        "net_quantity": "250 g",
+        "mrp": "Rs. 149.00"
+      },
+      "expectedExtraction": "half-size fonts: recognition is materially harder; expect missed / low-confidence lines",
+      "expectedReview": "REVIEW_REQUIRED expected for some fields"
+    },
+    {
+      "id": "FOOD-MULTIBLOCK-007",
+      "file": "images/food-multiblock-007.png",
+      "category": "packaged-food",
+      "language": "en",
+      "condition": "multiple-text-blocks",
+      "pixelSize": "1200x418",
+      "labelLines": [
+        "TWINPANEL RICE BASMATI",
+        "Premium Grade",
+        "Net Qty: 1 kg",
+        "M.R.P. Rs. 128.00",
+        "Batch No: TP-50617",
+        "Mfg. Date: 04/2026",
+        "Origin: India",
+        "Packer: TWINPANEL Foods, Delhi"
+      ],
+      "expectedVisibleFields": {
+        "net_quantity": "1 kg",
+        "mrp": "Rs. 128.00",
+        "batch_number": "TP-50617"
+      },
+      "expectedExtraction": "two side-by-side panels: candidates from both blocks expected",
+      "expectedReview": "no review expected on a clean render"
+    },
+    {
+      "id": "FOOD-DENSE-008",
+      "file": "images/food-dense-008.png",
+      "category": "packaged-food",
+      "language": "en",
+      "condition": "dense-label",
+      "pixelSize": "1000x1004",
+      "labelLines": [
+        "SUNRISE CRUNCHY MASALA",
+        "Net Qty: 250 g",
+        "M.R.P. Rs. 149.00 (inclusive of all taxes)",
+        "Batch No: SM-2481",
+        "Mfg. Date: 03/2026",
+        "Country of Origin: India",
+        "Consumer Care: care@sunrise.example",
+        "Best Before 6 months from packaging",
+        "Ingredients: Wheat Flour, Palm Oil, Salt, Spices, Masala Mix",
+        "Nutrition per 100g: Energy 512 kcal, Protein 6.4 g, Fat 27.1 g,",
+        "Carbohydrate 61.8 g, Sugars 3.2 g, Sodium 0.6 g",
+        "Storage: Store in a cool dry place away from direct sunlight",
+        "Contains added preservatives (INS 211)",
+        "Manufactured by: SUNRISE Foods Pvt Ltd, Bengaluru 560001",
+        "FSSAI Lic. No. 10012345678901",
+        "Customer care: care@sunrise.example / 1800-111-222"
+      ],
+      "expectedVisibleFields": {
+        "net_quantity": "250 g",
+        "mrp": "Rs. 149.00",
+        "batch_number": "SM-2481"
+      },
+      "expectedExtraction": "many packed lines incl. ingredients/nutrition: core fields expected, noise lines tolerated",
+      "expectedReview": "no review expected on a clean render"
+    },
+    {
+      "id": "FOOD-OBSTRUCTED-009",
+      "file": "images/food-obstructed-009.png",
+      "category": "packaged-food",
+      "language": "en",
+      "condition": "partial-obstruction",
+      "pixelSize": "1000x624",
+      "labelLines": [
+        "SUNRISE CRUNCHY MASALA",
+        "Net Qty: 250 g",
+        "M.R.P. Rs. 149.00 (inclusive of all taxes)",
+        "Batch No: SM-2481",
+        "Mfg. Date: 03/2026",
+        "Country of Origin: India",
+        "Consumer Care: care@sunrise.example",
+        "Best Before 6 months from packaging"
+      ],
+      "expectedVisibleFields": {
+        "net_quantity": "250 g",
+        "batch_number": "SM-2481"
+      },
+      "expectedExtraction": "the MRP line is physically occluded: MRP expected missed or NOT_EXTRACTED; other fields intact",
+      "expectedReview": "obstructed field expected REVIEW_REQUIRED / NOT_EXTRACTED"
+    },
+    {
+      "id": "FOOD-CURVED-010",
+      "file": "images/food-curved-010.png",
+      "category": "packaged-food",
+      "language": "en",
+      "condition": "curved-package",
+      "pixelSize": "1000x624",
+      "labelLines": [
+        "SUNRISE CRUNCHY MASALA",
+        "Net Qty: 250 g",
+        "M.R.P. Rs. 149.00 (inclusive of all taxes)",
+        "Batch No: SM-2481",
+        "Mfg. Date: 03/2026",
+        "Country of Origin: India",
+        "Consumer Care: care@sunrise.example",
+        "Best Before 6 months from packaging"
+      ],
+      "expectedVisibleFields": {
+        "net_quantity": "250 g"
+      },
+      "expectedExtraction": "cylindrical warp distorts horizontal baselines: variable recognition",
+      "expectedReview": "REVIEW_REQUIRED possible"
+    },
+    {
+      "id": "FOOD-BLUR-011",
+      "file": "images/food-blur-011.png",
+      "category": "packaged-food",
+      "language": "en",
+      "condition": "motion-blur",
+      "pixelSize": "1000x624",
+      "labelLines": [
+        "SUNRISE CRUNCHY MASALA",
+        "Net Qty: 250 g",
+        "M.R.P. Rs. 149.00 (inclusive of all taxes)",
+        "Batch No: SM-2481",
+        "Mfg. Date: 03/2026",
+        "Country of Origin: India",
+        "Consumer Care: care@sunrise.example",
+        "Best Before 6 months from packaging"
+      ],
+      "expectedVisibleFields": {
+        "net_quantity": "250 g"
+      },
+      "expectedExtraction": "gaussian blur: expect degraded recognition and lower confidence",
+      "expectedReview": "REVIEW_REQUIRED expected; quality grade may drop to POOR"
+    },
+    {
+      "id": "FOOD-BILINGUAL-012",
+      "file": "images/food-bilingual-012.png",
+      "category": "packaged-food",
+      "language": "en+hi",
+      "condition": "bilingual-label",
+      "pixelSize": "1000x498",
+      "labelLines": [
+        "HIMALAY AATA / FLOUR",
+        "Net Qty: 5 kg",
+        "M.R.P. Rs. 245.00",
+        "देश का उत्पाद: भारत",
+        "Batch No: HA-11223",
+        "Mfg. Date: 06/2026"
+      ],
+      "expectedVisibleFields": {
+        "net_quantity": "5 kg",
+        "mrp": "Rs. 245.00",
+        "batch_number": "HA-11223"
+      },
+      "expectedExtraction": "English lines extractable; Devanagari lines are NOT supported by the current English-only OCR configuration (rendered without complex shaping) — expected to be missed",
+      "expectedReview": "Hindi-origin lines are unsupported-language behaviour, not an accuracy claim"
+    },
+    {
+      "id": "FOOD-TINYRES-013",
+      "file": "images/food-tinyres-013.png",
+      "category": "packaged-food",
+      "language": "en",
+      "condition": "extreme-low-resolution",
+      "pixelSize": "110x160",
+      "labelLines": [
+        "SUNRISE CRUNCHY MASALA",
+        "Net Qty: 250 g",
+        "M.R.P. Rs. 149.00 (inclusive of all taxes)",
+        "Batch No: SM-2481",
+        "Mfg. Date: 03/2026",
+        "Country of Origin: India",
+        "Consumer Care: care@sunrise.example",
+        "Best Before 6 months from packaging"
+      ],
+      "expectedVisibleFields": {},
+      "expectedExtraction": "110x160 px: expected to be REJECTED or POOR by the image-quality gate before OCR",
+      "expectedReview": "quality-gate rejection expected (perception-quality signal only)"
+    },
+    {
+      "id": "FOOD-EXTREMEDARK-014",
+      "file": "images/food-extremedark-014.png",
+      "category": "packaged-food",
+      "language": "en",
+      "condition": "extreme-darkness",
+      "pixelSize": "1000x624",
+      "labelLines": [
+        "SUNRISE CRUNCHY MASALA",
+        "Net Qty: 250 g",
+        "M.R.P. Rs. 149.00 (inclusive of all taxes)",
+        "Batch No: SM-2481",
+        "Mfg. Date: 03/2026",
+        "Country of Origin: India",
+        "Consumer Care: care@sunrise.example",
+        "Best Before 6 months from packaging"
+      ],
+      "expectedVisibleFields": {},
+      "expectedExtraction": "15% brightness: expected to grade POOR/REJECTED by the quality gate; OCR likely unusable",
+      "expectedReview": "quality-gate rejection or REVIEW_REQUIRED expected"
+    }
+  ]
+}

@@ -169,7 +169,7 @@ export function EngineReviewQueueSection() {
         and Not Applicable findings are informational and never queued. Each row shows both verdicts
         separately: the system finding (AI) and the inspector's review state (human). Compliance
         findings are system-generated decision-support outputs; they are not, by themselves, legal
-        enforcement determinations. LegalMet AI provides AI-assisted inspection analysis and
+        enforcement determinations. METRASIGHT provides AI-assisted inspection analysis and
         traceability — the authorized inspector remains responsible for the final inspection decision.
       </p>
 

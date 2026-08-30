@@ -1,6 +1,6 @@
 # Human-in-the-Loop Inspector Review, Correction & Final Decision (Prompt 8)
 
-> **LegalMet AI provides AI-assisted inspection analysis and traceability. The
+> **METRASIGHT provides AI-assisted inspection analysis and traceability. The
 > authorized inspector remains responsible for the final inspection decision.**
 >
 > The system must never claim that an AI model itself determined a package to

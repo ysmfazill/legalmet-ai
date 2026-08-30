@@ -1,5 +1,5 @@
 /**
- * Domain entity DTOs — the JSON shapes returned by the LEGALMET AI API.
+ * Domain entity DTOs — the JSON shapes returned by the METRASIGHT API.
  *
  * Convention: the API serialises using camelCase (configured in the backend via
  * a Pydantic alias generator), so these interfaces use camelCase throughout.
@@ -780,7 +780,7 @@ export interface EvidenceGraphVocabulary {
 
 /** Mandated boundary statement attached to every HITL payload. */
 export const HITL_BOUNDARY_NOTE =
-  'LegalMet AI provides AI-assisted inspection analysis and traceability. ' +
+  'METRASIGHT provides AI-assisted inspection analysis and traceability. ' +
   'The authorized inspector remains responsible for the final inspection ' +
   'decision.';
 

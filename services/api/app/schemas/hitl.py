@@ -17,7 +17,7 @@ from app.core.enums import FindingReviewState, InspectionDecisionType
 from app.schemas.base import CamelModel
 
 HITL_BOUNDARY_NOTE = (
-    "LegalMet AI provides AI-assisted inspection analysis and traceability. "
+    "METRASIGHT provides AI-assisted inspection analysis and traceability. "
     "The authorized inspector remains responsible for the final inspection "
     "decision."
 )

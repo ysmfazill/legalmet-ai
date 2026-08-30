@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Canonical domain types, enums and API contracts for LEGALMET AI.",
+  "description": "Canonical domain types, enums and API contracts for METRASIGHT.",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "exports": {

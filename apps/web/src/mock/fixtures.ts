@@ -1,5 +1,5 @@
 /**
- * DEMO fixtures for LEGALMET AI (SIH26034).
+ * DEMO fixtures for METRASIGHT (SIH26034).
  *
  * ⚠ DEMO DATA — NOT LEGAL ADVICE. Every regulation/rule below is a clearly
  * labelled placeholder. Rule codes and sources are fictional and must NOT be

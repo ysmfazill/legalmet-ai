@@ -1,4 +1,4 @@
-"""LEGALMET AI — API service (FastAPI).
+"""METRASIGHT — API service (FastAPI).
 
 Package layout::
 

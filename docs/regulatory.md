@@ -1,4 +1,4 @@
-# LEGALMET AI — Regulatory Intelligence Layer (Prompt 5)
+# METRASIGHT — Regulatory Intelligence Layer (Prompt 5)
 
 > **Status:** version-aware regulatory intelligence foundation. This layer
 > organises **where legal requirements come from** — source, document, version,

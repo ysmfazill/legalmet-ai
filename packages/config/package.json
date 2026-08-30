@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Shared runtime metadata and app constants for LEGALMET AI (labels, status tones, defaults).",
+  "description": "Shared runtime metadata and app constants for METRASIGHT (labels, status tones, defaults).",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "exports": {

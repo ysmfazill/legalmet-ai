@@ -1,4 +1,4 @@
-# LEGALMET AI — Architecture
+# METRASIGHT — Architecture
 
 > **Status:** Foundation phase. All regulatory/inspection content in this build
 > is clearly-labelled **DEMO DATA — NOT LEGAL ADVICE**. Perception services

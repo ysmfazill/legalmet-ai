@@ -109,7 +109,7 @@ export function ReportPreview({
           <span>
             <strong>AI-assisted analysis, human decision.</strong> The analysis above was produced
             by the deterministic engine; this decision was recorded by the authorised inspector.
-            LegalMet AI provides AI-assisted inspection analysis and traceability — the authorized
+            METRASIGHT provides AI-assisted inspection analysis and traceability — the authorized
             inspector remains responsible for the final inspection decision. Prepared by{' '}
             <strong>{inspector}</strong>.
             {status === 'DRAFT' ? ' Awaiting inspector sign-off.' : ' Signed off by inspector.'}

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "LEGALMET AI web client — foundation application shell (NOT the final product UI).",
+  "description": "METRASIGHT web client — foundation application shell (NOT the final product UI).",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

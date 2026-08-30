@@ -296,7 +296,7 @@ export function ConfidenceMeter({
   return (
     <span
       className={cn('confidence', `confidence--${band}`)}
-      title={`Detection confidence: ${pct}% (${band})`}
+      title={`Detection confidence: ${pct}% (${band}) — a recognition/detection score, not legal confidence`}
     >
       <span className="meter" aria-hidden>
         <span className="meter__fill" style={{ width: `${pct}%` }} />
@@ -309,7 +309,10 @@ export function ConfidenceMeter({
 export function ConfidenceBadge({ value }: { value: number }) {
   const band = confidenceBand(value);
   return (
-    <Badge tone={CONFIDENCE_TONE[band]} title={`Detection confidence (${band})`}>
+    <Badge
+      tone={CONFIDENCE_TONE[band]}
+      title={`Detection confidence (${band}) — a recognition/detection score, not legal confidence`}
+    >
       {formatPercent(value)} conf.
     </Badge>
   );

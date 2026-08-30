@@ -545,6 +545,19 @@ class IntakeService:
                 },
             )
 
+        # Extreme dimensions: a tiny file can decode to a huge pixel buffer
+        # (decompression bomb). Reject before any further processing.
+        max_dim = self._settings.max_image_dimension
+        if width > max_dim or height > max_dim or width * height > max_dim * max_dim:
+            raise InvalidImageError(
+                "Image dimensions exceed the maximum allowed for intake.",
+                details={
+                    "maxDimension": max_dim,
+                    "width": width,
+                    "height": height,
+                },
+            )
+
         return SniffedImage(mime=mime, ext=_MIME_TO_EXT[mime], width=width, height=height)
 
     def _reject_duplicate(self, db: Session, *, inspection: Inspection, checksum: str) -> None:

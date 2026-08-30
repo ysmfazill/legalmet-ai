@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     )
 
     # --- Identity / environment -------------------------------------------
-    app_name: str = "LEGALMET AI"
+    app_name: str = "METRASIGHT"
     environment: str = "development"
     debug: bool = True
     api_prefix: str = "/api/v1"
@@ -54,6 +54,9 @@ class Settings(BaseSettings):
     min_image_width: int = 400
     min_image_height: int = 400
     processed_max_dimension: int = 2000
+    # Prompt 9 (Phase 6): hard ceiling on uploaded pixel dimensions — guards
+    # the decode step against oversized/decompression-bomb images.
+    max_image_dimension: int = 8000
 
     # --- Real perception (Prompt 4) ----------------------------------------
     # OCR backend behind the perception pipeline. "paddle" runs the real local
@@ -78,6 +81,11 @@ class Settings(BaseSettings):
     demo_admin_password: str = "changeme-admin"
     demo_inspector_email: str = "inspector@legalmet.local"
     demo_inspector_password: str = "changeme-inspector"
+    # Prompt 9 (Phase 18): seed the three full-lifecycle demo inspections
+    # (DEMO-FOOD / DEMO-WATER / DEMO-OIL) through the REAL services. The first
+    # boot on a fresh DB pays the real local-OCR cost (~a minute on CPU);
+    # later boots skip (idempotent). Set False to boot fast without demos.
+    seed_demo_inspections: bool = True
 
     # --- Regulatory intelligence seed (Prompt 5) ---------------------------
     # Idempotent seed of the researched Legal Metrology dataset at startup.

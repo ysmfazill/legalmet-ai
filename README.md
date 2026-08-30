@@ -1,13 +1,19 @@
-# LEGALMET AI
+# METRASIGHT
 
 **Evidence-grounded, version-aware, AI-assisted compliance inspection for packaged commodities.**
 
+METRASIGHT is an AI-assisted Legal Metrology inspection intelligence platform
+that combines package perception, version-aware regulatory intelligence,
+deterministic rule evaluation, evidence traceability, and human inspector
+review.
+
 > ⚠️ **DEMO REGULATORY DATA — NOT LEGAL ADVICE.** This build contains
-> clearly-labelled placeholder regulatory data. Perception is **real** (local
-> PaddleOCR + OpenCV read the actual uploaded images — Prompt 4), but the
-> system has **no verified Legal Metrology requirements and no compliance
-> evaluation for real inspections yet**; the demo analysis flow remains
-> clearly labelled as demo. It must not be used for real compliance decisions.
+> clearly-labelled UNVERIFIED research-grade regulatory data. Perception is
+> **real** (local PaddleOCR + OpenCV read the actual uploaded images — Prompt 4)
+> and the deterministic compliance engine really evaluates perceived fields
+> against that unverified dataset — but nothing here has been checked against
+> official Gazette text. Findings are decision support; the inspector decides.
+> It must not be used for real compliance decisions.
 
 ---
 
@@ -81,6 +87,15 @@ Regulatory docs: [`docs/regulatory.md`](docs/regulatory.md) (provenance
 hierarchy, versioning, seed honesty contract, candidate mapping).
 Compliance-engine docs: [`docs/compliance.md`](docs/compliance.md)
 (pipeline, rule vocabulary, explainability, legal-safety invariants).
+Review/decision docs: [`docs/human-review.md`](docs/human-review.md).
+
+**Production hardening (Prompt 9):** role enforcement on every mutating route,
+storage path-traversal fix, upload dimension guard, ORM/migration drift
+eliminated with a drift-guard integration test, duplicate-run guards,
+measured performance (see [`docs/production-hardening.md`](docs/production-hardening.md)),
+an offline local demo with three seeded full-lifecycle demo inspections
+(`DEMO-FOOD` / `DEMO-WATER` / `DEMO-OIL` — see [`docs/demo.md`](docs/demo.md)),
+and honest confidence/AI-vs-HUMAN semantics throughout the UI.
 
 See [`docs/architecture.md`](docs/architecture.md) for the full design.
 
@@ -163,8 +178,13 @@ cd services/api
 alembic upgrade head
 ```
 
-> On startup the backend also creates tables (dev convenience) and seeds
-> clearly-labelled **demo** users/rules when `SEED_DEMO_DATA=true`.
+> On startup the backend also creates tables (dev convenience), seeds
+> clearly-labelled **demo** users/rules when `SEED_DEMO_DATA=true`, and — on a
+> fresh database — seeds **three full-lifecycle demo inspections**
+> (`DEMO-FOOD` / `DEMO-WATER` / `DEMO-OIL`) through the real services,
+> including real local OCR (~1–2 minutes on CPU, first boot only; later boots
+> skip). Disable with `SEED_DEMO_INSPECTIONS=false`. Details:
+> [`docs/demo.md`](docs/demo.md).
 
 ---
 
@@ -211,7 +231,9 @@ python -m ruff check .      # lint
 ```
 
 Integration tests need the perception engines installed (see above) and are
-deselected by default; the fast suite runs entirely on deterministic fakes.
+deselected by default; the fast suite runs on in-memory SQLite with the real
+preprocessor/extractor logic and only the OCR/vision engines swapped at the
+provider seams. Full layout and guarantees: [`docs/testing.md`](docs/testing.md).
 
 **Frontend / shared packages (from the repo root):**
 
@@ -221,48 +243,58 @@ npm run lint                # ESLint
 npm run build:web           # production build of @legalmet/web
 ```
 
+**Demo:** how to run the full local demo (offline after one model download)
+and what each seeded inspection contains: [`docs/demo.md`](docs/demo.md).
+
 ---
 
 ## Current limitations
 
-- **DEMO regulatory data only.** Regulatory rules are placeholders, not verified
-  Legal Metrology (Packaged Commodities) Rules, 2011 content — regulatory
-  intelligence and compliance evaluation are deliberately **not implemented
-  yet** (perception outputs are marked `AWAITING_REGULATORY_EVALUATION`).
-- **Perception scope:** real OCR (PaddleOCR) and real QR/barcode detection
-  (OpenCV) only — no logo/graphic segmentation, no product classification, no
-  LLM assistance. Only English OCR models are configured by default.
+- **UNVERIFIED regulatory data.** The seeded Legal Metrology requirements are
+  research-grade with full provenance but have **not** been checked against
+  official Gazette / India Code text. Findings are decision support against
+  that dataset — never legal determinations.
+- **Perception scope:** real OCR (PaddleOCR, English only as configured and
+  actually tested) and real QR/barcode detection (OpenCV) — no logo/graphic
+  segmentation, no product classification, no LLM assistance. Hindi/Kannada
+  script models exist in PaddleOCR but are not enabled; no language support is
+  claimed beyond what is configured and tested.
 - **Unbenchmarked accuracy:** no OCR/vision accuracy percentages are claimed
   anywhere; the engines have not been benchmarked on real Indian packaging.
-- The **rule engine** runs real deterministic logic but over placeholder rules
-  (demo flow only, clearly labelled).
+- **Aggregate UI pages still on the labelled mock adapter:** Dashboard, Risk
+  Radar, Reports, Audit and Batches read clearly-labelled demo data; the real
+  API powers auth, inspections, intake, perception, compliance, review and
+  decisions. The Risk Radar score is demo scoring — no real risk model exists
+  and none was added in Prompt 9.
+- **Inspection `status` is not fully wired:** the perception/compliance/review
+  services do not advance it past the intake transitions.
+- No frontend unit tests (typecheck + lint only).
 - Auth uses demo credentials seeded on startup; secrets default to insecure dev
   values and must be overridden outside development.
 
 ---
 
-## Future roadmap
+## Future roadmap (Prompt 10 candidates)
 
-1. ~~**Verified regulatory data**~~ — the regulatory-intelligence foundation
-   (source/document/version/requirement hierarchy, version windows, candidate
-   mapping) landed in Prompt 5. What remains: flipping the seeded source to
-   VERIFIED after human checking against the official Gazette / India Code
-   text, and broader document coverage.
-2. ~~**Real OCR**~~ — done in Prompt 4 (PaddleOCR behind `OCRService`).
-3. ~~**Computer vision**~~ — QR/barcode region detection done in Prompt 4
-   (OpenCV behind `VisionService`); richer label-element detection remains
-   future work.
-4. **Product understanding** — real category/declaration-profile classification.
-5. **Expanded deterministic rule coverage** across commodity categories.
-6. **Human-in-the-loop review** — the corrected-value data model is in place
-   (`extracted_fields.corrected_value`); correction UX, escalation and
-   reporting/export remain future work.
+1. **Verified regulatory data** — flip the seeded source to VERIFIED after
+   human checking against the official Gazette / India Code text, and broaden
+   document coverage.
+2. **Wire the aggregate pages** (Dashboard, Risk Radar, Reports, Audit) to the
+   live API. For the Risk Radar: consume the already-exposed structured
+   signals (finding status/severity, per-field OCR confidence, image usability
+   grade, unresolved-review counts) with the transparent weighted factors
+   unchanged and documented — not a new black-box score.
+3. **Product understanding** — real category/declaration-profile classification.
+4. **Expanded deterministic rule coverage** across commodity categories.
+5. **More OCR languages** — enable + actually validate Hindi/Marathi
+   (Devanagari) and other Indian-script models before claiming them.
+6. **Inspection status lifecycle** — advance `status` through
+   perception/review/decision transitions.
+7. **Reporting / export** of completed inspections.
 
-> Compliance evaluation (the deterministic engine over *verified* regulatory
-> data) and LLM assistance are not implemented — the architecture provides the
-> interfaces and seams where each attaches without touching call sites. The
-> regulatory intelligence layer (Prompt 5) is a knowledge foundation, not a
-> legal determination.
+> LLM assistance is not implemented — the architecture provides the interfaces
+> and seams where it attaches without touching call sites. The regulatory
+> intelligence layer is a knowledge foundation, not a legal determination.
 
 ---
 

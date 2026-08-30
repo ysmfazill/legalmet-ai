@@ -9,7 +9,14 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.api.deps import Pagination, get_current_user, get_services_dep, pagination
+from app.api.deps import (
+    Pagination,
+    get_current_user,
+    get_services_dep,
+    pagination,
+    require_role,
+)
+from app.core.enums import UserRole
 from app.db.session import get_db
 from app.models import Inspection, User
 from app.schemas.common import Paginated
@@ -24,6 +31,11 @@ from app.services.registry import Services
 
 router = APIRouter(prefix="/inspections", tags=["inspections"])
 
+# Write operations require an operational role (Prompt 9, Phase 10): AUDITOR is
+# a read-only role and must not create inspections, register images, or start
+# analysis.
+_WRITE_ROLES = (UserRole.INSPECTOR, UserRole.SUPERVISOR, UserRole.ADMIN)
+
 
 def _detail(services: Services, db: Session, inspection: Inspection) -> InspectionDetailOut:
     out = InspectionDetailOut.model_validate(inspection)
@@ -34,7 +46,7 @@ def _detail(services: Services, db: Session, inspection: Inspection) -> Inspecti
 @router.post("", response_model=InspectionDetailOut, status_code=201)
 def create_inspection(
     body: CreateInspectionRequest,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role(*_WRITE_ROLES)),
     db: Session = Depends(get_db),
     services: Services = Depends(get_services_dep),
 ) -> InspectionDetailOut:
@@ -75,7 +87,7 @@ def get_inspection(
 def add_image(
     inspection_id: UUID,
     body: RegisterImageRequest,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role(*_WRITE_ROLES)),
     db: Session = Depends(get_db),
     services: Services = Depends(get_services_dep),
 ) -> ImageOut:
@@ -89,7 +101,7 @@ def add_image(
 def analyze_inspection(
     inspection_id: UUID,
     body: AnalyzeInspectionRequest | None = None,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_role(*_WRITE_ROLES)),
     db: Session = Depends(get_db),
     services: Services = Depends(get_services_dep),
 ) -> InspectionDetailOut:

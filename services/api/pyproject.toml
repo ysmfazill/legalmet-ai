@@ -1,7 +1,7 @@
 [project]
 name = "legalmet-api"
 version = "0.1.0"
-description = "LEGALMET AI — compliance inspection API service (FastAPI)."
+description = "METRASIGHT — compliance inspection API service (FastAPI)."
 requires-python = ">=3.11"
 
 [tool.pytest.ini_options]

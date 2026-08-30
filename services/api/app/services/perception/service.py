@@ -62,6 +62,12 @@ class PerceptionService:
 
         Images rejected by the intake usability grader are skipped (they are
         not worth analysing); an inspection with no usable image is a 422.
+
+        Duplicate-guard (Prompt 9, Phase 8): an image that already has an
+        ACTIVE (non-terminal) run is NOT re-queued — the existing run is
+        returned, so a double-click or a repeated perceive request is
+        idempotent while processing is underway. A new run is only created
+        once every prior run has reached a terminal state.
         """
         inspection = self._inspection(db, inspection_id)
         images = [
@@ -75,22 +81,36 @@ class PerceptionService:
                 "Attach at least one usable image before running perception analysis.",
                 details={"inspectionId": str(inspection_id)},
             )
-        runs = [
-            self._pipeline.create_run(
-                db,
-                image=image,
-                inspection=inspection,
-                actor_id=actor_id,
-                reanalysis=self._has_prior_runs(db, image.id),
+        runs: list[ProcessingRun] = []
+        for image in images:
+            active = self._active_run_for_image(db, image.id)
+            if active is not None:
+                # Already being processed — do not start a duplicate run.
+                runs.append(active)
+                continue
+            runs.append(
+                self._pipeline.create_run(
+                    db,
+                    image=image,
+                    inspection=inspection,
+                    actor_id=actor_id,
+                    reanalysis=self._has_prior_runs(db, image.id),
+                )
             )
-            for image in images
-        ]
         return runs
 
     def reanalyze_image(
         self, db: Session, *, image_id: uuid.UUID, actor_id: uuid.UUID | None
     ) -> ProcessingRun:
-        """Queue a NEW run for one image. Prior runs remain untouched."""
+        """Queue a NEW run for one image. Prior runs remain untouched.
+
+        If a run is still ACTIVE for this image, it is returned unchanged —
+        re-analysis must wait for the current run to finish (prevents
+        uncontrolled duplicate processing from repeated requests).
+        """
+        active = self._active_run_for_image(db, image_id)
+        if active is not None:
+            return active
         image = db.get(Image, image_id, options=(selectinload(Image.package),))
         if image is None:
             raise NotFoundError(f"Image not found: {image_id}")
@@ -228,6 +248,19 @@ class PerceptionService:
             if run.image_id not in latest:
                 latest[run.image_id] = run
         return latest
+
+    @staticmethod
+    def _active_run_for_image(db: Session, image_id: uuid.UUID) -> ProcessingRun | None:
+        """The still-running run for an image, if any (duplicate guard)."""
+        stmt = (
+            select(ProcessingRun)
+            .where(ProcessingRun.image_id == image_id)
+            .order_by(ProcessingRun.created_at.desc())
+        )
+        for run in db.execute(stmt).scalars():
+            if run.status not in _TERMINAL:
+                return run
+        return None
 
     @staticmethod
     def _has_prior_runs(db: Session, image_id: uuid.UUID) -> bool:
