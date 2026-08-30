@@ -70,10 +70,10 @@ async def _lifespan(app: FastAPI):
         finally:
             db.close()
 
-    # Prompt 9 (Phase 18): three full-lifecycle demo inspections (DEMO-FOOD /
-    # DEMO-WATER / DEMO-OIL) produced through the REAL services — real intake,
-    # real local OCR, real evaluation, real review + decision. Idempotent; the
-    # first boot on a fresh DB pays the real-OCR cost.
+    # Prompt 9 (Phase 18): four full-lifecycle demo inspections (DEMO-FOOD /
+    # DEMO-WATER / DEMO-OIL / DEMO-QUINOA) produced through the REAL services —
+    # real intake, real local OCR, real evaluation, real review + decision.
+    # Idempotent; the first boot on a fresh DB pays the real-OCR cost.
     if settings.seed_demo_inspections:
         from app.db.demo_inspections_seed import seed_demo_inspections
 

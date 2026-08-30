@@ -6,6 +6,7 @@ import {
   DEMO_DATA_LABEL,
   DEMO_DATA_NOTICE,
   PROBLEM_STATEMENT,
+  SYSTEM_ROLE_NOTICE,
 } from '@legalmet/config';
 import type { Tone } from '@legalmet/config';
 
@@ -141,6 +142,10 @@ export function SettingsPage() {
           <span>
             <strong>{DEMO_DATA_LABEL}.</strong> {DEMO_DATA_NOTICE}
           </span>
+        </div>
+        <div className="demo-note" style={{ marginTop: 'var(--space-3)' }}>
+          <Icon name="shield" size={15} />
+          <span>{SYSTEM_ROLE_NOTICE}</span>
         </div>
       </SectionCard>
     </div>

@@ -78,6 +78,12 @@ _KEYWORD_RULES: list[tuple[FieldType, re.Pattern[str], float, str]] = [
     (FieldType.PACKER_DETAILS, _kw(r"\b(?:packer|packed\s+by|packaged\s+by)\b"), 0.9,
      "regex:packer"),
     (FieldType.IMPORTER_DETAILS, _kw(r"\b(?:importer|imported\s+by)\b"), 0.9, "regex:importer"),
+    # Generic/commodity name — the Rule 6(1)(b) declaration. Anchored on an
+    # explicit "Generic Name:" / "Commodity:" prefix (colon REQUIRED) so prose
+    # merely containing the word "commodity" is never claimed.
+    (FieldType.GENERIC_NAME,
+     _kw(r"\bgeneric\s+name\s*[:\-]|\bcommodity\s+name\s*[:\-]|\bcommodity\s*[:\-]"),
+     0.9, "regex:generic-name"),
     (FieldType.ADDRESS, _kw(r"\b(?:factory\s+address|address\s+of|registered\s+office)\b"), 0.7,
      "regex:address"),
     (FieldType.COUNTRY_OF_ORIGIN, _kw(r"\bcountry\s+of\s+origin\b|\borigin\b"), 0.95,

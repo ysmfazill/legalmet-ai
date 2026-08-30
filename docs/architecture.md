@@ -1,10 +1,11 @@
 # METRASIGHT — Architecture
 
-> **Status:** Foundation phase. All regulatory/inspection content in this build
-> is clearly-labelled **DEMO DATA — NOT LEGAL ADVICE**. Perception services
-> (OCR, computer vision, product understanding) are deterministic **mocks**; the
-> rule engine runs against **placeholder** rules. This document describes the
-> architecture that exists today and the seams where real implementations attach.
+> **Status:** SIH-ready prototype (after Prompt 10). Perception is **real**
+> (local PaddleOCR + OpenCV), regulatory intelligence and the deterministic
+> compliance engine are real, and human review / decisions / audit are real.
+> The regulatory dataset is research-grade and marked **UNVERIFIED** —
+> **DEMO DATA — NOT LEGAL ADVICE**; aggregate pages (Dashboard, Risk Radar,
+> Reports, Audit, Batches) still read clearly-labelled demo data.
 
 ---
 
@@ -44,6 +45,7 @@ legalmet-ai/
 
 | Script | Effect |
 | --- | --- |
+| `npm run demo` | One-command localhost demo: backend + frontend together (`bash scripts/demo.sh`; `--fresh` also wipes the local demo DB) |
 | `npm run dev:web` | Start the Vite dev server for `@legalmet/web` |
 | `npm run build:web` | Production build of the frontend |
 | `npm run typecheck` | `tsc --noEmit` across every workspace |
@@ -178,48 +180,54 @@ abstract interface** with a swappable implementation.
 > rule data + observations. No LLM sits in the compliance-decision path — this
 > is intentional and is *not* configurable to an LLM backend.
 
-### 6a. Future OCR / computer-vision / product services
-Today these are deterministic **mocks** (`services/ocr/mock.py`,
-`services/vision/mock.py`, `services/product/mock.py`, `services/quality/mock.py`)
-that return stable, seeded, clearly-synthetic output implementing the interfaces
-above. They exist so the full inspection pipeline runs end-to-end without any AI.
-Real implementations (e.g. PaddleOCR, a YOLO-family detector, an LLM-assisted
-classifier) attach at the registry behind the same interfaces — **not built in
-this phase.**
+### 6a. Real OCR / computer vision (Prompt 4)
+Perception is real: `services/ocr/paddle.py` (local PaddleOCR, English as
+configured and tested), `services/vision/opencv.py` (QR/barcode detection),
+`services/quality/analyzer.py` (real usability grading) and
+`services/perception/extract.py` (deterministic field extraction). Deterministic
+**mocks** remain only behind test seams. When the real engines are missing,
+runs fail loudly with `AI_SERVICE_UNAVAILABLE` — there is no stub fallback.
 
-### 6b. Regulatory service
-`services/regulatory/service.py` resolves the applicable rule set for a product
-context, **version-aware** (regulations carry versions with `ACTIVE`/
-`SUPERSEDED`/etc. status), so an inspection is evaluated against the rules in
-force at its context date. Current rule data is **placeholder DEMO data**, not
-verified Legal Metrology requirements.
+### 6b. Regulatory service (Prompt 5)
+`services/regulatory/service.py` resolves the requirement set in force via the
+Source → Document → Version → Requirement → Applicability hierarchy with an
+explicit `NO_APPLICABLE_VERSION` state (never a silent fallback to newest).
+The dataset is researched Legal Metrology (Packaged Commodities) Rules, 2011
+content marked **UNVERIFIED** with a full provenance chain and verification
+notes — not fiction, and not yet verified against the Gazette.
 
-### 6c. Rule engine
-`services/rules/engine.py` (`DeterministicRuleEngine`) + `validators.py`. Takes
-field observations + resolved `RuleSpec`s + image quality + a confidence
-threshold and emits `FindingResult`s. Deliberately non-AI and deterministic.
-Outputs a nuanced status (e.g. `REVIEW_REQUIRED`, `LOW_CONFIDENCE`,
-`IMAGE_QUALITY_INSUFFICIENT`) rather than a naive pass/fail so low-confidence or
-low-quality inputs never produce a definitive legal conclusion.
+### 6c. Compliance engine (Prompt 6)
+`services/compliance/engine.py` + `evaluators.py` + `resolvers.py` +
+`applicability.py`: (detected field + applicable requirement + deterministic
+rule) → evaluation → finding, with decimal-safe numerics, a per-finding
+seven-question explanation, a frozen regulatory provenance snapshot and
+evidence references. Missing OCR is `NOT_DETECTED`, never a violation;
+insufficient evidence is `REVIEW_REQUIRED`, never a guess. Evaluations are
+immutable history.
 
-### 6d. Evidence service
-`services/evidence/service.py` builds the **evidence graph** linking each
-finding back to the observations, image regions, OCR text, and the specific rule
-version it was judged against. Every conclusion is traceable to its grounding —
+### 6d. Evidence + evidence graph (Prompts 5–7)
+`services/evidence/service.py` and `services/evidence_graph/builder.py` build
+the traceable chain: Finding → Rule → Requirement → Version → Document → Source
+AND Finding → Field → OCR → Region → Image. Every node is tagged with its
+origin (AI / HUMAN / SYSTEM). Every conclusion is traceable to its grounding —
 this is what makes findings defensible and reviewable.
 
 ### 6e. Audit service
-`services/audit/service.py` records an append-only trail of domain events
-(`INSPECTION_CREATED`, `IMAGE_UPLOADED`, `ANALYSIS_STARTED/COMPLETED`,
-`FINDING_CREATED`, `REVIEW_RECORDED`, `INSPECTION_COMPLETED/ARCHIVED`) for
-accountability.
+`services/audit/service.py` records an append-only trail of real domain events
+(inspection created, image uploaded, perception run, evaluation, finding
+review, decision supersession) with actor identity — accountability by
+construction, ~20+ events per full-lifecycle inspection.
 
-### 6f. Orchestration & workflow
-`services/inspection/service.py` orchestrates the pipeline (quality → OCR →
-vision → product profile → rule engine → findings + evidence + audit).
-`services/review/service.py` handles the human-in-the-loop review workflow
-(accept/reject/correct/rescan/escalate) and writes audit entries.
-`services/analytics/service.py` aggregates dashboard summaries.
+### 6f. Orchestration, HITL & analytics
+`services/inspection/service.py` and `services/perception/service.py` orchestrate
+intake → quality gate → OCR → vision → extraction. `services/hitl/service.py`
+owns the human-in-the-loop workflow: finding review
+(CONFIRM/REJECT/CORRECT/ESCALATE), field corrections (AI original preserved,
+correction tagged HUMAN) and the final decision gate — a COMPLIANT decision is
+blocked while unresolved CRITICAL/MAJOR findings exist, and only an authorised
+human ever records a legal conclusion. `services/analytics/service.py`
+aggregates summaries (the aggregate UI pages remain on the labelled mock
+adapter — see README limitations).
 
 ---
 
@@ -266,23 +274,77 @@ final product UI.**
 
 ---
 
-## 9. Data & request flow (target pipeline)
+## 9. Data & request flow (as built)
 
 ```
 Client (apps/web)
   │  fetch /api/v1/...            (shared @legalmet/types contracts)
   ▼
-FastAPI router (app/api/routers)
+FastAPI router (app/api/routers)      role-gated on every mutating route
   │  → deps: settings, db session, current user, Services
   ▼
 Service layer (app/services)
-  quality → ocr → vision → product profile → rule engine
-  │        (mock perception, deterministic engine)
+  intake + quality gate → real OCR → vision → field extraction
+  → version-aware requirement resolution → deterministic rules
   ▼
 Persistence (app/models + SQLAlchemy)  +  Evidence graph  +  Audit trail
   ▼
 Structured response envelope  → Client
 ```
+
+## 10. The METRASIGHT pipeline
+
+```
+                        METRASIGHT
+
+                            │
+              ┌─────────────┴─────────────┐
+              │                           │
+        Package Input              Regulatory Data
+              │                           │
+        Image Quality               Version Control
+              │                           │
+        OCR + Vision               Rule Selection
+              │                           │
+              └─────────────┬─────────────┘
+                            │
+                    Field Extraction
+                            │
+                   Deterministic Rules
+                            │
+                      Evidence Graph
+                            │
+                     Human Review
+                            │
+                   Audit + Reporting
+                            │
+                       Analytics
+```
+
+## 11. Separation of powers (the core architectural strength)
+
+Three responsibilities are deliberately kept in three different layers, with
+the boundaries enforced in code:
+
+1. **AI perception** (OCR, vision, extraction) — *describes* what is on the
+   package, with confidence. It never asserts a legal conclusion; below the
+   confidence floor its output becomes `REVIEW_REQUIRED`, never a guess.
+2. **Regulatory interpretation** (version resolution + deterministic rules) —
+   *evaluates* perceived fields against the requirement version in force.
+   Deterministic and decimal-safe; no LLM anywhere in the decision path. It
+   produces decision-support findings, not verdicts.
+3. **Final inspector decision** (HITL) — the *only* place a legal conclusion is
+   recorded, by an authorised human, with the decision gate enforcing that
+   unresolved CRITICAL/MAJOR findings are addressed first.
+
+```
+   AI perception  ≠  regulatory interpretation  ≠  final inspector decision
+```
+
+This separation means a wrong OCR reading can never silently become a
+"violation", an unverified rule can never masquerade as law (the dataset is
+marked UNVERIFIED with provenance), and the inspector's authority is
+structurally — not just rhetorically — preserved.
 
 Every non-2xx response is the uniform `{"error": {...}}` envelope; every request
 is correlated by `X-Request-ID`.

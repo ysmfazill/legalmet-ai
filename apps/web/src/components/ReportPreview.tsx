@@ -1,4 +1,9 @@
-import { DEMO_DATA_LABEL, DEMO_DATA_NOTICE, FIELD_TYPE_LABELS } from '@legalmet/config';
+import {
+  DEMO_DATA_LABEL,
+  DEMO_DATA_NOTICE,
+  FIELD_TYPE_LABELS,
+  SYSTEM_ROLE_NOTICE,
+} from '@legalmet/config';
 
 import { formatDate } from '../lib/format';
 import type { InspectionDetail } from '../mock/types';
@@ -44,6 +49,10 @@ export function ReportPreview({
           <span>
             <strong>{DEMO_DATA_LABEL}.</strong> {DEMO_DATA_NOTICE}
           </span>
+        </div>
+        <div className="demo-note" style={{ marginTop: 'var(--space-3)' }}>
+          <Icon name="shield" size={15} />
+          <span>{SYSTEM_ROLE_NOTICE}</span>
         </div>
       </div>
 

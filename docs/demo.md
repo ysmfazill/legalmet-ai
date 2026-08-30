@@ -59,7 +59,7 @@ Log in as `inspector@legalmet.local` / `changeme-inspector`
 (or `admin@legalmet.local` / `changeme-admin`; `auditor@legalmet.local` is
 read-only — good for demonstrating role enforcement).
 
-## 4. The seeded demo inspections (DEMO-FOOD / DEMO-WATER / DEMO-OIL)
+## 4. The seeded demo inspections (DEMO-FOOD / DEMO-WATER / DEMO-OIL / DEMO-QUINOA)
 
 Each was produced **through the real services at seed time** — nothing about
 them is hand-written into the database:
@@ -70,16 +70,29 @@ them is hand-written into the database:
 | Perception | a real local PaddleOCR run over the label (run status `REVIEW_REQUIRED` where fields fell below the review-confidence threshold — that is the honest outcome, not an error) | Perception panel → per-field evidence drawers (raw OCR text, bounding boxes, confidence) |
 | Evaluation | the deterministic engine evaluated the perceived fields against the seeded requirements — 9 findings per inspection | Findings list with expected-vs-detected values and the seven-question explanation |
 | Review | an inspector (the seeded demo user) CONFIRMED every finding through the real HITL service | Finding review history; evidence graph nodes tagged HUMAN vs AI |
-| Decision | a final human decision (`NON_COMPLIANT` for all three — each label is missing declarations by design) | Decision panel + audit trail |
+| Decision | a final human decision — `NON_COMPLIANT` for FOOD/WATER/OIL (each label has real gaps by design), `COMPLIANT` for QUINOA | Decision panel + audit trail |
 | Audit | ~27 audit events per inspection, written by the services themselves | Audit timeline; evidence graph |
 
 The evidence-graph view is the demo's centerpiece: every finding traces back
 through the requirement → version → document → source chain, and every node is
 tagged with its origin (AI / HUMAN / SYSTEM).
 
+The four demos deliberately cover different outcomes:
+
+| Inspection | Story | Final decision |
+| --- | --- | --- |
+| `DEMO-FOOD` | clear issues — consumer-care contact has an e-mail but no telephone | NON_COMPLIANT |
+| `DEMO-WATER` | clear issues — MRP declared without the required "inclusive of all taxes" wording | NON_COMPLIANT |
+| `DEMO-OIL` | several mandatory declarations simply absent — honest `NOT_DETECTED` findings, never guessed violations | NON_COMPLIANT |
+| `DEMO-QUINOA` | mostly valid — every checkable declaration present, including the imported-package chain ("Imported by" + "Country of Origin"), so the Rule 6(1)(aa) imported-only applicability condition resolves deterministically | COMPLIANT |
+
+Every inspection also carries at least one `REVIEW_REQUIRED` finding (the
+import-status question) whose seeded CONFIRM review shows the human-in-the-loop
+history — perception never silently decides applicability.
+
 ## 5. Live demo flow (do this on stage)
 
-1. **Login** as inspector; the Dashboard shows the three demo inspections.
+1. **Login** as inspector; the Dashboard shows the four demo inspections.
 2. Open **DEMO-FOOD** → walk the evidence chain for one NON_COMPLIANT finding:
    finding → extracted field (raw OCR text + confidence) → requirement in
    force (version + source).
@@ -102,9 +115,9 @@ tagged with its origin (AI / HUMAN / SYSTEM).
 
 - **OCR engine fails to load / models missing** → perception runs fail with
   `AI_SERVICE_UNAVAILABLE` and the UI shows an honest error state. Fall back to
-  the three seeded demo inspections — they already contain complete perception
+  the four seeded demo inspections — they already contain complete perception
   evidence, findings, reviews and decisions, and need no engine at runtime.
-- **Fresh-database boot is slow** (first boot runs real OCR on three labels) →
+- **Fresh-database boot is slow** (first boot runs real OCR on four labels) →
   pre-boot once before the demo; subsequent boots are ~2 s and skip seeding.
   Worst case, boot with `SEED_DEMO_INSPECTIONS=false` and show the seeded
   demos from the pre-warmed database.

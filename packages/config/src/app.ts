@@ -22,7 +22,14 @@ export const PROBLEM_STATEMENT = {
 export const DEMO_DATA_LABEL = 'DEMO DATA — NOT LEGAL ADVICE';
 
 export const DEMO_DATA_NOTICE =
-  'This build uses clearly-labelled placeholder data. It does not contain verified Legal Metrology requirements and must not be used for real compliance decisions. Verified regulatory data will be added in a later phase from official sources.';
+  'The regulatory dataset in this build is research-grade and UNVERIFIED against the official Gazette / India Code text, and aggregate pages use clearly-labelled demo data. Findings are decision support only and must not be used for real compliance decisions.';
+
+/**
+ * The role-of-the-system boundary shown wherever a reader might mistake
+ * system output for a legal determination. Do not remove.
+ */
+export const SYSTEM_ROLE_NOTICE =
+  'METRASIGHT provides AI-assisted inspection intelligence and evidence organization. Final regulatory determination remains with the authorized inspector.';
 
 export const DEFAULT_PAGE_SIZE = 20;
 

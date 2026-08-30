@@ -1,7 +1,8 @@
 """Reliable demo inspections (Prompt 9, Phase 18 — DEMO DATA).
 
-Seeds three demo inspections — ``DEMO-FOOD``, ``DEMO-WATER``, ``DEMO-OIL`` —
-each with the COMPLETE lifecycle, produced entirely through the REAL services:
+Seeds four demo inspections — ``DEMO-FOOD``, ``DEMO-WATER``, ``DEMO-OIL`` and
+``DEMO-QUINOA`` — each with the COMPLETE lifecycle, produced entirely through
+the REAL services:
 
     real synthetic label image → real intake + usability grade → REAL local
     OCR perception → real extracted fields → real deterministic compliance
@@ -14,9 +15,22 @@ NEVER silently falls back to a stub. The images are the committed synthetic
 labels from ``app/db/demo_images/`` (locally rendered; no third-party
 material), and every row is flagged ``is_demo=True`` so the UI can label it.
 
+Demo variety (Prompt 10, Phase 3):
+
+* ``DEMO-FOOD``   — clear issues: consumer-care contact incomplete
+  (e-mail but no telephone) → NON_COMPLIANT.
+* ``DEMO-WATER``  — clear issues: MRP declared without the required
+  'inclusive of all taxes' wording → NON_COMPLIANT.
+* ``DEMO-OIL``    — several mandatory declarations simply absent →
+  honest NOT_DETECTED findings → NON_COMPLIANT.
+* ``DEMO-QUINOA`` — mostly valid: every checkable declaration present in
+  the expected shape, including the imported-package chain (importer +
+  country of origin) so the Rule 6(1)(aa) applicability condition resolves
+  deterministically → COMPLIANT.
+
 Idempotent: an inspection whose ``reference_no`` already exists is skipped,
 so only the FIRST boot on a fresh database pays the real-OCR cost (engine
-init + 3 inferences, roughly a minute on CPU). Disable with
+init + 4 inferences, roughly 1–2 minutes on CPU). Disable with
 ``SEED_DEMO_INSPECTIONS=false``.
 """
 from __future__ import annotations
@@ -42,11 +56,12 @@ logger = get_logger(__name__)
 
 _DEMO_DIR = Path(__file__).resolve().parent / "demo_images"
 
-# (reference, image file, product name, category) — the three Phase 18 demos.
+# (reference, image file, product name, category) — the demo set.
 _DEMO_INSPECTIONS: list[tuple[str, str, str, str]] = [
     ("DEMO-FOOD", "demo-food.png", "SUNRISE Crunchy Masala (demo)", "food"),
     ("DEMO-WATER", "demo-water.png", "AQUAPURE Drinking Water (demo)", "beverages"),
     ("DEMO-OIL", "demo-oil.png", "GOLDLEAF Sunflower Oil (demo)", "food"),
+    ("DEMO-QUINOA", "demo-quinoa.png", "VERDE Organic Quinoa (demo)", "food"),
 ]
 
 

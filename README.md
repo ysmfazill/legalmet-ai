@@ -93,8 +93,8 @@ Review/decision docs: [`docs/human-review.md`](docs/human-review.md).
 storage path-traversal fix, upload dimension guard, ORM/migration drift
 eliminated with a drift-guard integration test, duplicate-run guards,
 measured performance (see [`docs/production-hardening.md`](docs/production-hardening.md)),
-an offline local demo with three seeded full-lifecycle demo inspections
-(`DEMO-FOOD` / `DEMO-WATER` / `DEMO-OIL` — see [`docs/demo.md`](docs/demo.md)),
+an offline local demo with four seeded full-lifecycle demo inspections
+(`DEMO-FOOD` / `DEMO-WATER` / `DEMO-OIL` / `DEMO-QUINOA` — see [`docs/demo.md`](docs/demo.md)),
 and honest confidence/AI-vs-HUMAN semantics throughout the UI.
 
 See [`docs/architecture.md`](docs/architecture.md) for the full design.
@@ -113,6 +113,12 @@ See [`docs/architecture.md`](docs/architecture.md) for the full design.
 ---
 
 ## Installation
+
+> **Fastest path (one command):** after the prerequisites below are installed
+> once, `npm run demo` starts the whole localhost demo (backend + frontend,
+> Ctrl+C stops both). `npm run demo -- --fresh` also wipes the local demo
+> database so first boot re-seeds through the real services. The full
+> step-by-step equivalent is in the sections below.
 
 ### 1. Frontend / shared packages (from the repo root)
 
@@ -180,10 +186,10 @@ alembic upgrade head
 
 > On startup the backend also creates tables (dev convenience), seeds
 > clearly-labelled **demo** users/rules when `SEED_DEMO_DATA=true`, and — on a
-> fresh database — seeds **three full-lifecycle demo inspections**
-> (`DEMO-FOOD` / `DEMO-WATER` / `DEMO-OIL`) through the real services,
-> including real local OCR (~1–2 minutes on CPU, first boot only; later boots
-> skip). Disable with `SEED_DEMO_INSPECTIONS=false`. Details:
+> fresh database — seeds **four full-lifecycle demo inspections**
+> (`DEMO-FOOD` / `DEMO-WATER` / `DEMO-OIL` / `DEMO-QUINOA`) through the real
+> services, including real local OCR (~2 minutes on CPU, first boot only;
+> later boots skip). Disable with `SEED_DEMO_INSPECTIONS=false`. Details:
 > [`docs/demo.md`](docs/demo.md).
 
 ---
@@ -245,6 +251,25 @@ npm run build:web           # production build of @legalmet/web
 
 **Demo:** how to run the full local demo (offline after one model download)
 and what each seeded inspection contains: [`docs/demo.md`](docs/demo.md).
+**For the SIH presentation itself** — the 3/5/10-minute judge walkthroughs and
+the backup/failure plans: [`docs/judge-demo.md`](docs/judge-demo.md).
+
+### Final verification matrix (Prompt 10, 2026-08-31)
+
+| Check | Result |
+| --- | --- |
+| Frontend typecheck (`tsc --noEmit`) | PASS — 0 errors |
+| Frontend lint (ESLint) | PASS — 0 errors (2 pre-existing warnings) |
+| Frontend production build (Vite) | PASS — 114 modules, 398 kB JS (115 kB gzip) |
+| Backend unit/API suite (pytest, in-memory SQLite) | PASS — 424 passed |
+| Backend integration suite (real PaddleOCR + OpenCV) | PASS — 22 passed |
+| OCR / vision / perception pipeline tests | PASS (integration marks above) |
+| Regulatory / compliance-engine tests | PASS (in the 424) |
+| Evidence / evidence-graph tests | PASS (in the 424) |
+| Review (HITL) / decision-gate tests | PASS (in the 424) |
+| API security (auth, roles, traversal) tests | PASS — 36 tests (in the 424) |
+| Audit-trail tests | PASS (in the 424) |
+| Golden demo flow + failure resilience (live HTTP, `scripts/walkthrough_p10.py`) | PASS — 28/28 checks |
 
 ---
 

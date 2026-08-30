@@ -45,7 +45,7 @@ after a one-time model download**.
 
 ## 3. Demo data (Phase 18)
 
-`DEMO-FOOD`, `DEMO-WATER`, `DEMO-OIL` are seeded at first boot through the
+`DEMO-FOOD`, `DEMO-WATER`, `DEMO-OIL`, `DEMO-QUINOA` are seeded at first boot through the
 **real services** (intake → real OCR → evaluation → review → decision → audit),
 not inserted as rows. See `docs/demo.md`. The seed fails loudly and honestly
 (`demo_inspection_partial` / `demo_inspections_failed` log lines) and never

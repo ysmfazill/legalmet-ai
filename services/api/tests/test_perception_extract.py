@@ -138,6 +138,19 @@ class TestKeywordExtraction:
         assert candidate.normalized_value == "India"
         assert candidate.status == ExtractionStatus.DETECTED
 
+    def test_generic_name_after_colon(self):
+        # Rule 6(1)(b): the commodity name, anchored on an explicit prefix.
+        (candidate,) = _extract([_line("Commodity: Quinoa Grains")])
+        assert candidate.field_type == FieldType.GENERIC_NAME
+        assert candidate.normalized_value == "Quinoa Grains"
+        assert candidate.status == ExtractionStatus.DETECTED
+        assert candidate.method == "regex:generic-name"
+
+    def test_generic_name_prefix_required(self):
+        # The bare word "commodity" in prose is NOT a generic-name declaration.
+        candidates = _extract([_line("the commodity contained in this package")])
+        assert all(c.field_type != FieldType.GENERIC_NAME for c in candidates)
+
     def test_consumer_care_line_with_email(self):
         (candidate,) = _extract([_line("Customer Care: care@example.com")])
         assert candidate.field_type == FieldType.CONSUMER_CARE

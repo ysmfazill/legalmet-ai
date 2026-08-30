@@ -259,6 +259,19 @@ class TestContactFormatEvaluator:
         )
         assert evaluate_contact_format(field, {}).passed is True
 
+    def test_toll_free_number_counts_as_phone(self):
+        # Rule 6(2) consumer-care lines commonly use a 1800 toll-free number.
+        field = FakeField(
+            raw_text="Consumer Care: 1800-222-3333, care@example.com"
+        )
+        assert evaluate_contact_format(field, {}).passed is True
+
+    def test_landline_number_counts_as_phone(self):
+        field = FakeField(
+            raw_text="Consumer care: 022-28123456, care@example.com"
+        )
+        assert evaluate_contact_format(field, {}).passed is True
+
     def test_phone_only_fails_with_named_missing_channel(self):
         field = FakeField(raw_text="Toll free 1800 123 456")
         outcome = evaluate_contact_format(field, {})
