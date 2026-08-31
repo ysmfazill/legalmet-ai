@@ -66,6 +66,7 @@ class PaddleOCRService(OCRService):
         use_doc_orientation_classify: bool = False,
         use_doc_unwarping: bool = False,
         use_textline_orientation: bool = False,
+        model_tier: str = "mobile",
     ) -> None:
         self._langs = [lang.strip() for lang in (langs or ["en"]) if lang.strip()]
         unsupported = [lang for lang in self._langs if lang not in SUPPORTED_LANGS]
@@ -80,12 +81,30 @@ class PaddleOCRService(OCRService):
                 code=ErrorCode.UNSUPPORTED_LANGUAGE,
                 details={"unsupported": unsupported, "supported": sorted(SUPPORTED_LANGS)},
             )
+        tier = model_tier.strip().lower()
+        if tier not in ("mobile", "server"):
+            raise ValidationError(
+                f"Unknown OCR model tier: {model_tier!r} (use 'mobile' or 'server').",
+                details={"modelTier": model_tier},
+            )
+        self._model_tier = tier
         self._timeout_seconds = timeout_seconds
         self._engine_flags = {
             "use_doc_orientation_classify": use_doc_orientation_classify,
             "use_doc_unwarping": use_doc_unwarping,
             "use_textline_orientation": use_textline_orientation,
         }
+        if tier == "mobile":
+            # PP-OCRv5 mobile models: measured ~5x faster on CPU than the
+            # server models (see scripts/profile_perception.py) with equal
+            # accuracy on the project's labels — the right default for a
+            # live localhost demo.
+            self._engine_flags.update(
+                {
+                    "text_detection_model_name": "PP-OCRv5_mobile_det",
+                    "text_recognition_model_name": "PP-OCRv5_mobile_rec",
+                }
+            )
         self._engines: dict[str, object] = {}
         self._engine_lock = threading.Lock()
         # Single worker keeps inference serialized (paddle inference is not
@@ -98,7 +117,7 @@ class PaddleOCRService(OCRService):
         version = self._paddleocr_version()
         return ServiceDescriptor(
             service_type=ModelServiceType.OCR,
-            name=f"paddleocr-{_MODEL_FAMILY.lower()}",
+            name=f"paddleocr-{_MODEL_FAMILY.lower()}-{self._model_tier}",
             version=version,
             provider="PaddlePaddle",
         )
@@ -112,6 +131,17 @@ class PaddleOCRService(OCRService):
         return _MODEL_FAMILY
 
     # --- OCRService ----------------------------------------------------------
+
+    def prewarm(self) -> None:
+        """Initialise every configured language engine now (startup warm-up).
+
+        Downloads are NOT triggered here if models are missing — engine
+        construction would download them; that is acceptable at startup where
+        a slow first boot is expected, but failures propagate to the caller
+        (which logs and continues; requests then fail honestly).
+        """
+        for lang in self._langs:
+            self._engine_for(lang)
 
     def extract_text(self, *, image_bytes: bytes | None, storage_key: str, seed: str) -> OcrResult:
         if image_bytes is None:

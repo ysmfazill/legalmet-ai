@@ -280,6 +280,14 @@ export const api = {
   createInspection: (body: CreateInspectionRequest): Promise<Inspection> =>
     request<Inspection>('/inspections', { method: 'POST', body }),
   getInspection: (id: string): Promise<Inspection> => request<Inspection>(`/inspections/${id}`),
+  /**
+   * Live inspections from the backend. Paginated; `pageSize: 100` covers the
+   * demo database comfortably. Use for LIVE views — never mix with the
+   * labelled demo adapter.
+   */
+  listInspections: (params: { page?: number; pageSize?: number } = {}): Promise<
+    Paginated<Inspection>
+  > => request<Paginated<Inspection>>('/inspections' + querySuffix(params)),
 
   // --- real package intake (Prompt 3) --------------------------------------
   createPackage: (inspectionId: string, body: CreatePackageRequest = {}): Promise<Package> =>

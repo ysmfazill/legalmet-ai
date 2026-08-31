@@ -491,6 +491,14 @@
   color: var(--text-muted);
   font-family: var(--font-mono);
 }
+/* LIVE INSPECTION marker — the consistent live-vs-demo indicator across the
+ * app. Green-family tone, always paired with the DEMONSTRATION DATA badge
+ * on screens that carry both sources. */
+.tag--live {
+  background: color-mix(in srgb, var(--tone-positive) 16%, transparent);
+  color: var(--tone-positive);
+  border: 1px solid color-mix(in srgb, var(--tone-positive) 38%, transparent);
+}
 .kv {
   display: grid;
   grid-template-columns: minmax(120px, auto) 1fr;

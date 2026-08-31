@@ -11,7 +11,10 @@ import { FilterBar, SearchBar, SelectField } from '../components/inputs';
 import type { SelectOption } from '../components/inputs';
 import { InspectionTable } from '../components/InspectionTable';
 import { PageHeader } from '../components/PageHeader';
+import { Segmented } from '../components/Tabs';
 import { AsyncView, EmptyState } from '../components/states';
+import { api } from '../api/client';
+import { useApp } from '../app/AppContext';
 import { useAsync } from '../data/useAsync';
 import { mockApi } from '../mock/adapter';
 
@@ -23,10 +26,18 @@ const STATUS_OPTIONS: SelectOption[] = [
 ];
 
 export function InspectionsPage() {
+  const { isLive } = useApp();
   const query = useAsync(() => mockApi.listInspections(), []);
+  const liveQuery = useAsync(
+    () => (isLive ? api.listInspections({ page: 1, pageSize: 100 }) : Promise.resolve(null)),
+    [isLive],
+  );
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const qParam = params.get('q') ?? '';
+  // Default to LIVE when the backend is reachable — a newly created
+  // inspection must appear here immediately (Prompt 11, Phase 3).
+  const [source, setSource] = useState<'live' | 'demo'>(isLive ? 'live' : 'demo');
 
   const [search, setSearch] = useState(qParam);
   const [status, setStatus] = useState('');
@@ -52,43 +63,124 @@ export function InspectionsPage() {
         }
       />
 
-      <AsyncView query={query} loadingLabel="Loading inspections…">
-        {(all) => {
-          const categories = Array.from(
-            new Set(all.map((i) => i.product?.category).filter((c): c is string => Boolean(c))),
-          ).sort();
-          const categoryOptions: SelectOption[] = [
-            { value: '', label: 'All categories' },
-            ...categories.map((c) => ({ value: c, label: c })),
-          ];
-          return (
-            <InspectionsBody
-              all={all}
-              search={search}
-              status={status}
-              category={category}
-              page={page}
-              categoryOptions={categoryOptions}
-              onSearch={(v) => {
-                setSearch(v);
-                setParams(v ? { q: v } : {}, { replace: true });
-              }}
-              onStatus={setStatus}
-              onCategory={setCategory}
-              onPage={setPage}
-              onClear={() => {
-                setSearch('');
-                setStatus('');
-                setCategory('');
-                setParams({}, { replace: true });
-              }}
-              onOpen={(id) => navigate(`/inspections/${id}`)}
-            />
-          );
-        }}
-      </AsyncView>
+      {/* Live backend query — the page can still show demo data below. */}
+      {source === 'live' && liveQuery.status === 'loading' ? (
+        <Card>
+          <CardBody>
+            <p style={{ color: 'var(--text-muted)' }}>Loading live inspections…</p>
+          </CardBody>
+        </Card>
+      ) : source === 'live' && liveQuery.status === 'error' ? (
+        <Card>
+          <CardBody>
+            <p style={{ color: 'var(--text-muted)' }}>
+              Live inspections unavailable ({liveQuery.error.message}). Switching to demonstration data.
+            </p>
+          </CardBody>
+        </Card>
+      ) : null}
+
+      {source === 'live' && liveQuery.status === 'success' && liveQuery.data ? (
+        <InspectionsBody
+          all={liveQuery.data.items}
+          search={search}
+          status={status}
+          category={category}
+          page={page}
+          categoryOptions={liveCategoryOptions(liveQuery.data.items)}
+          sourceSelector={
+            isLive ? (
+              <Segmented
+                options={[
+                  { id: 'live', label: 'Live inspections' },
+                  { id: 'demo', label: 'Demonstration data' },
+                ]}
+                active={source}
+                onChange={(next) => setSource(next as 'live' | 'demo')}
+                ariaLabel="Choose inspection source"
+              />
+            ) : undefined
+          }
+          onSearch={(v) => {
+            setSearch(v);
+            setParams(v ? { q: v } : {}, { replace: true });
+          }}
+          onStatus={setStatus}
+          onCategory={setCategory}
+          onPage={setPage}
+          onClear={() => {
+            setSearch('');
+            setStatus('');
+            setCategory('');
+            setParams({}, { replace: true });
+          }}
+          onOpen={(id) => navigate(`/inspections/${id}`)}
+        />
+      ) : source === 'live' && liveQuery.status === 'error' ? null : source === 'live' ? (
+        <Card>
+          <CardBody>
+            <p style={{ color: 'var(--text-muted)' }}>Waiting for the backend…</p>
+          </CardBody>
+        </Card>
+      ) : (
+        <AsyncView query={query} loadingLabel="Loading inspections…">
+          {(all) => {
+            const categories = Array.from(
+              new Set(all.map((i) => i.product?.category).filter((c): c is string => Boolean(c))),
+            ).sort();
+            const categoryOptions: SelectOption[] = [
+              { value: '', label: 'All categories' },
+              ...categories.map((c) => ({ value: c, label: c })),
+            ];
+            return (
+              <InspectionsBody
+                all={all}
+                search={search}
+                status={status}
+                category={category}
+                page={page}
+                categoryOptions={categoryOptions}
+                sourceSelector={
+                  isLive ? (
+                    <Segmented
+                      options={[
+                        { id: 'live', label: 'Live inspections' },
+                        { id: 'demo', label: 'Demonstration data' },
+                      ]}
+                      active={source}
+                      onChange={(next) => setSource(next as 'live' | 'demo')}
+                      ariaLabel="Choose inspection source"
+                    />
+                  ) : undefined
+                }
+                onSearch={(v) => {
+                  setSearch(v);
+                  setParams(v ? { q: v } : {}, { replace: true });
+                }}
+                onStatus={setStatus}
+                onCategory={setCategory}
+                onPage={setPage}
+                onClear={() => {
+                  setSearch('');
+                  setStatus('');
+                  setCategory('');
+                  setParams({}, { replace: true });
+                }}
+                onOpen={(id) => navigate(`/inspections/${id}`)}
+              />
+            );
+          }}
+        </AsyncView>
+      )}
     </div>
   );
+}
+
+function liveCategoryOptions(items: Inspection[]): SelectOption[] {
+  const categories = Array.from(
+    new Set(items.map((i) => i.product?.category).filter((c): c is string => Boolean(c))),
+  ).sort();
+  return [{ value: '', label: 'All categories' }, ...categories.map((c) => ({ value: c, label: c }))];
 }
 
 function InspectionsBody({
@@ -98,6 +190,7 @@ function InspectionsBody({
   category,
   page,
   categoryOptions,
+  sourceSelector,
   onSearch,
   onStatus,
   onCategory,
@@ -111,6 +204,7 @@ function InspectionsBody({
   category: string;
   page: number;
   categoryOptions: SelectOption[];
+  sourceSelector?: React.ReactNode;
   onSearch: (v: string) => void;
   onStatus: (v: string) => void;
   onCategory: (v: string) => void;
@@ -138,6 +232,14 @@ function InspectionsBody({
   return (
     <Card>
       <CardBody flush>
+        {sourceSelector && (
+          <div className="filter-bar" style={{ justifyContent: 'space-between' }}>
+            <span className="tag tag--live" title="Real inspections from the live backend">
+              LIVE INSPECTIONS
+            </span>
+            {sourceSelector}
+          </div>
+        )}
         <FilterBar>
           <SearchBar
             value={search}

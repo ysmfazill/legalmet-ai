@@ -68,6 +68,16 @@ export function DashboardPage() {
         }
       />
 
+      <div className="demo-note demo-note--block">
+        <Icon name="info" size={15} />
+        <span>
+          Aggregate statistics on this page come from <strong>clearly labelled demonstration data</strong>{' '}
+          — they illustrate the shape of the system and are not live inspection counts. Real
+          inspections you create appear in <Link to="/inspections">Inspections</Link> (Live source),{' '}
+          <Link to="/review">Review</Link> (Engine findings) and <Link to="/evidence">Evidence Explorer</Link>.
+        </span>
+      </div>
+
       <AsyncView query={dash} loadingLabel="Loading command center…">
         {({ summary, trends, activity, risk }) => (
           <>
@@ -114,8 +124,8 @@ export function DashboardPage() {
 
               <SectionCard
                 eyebrow="Findings"
-                title="Compliance distribution"
-                subtitle={`${summary.findings.total} findings analysed`}
+                title="Finding status distribution"
+                subtitle={`${summary.findings.total} findings analysed (demonstration data — not live inspection counts)`}
               >
                 <DonutChart
                   segments={complianceSegments(summary.findings)}

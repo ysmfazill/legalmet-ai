@@ -34,16 +34,29 @@ runs **offline on localhost** — no network, no cloud, no API keys.
 
 Everything in A, plus:
 
-1. **New Inspection** → create (`SUNRISE Masala`, category food).
+1. **New Inspection** → create (`SUNRISE Masala`, category food). The pipeline
+   map at the top shows the whole flow (create → image → validation → quality
+   → run perception → OCR + vision → extraction → evaluation → findings →
+   review) with the current step highlighted.
 2. Upload `services/api/tests/dataset/images/food-clean-001.png`.
-3. **Run perception** — narrate: real local PaddleOCR, ~15–30 s on CPU; the
-   panel shows the processing state and refreshes automatically.
+3. **Run perception** — narrate: real local PaddleOCR (PP-OCRv5 mobile
+   models, engine pre-warmed at startup); measured **1–3 s per image** on CPU
+   (baseline before optimisation was ~27–37 s). The panel shows the live
+   stage checklist (✓ validation ✓ quality → OCR → vision → extraction) with
+   an elapsed timer — no fake percentages — and refreshes automatically.
 4. Show the perception panel: per-field **confidence**, `DETECTED` vs
    `REVIEW_REQUIRED` statuses (the honest states).
 5. **Evaluate** → deterministic findings appear instantly.
 6. Try recording a **COMPLIANT decision** → the gate **blocks it (409)** while
    the MAJOR finding is unresolved. Then CONFIRM the finding as the inspector
    and record the real decision. This is the human-in-the-loop centerpiece.
+7. **Inspections page** → the source toggle defaults to **Live inspections**:
+   the inspection you just created is right there, tagged LIVE INSPECTION.
+8. **Evidence Explorer** → switch to **Live inspections**: real thumbnails of
+   the images you uploaded, each declaration's region highlighted on the real
+   pixels, the verbatim OCR line, and the engine finding status. Click a card
+   → it deep-links into the workspace with the field's evidence drawer open
+   and the region highlighted.
 
 ## C. The 10-minute technical demo (for a technical judge)
 
@@ -74,9 +87,11 @@ runtime**:
 
 1. Login as inspector. Reach the seeded inspections through **Review → Engine
    findings**: click rows there to open each workspace (the eyebrow shows
-   `DEMO-FOOD` / `DEMO-WATER` / `DEMO-OIL` / `DEMO-QUINOA`).
-   Note: the Dashboard and the Inspections list page show the labelled demo
-   dataset (INS-…), not the seeded backend inspections.
+   `DEMO-FOOD` / `DEMO-WATER` / `DEMO-OIL` / `DEMO-QUINOA`), or through the
+   **Inspections** page with the source toggle switched to
+   **Demonstration data**. Note: the Dashboard aggregates still show the
+   labelled demo dataset (INS-…) — they are marked as demonstration data, not
+   live counts.
 2. DEMO-QUINOA is the fully COMPLIANT imported package (shows the
    country-of-origin applicability resolving deterministically).
 3. DEMO-OIL shows honest NOT_DETECTED findings for absent declarations.
@@ -101,8 +116,9 @@ runtime**:
 ## G. Which package image to use (live upload)
 
 `services/api/tests/dataset/images/food-clean-001.png` — a clean synthetic
-label with all declarations; OCR reads it reliably in ~15–30 s. For a quality-
-gate moment, also show `food-blur-011.png` (graded POOR — honest degradation).
+label with all declarations; OCR reads it reliably in **1–3 s** (mobile
+models, pre-warmed engine). For a quality-gate moment, also show
+`food-blur-011.png` (graded POOR — honest degradation).
 
 ## H. Which finding to open
 
@@ -166,7 +182,10 @@ list itself is the labelled demo dataset in this build.
 - [ ] Login works (inspector + auditor accounts)
 - [ ] All 4 DEMO-* inspections reachable: Review → Engine findings →
       click rows (workspace eyebrow shows `DEMO-*`)
-- [ ] One live upload + perception run completes (~30 s)
+- [ ] One live upload + perception run completes (~1–3 s after startup
+      pre-warm; the first boot pays ~1 min of engine warm-up)
+- [ ] Inspections page: Live source toggle shows newly created inspections
+- [ ] Evidence Explorer: Live source shows real thumbnails with regions
 - [ ] Swagger reachable at `http://localhost:8000/docs`
 - [ ] `services/api` fast suite green: `python -m pytest` (424 passed)
 - [ ] Laptop plugged in, CPU power mode set to high (OCR is CPU-bound)

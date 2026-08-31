@@ -17,7 +17,8 @@ from pathlib import Path
 
 import requests
 
-BASE = "http://localhost:8000/api/v1"
+import os
+BASE = os.environ.get("PERF_BASE_URL", "http://localhost:8000/api/v1")
 HERE = Path(__file__).resolve().parent
 LABEL = HERE.parent / "tests" / "dataset" / "images" / "food-clean-001.png"
 DEMO_IMAGE = HERE.parent / "app" / "db" / "demo_images" / "demo-food.png"

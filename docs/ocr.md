@@ -46,7 +46,38 @@ any of them, re-run `pytest -m integration` to re-verify.
 * Model identity is recorded per run (`ocr_provider` / `ocr_model` /
   `ocr_version`, plus a `model_versions` provenance row), so any result can be
   traced to the exact engine and model family that produced it
-  (descriptor name: `paddleocr-pp-ocrv5`).
+  (descriptor name: `paddleocr-pp-ocrv5-{tier}`, default tier `mobile`).
+
+## 2a. Model tier and startup pre-warm (measured optimisation)
+
+`PERCEPTION_OCR_MODEL_TIER` selects the PP-OCRv5 detection + recognition
+models:
+
+* `mobile` (**default**) — `PP-OCRv5_mobile_det` + `PP-OCRv5_mobile_rec`.
+  Measured ~5× faster on CPU than the server models and at least as accurate
+  on this project's synthetic label set (the mobile model even read
+  `Batch No:` where the server model read `BatchNo:`).
+* `server` — `PP-OCRv5_server_det` + `PP-OCRv5_server_rec`. Highest capacity,
+  ~5× slower on CPU.
+
+`PERCEPTION_OCR_PREWARM` (default `true`) loads every configured language's
+engine at startup, so the first perception request never pays engine-init
+latency (costs ~10 s of boot time when the backend is `paddle`).
+
+**Measured on this project's machine (CPU-only, wall clock, three formal
+runs against a pre-warmed server via the real HTTP API):**
+
+| Scenario | Before (server models) | After (mobile + pre-warm) |
+| --- | --- | --- |
+| Cold first run (engine init + inference) | 36.9 s | ~7 s (first request after boot) |
+| Warm per-image run | 26.6–38.5 s | **1.0–1.2 s** (backend `durationMs`) |
+| End-to-end demo walkthrough perception step | ~30 s | 2.1 s |
+
+Reproduce with `scripts/profile_perception.py` (stage-level profiler) and
+`scripts/perf_three_runs.py` (three live-API runs). Per-stage profile:
+preprocessing 0.01–0.03 s, OCR inference ≈ 99 % of pipeline time, vision
+0.05 s, extraction ≈ 0 s — the optimisation targeted the only stage that
+mattered (model choice + warm engine).
 
 ## 3. Languages — what is actually claimed
 

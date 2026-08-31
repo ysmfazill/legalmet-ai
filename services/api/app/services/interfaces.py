@@ -203,6 +203,10 @@ class OCRService(abc.ABC):
         self, *, image_bytes: bytes | None, storage_key: str, seed: str
     ) -> OcrResult: ...
 
+    def prewarm(self) -> None:
+        """Optional startup warm-up (engine/model init). Default: no-op."""
+        return None
+
 
 class VisionService(abc.ABC):
     @property

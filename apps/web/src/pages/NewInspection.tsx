@@ -33,6 +33,42 @@ const METHODS: { id: Method; icon: IconName; label: string }[] = [
   { id: 'BATCH', icon: 'batch', label: 'Batch import' },
 ];
 
+/** The whole pipeline, always visible so the flow is never a mystery. */
+const PIPELINE_STEPS: { label: string; phase: 'intake' | 'perception' | 'review' }[] = [
+  { label: 'Create inspection', phase: 'intake' },
+  { label: 'Add image', phase: 'intake' },
+  { label: 'Validation', phase: 'intake' },
+  { label: 'Quality', phase: 'intake' },
+  { label: 'Run perception', phase: 'perception' },
+  { label: 'OCR + vision', phase: 'perception' },
+  { label: 'Extraction', phase: 'perception' },
+  { label: 'Evaluation', phase: 'perception' },
+  { label: 'Findings', phase: 'review' },
+  { label: 'Review', phase: 'review' },
+];
+
+function PipelineMap({ stage }: { stage: 'collect' | 'images' | 'ready' }) {
+  const activeIndex =
+    stage === 'collect' ? 0 : stage === 'images' ? 2 : 4; // create | validation | run perception
+  return (
+    <div className="pipeline-map" aria-label="Inspection pipeline">
+      {PIPELINE_STEPS.map((step, i) => (
+        <span
+          key={step.label}
+          className={cn(
+            'pipeline-map__step',
+            `pipeline-map__step--${step.phase}`,
+            i === activeIndex && 'is-active',
+            i < activeIndex && 'is-done',
+          )}
+        >
+          {i < activeIndex ? '✓' : i + 1}. {step.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export function NewInspectionPage() {
   const { isLive, auth } = useApp();
   const navigate = useNavigate();
@@ -86,6 +122,8 @@ export function NewInspectionPage() {
           </button>
         </div>
       )}
+
+      <PipelineMap stage={session.phase === 'collect' ? 'collect' : 'images'} />
 
       {session.phase === 'collect' ? (
         <PackageDetailsStep session={session} disabled={!isLive} />
@@ -568,10 +606,11 @@ function ReadyStep({
 
   return (
     <Card>
+      <PipelineMap stage="ready" />
       <CardHead
         eyebrow="Step 4"
         title="Ready for analysis"
-        subtitle="Marks the package ready. This does NOT run any compliance analysis."
+        subtitle="Marks the package ready — then perception runs in the workspace"
       />
       <CardBody>
         <div className="row row--between row--wrap" style={{ gap: 'var(--space-3)' }}>
@@ -581,8 +620,8 @@ function ReadyStep({
               : `${session.images.length} image${session.images.length > 1 ? 's' : ''} stored and validated.`}
           </span>
           <button type="button" className="btn btn--primary" disabled={!canFinalize} onClick={() => void finalize()}>
-            {session.finalizing ? 'Finalizing…' : 'Mark ready for analysis'}
-            {!session.finalizing && <Icon name="check" size={15} />}
+            {session.finalizing ? 'Finalizing…' : 'Open workspace & run perception'}
+            {!session.finalizing && <Icon name="arrowRight" size={15} />}
           </button>
         </div>
       </CardBody>

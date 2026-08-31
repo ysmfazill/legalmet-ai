@@ -53,6 +53,19 @@ class PerceptionService:
         self._pipeline = pipeline
         self._session_factory = session_factory
 
+    # --- engine warm-up ---------------------------------------------------------
+
+    def prewarm_ocr(self) -> None:
+        """Initialise the OCR engine(s) now so the first request is warm.
+
+        Called at startup (never fatal — see app.main._lifespan). Engines are
+        cached per language inside the OCR service, so this simply forces the
+        lazy init that the first perception request would otherwise pay.
+        """
+        prewarm = getattr(self._pipeline, "prewarm_ocr", None)
+        if callable(prewarm):
+            prewarm()
+
     # --- mutations (request transaction) --------------------------------------
 
     def start_for_inspection(

@@ -78,6 +78,16 @@ class PackagePerceptionPipeline:
         self._extractor = extractor
         self._audit = audit
 
+    # --- engine warm-up ---------------------------------------------------------
+
+    def prewarm_ocr(self) -> None:
+        """Initialise the OCR engine(s) now (startup warm-up, never fatal here —
+        the caller in app.main logs and continues). Keeps the first live
+        perception request free of engine-init latency."""
+        warm = getattr(self._ocr, "prewarm", None)
+        if callable(warm):
+            warm()
+
     # --- run creation (called in the request transaction) ---------------------
 
     def create_run(

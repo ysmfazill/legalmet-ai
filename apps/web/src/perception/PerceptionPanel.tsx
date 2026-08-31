@@ -11,6 +11,8 @@
  * - {@link PerceptionRunHistoryCard} — every processing run ever executed,
  *   newest first; reanalysis adds rows, history is never rewritten.
  */
+import { useEffect, useRef, useState } from 'react';
+
 import { EXTRACTION_STATUS_META, FIELD_TYPE_LABELS, PROCESSING_RUN_STATUS_META } from '@legalmet/config';
 
 import type {
@@ -30,15 +32,30 @@ export function PerceptionControlCard({
   starting,
   onStart,
   hasImages,
+  runs,
+  hasEvaluation,
 }: {
   analysis: PerceptionAnalysis | null;
   starting: boolean;
   onStart: () => void;
   hasImages: boolean;
+  runs: ProcessingRun[];
+  hasEvaluation?: boolean;
 }) {
   const active = analysis?.active ?? false;
   const hasRuns = analysis?.hasRuns ?? false;
   const summary = analysis?.summary;
+
+  // Latest run per image drives the stage indicator; a FAILED latest run
+  // drives the failure card. Never fabricated — statuses come from the
+  // backend processing-run rows.
+  const latestRuns = new Map<string, ProcessingRun>();
+  for (const run of runs) {
+    if (!latestRuns.has(run.imageId)) latestRuns.set(run.imageId, run); // newest-first
+  }
+  const latestList = [...latestRuns.values()];
+  const anyFailed = latestList.some((r) => r.status === 'FAILED');
+  const failure = latestList.find((r) => r.status === 'FAILED');
 
   return (
     <Card>
@@ -46,7 +63,11 @@ export function PerceptionControlCard({
         eyebrow="Perception"
         title="Package perception"
         subtitle="Real OCR + symbol detection over the uploaded images"
-        actions={hasRuns ? <ProcessingRunBadge status={active ? 'OCR_PROCESSING' : 'COMPLETED'} /> : undefined}
+        actions={
+          hasRuns ? (
+            <ProcessingRunBadge status={active ? 'OCR_PROCESSING' : anyFailed ? 'FAILED' : 'COMPLETED'} />
+          ) : undefined
+        }
       />
       <CardBody>
         {!hasImages ? (
@@ -55,10 +76,42 @@ export function PerceptionControlCard({
           </p>
         ) : (
           <div className="stack stack--sm">
-            {active && (
+            {active && <PerceptionPipelineStages runs={latestList} />}
+
+            {anyFailed && failure && (
+              <div className="demo-note demo-note--block" style={{ borderColor: 'var(--tone-critical)' }}>
+                <Icon name="alert" size={15} />
+                <span>
+                  <strong>PROCESSING FAILED.</strong>{' '}
+                  {typeof (failure.error as { message?: string } | null)?.message === 'string'
+                    ? (failure.error as { message: string }).message
+                    : 'The perception run failed.'}{' '}
+                  Nothing was fabricated — no results were produced for this image. Retry below
+                  once the underlying issue is fixed.
+                </span>
+              </div>
+            )}
+
+            {!active && !hasRuns && (
+              <div className="stack stack--xs" style={{ gap: 'var(--space-1)' }}>
+                <p style={{ color: 'var(--text-muted)' }}>
+                  Image ready for analysis. Run perception to read the package label — text,
+                  symbols and declaration fields with per-item confidence.
+                </p>
+                <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>
+                  First run may take longer while the local OCR model loads (measured 4–8s per
+                  image after warm-up; later runs are faster).
+                </p>
+              </div>
+            )}
+
+            {!active && hasRuns && !anyFailed && (
               <div className="demo-note" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <span className="spinner spinner--sm" aria-hidden />
-                <span>Perception is running — reading text and detecting symbols. This view refreshes automatically.</span>
+                <span style={{ color: 'var(--tone-positive)', fontWeight: 'var(--fw-semibold)' }}>✓</span>
+                <span>
+                  <strong>Perception completed.</strong> Results below update automatically — no
+                  manual refresh needed.
+                </span>
               </div>
             )}
 
@@ -107,18 +160,99 @@ export function PerceptionControlCard({
                 : active
                   ? 'Perception running…'
                   : hasRuns
-                    ? 'Re-run perception (new runs)'
-                    : 'Run perception analysis'}
+                    ? anyFailed
+                      ? 'Retry perception'
+                      : 'Re-run perception (new runs)'
+                    : 'Run perception'}
             </button>
 
             <p style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>
               Every run creates new processing runs; previous runs and their evidence remain in the
               history below.
+              {hasRuns && !hasEvaluation
+                ? ' After perception completes, run the regulatory evaluation below to produce findings.'
+                : ''}
             </p>
           </div>
         )}
       </CardBody>
     </Card>
+  );
+}
+
+/**
+ * Stage-based progress (never a fake percentage — the backend does not track
+ * one). Stages mirror the backend processing-run statuses exactly; the
+ * elapsed timer is real client-side wall time since the panel mounted into an
+ * active run.
+ */
+function PerceptionPipelineStages({ runs }: { runs: ProcessingRun[] }) {
+  const [elapsed, setElapsed] = useState(0);
+  const startedRef = useRef<number>(Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setElapsed((Date.now() - startedRef.current) / 1000), 100);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const order: ProcessingRun['status'][] = [
+    'QUEUED',
+    'PREPROCESSING',
+    'OCR_PROCESSING',
+    'VISION_PROCESSING',
+    'FIELD_EXTRACTION',
+  ];
+  const rank = (status: ProcessingRun['status']) =>
+    order.indexOf(status) >= 0 ? order.indexOf(status) : order.length;
+
+  const stages: Array<{ key: string; label: string; state: 'done' | 'active' | 'pending' }> = [
+    { key: 'image', label: 'Image received & validated', state: 'done' },
+    { key: 'quality', label: 'Image quality checked', state: 'done' },
+    { key: 'ocr', label: 'Reading package text (OCR)', state: 'pending' },
+    { key: 'vision', label: 'Detecting QR / barcodes', state: 'pending' },
+    { key: 'fields', label: 'Extracting declarations', state: 'pending' },
+    { key: 'eval', label: 'Regulatory evaluation (separate step)', state: 'pending' },
+  ];
+  // The furthest-advanced run defines progress; OCR is the long stage.
+  const furthest = runs.length
+    ? Math.max(...runs.map((r) => rank(r.status)))
+    : 0;
+  const stageIndex = Math.min(furthest, 4);
+  for (let i = 2; i <= 3; i += 1) stages[i].state = 'pending';
+  if (stageIndex >= 2) {
+    stages[2].state = 'active';
+    for (let i = 0; i < 2; i += 1) stages[i].state = 'done';
+  }
+  if (stageIndex >= 3) stages[2].state = 'done';
+  if (stageIndex >= 4) {
+    stages[3].state = 'done';
+    stages[4].state = 'active';
+  }
+
+  return (
+    <div className="demo-note demo-note--block" style={{ gap: 'var(--space-2)' }}>
+      <div className="row row--between" style={{ width: '100%' }}>
+        <strong style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <span className="spinner spinner--sm" aria-hidden />
+          PROCESSING PACKAGE
+        </strong>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-sm)' }}>
+          {elapsed.toFixed(1)}s
+        </span>
+      </div>
+      <ul className="pipeline-stages" style={{ width: '100%' }}>
+        {stages.map((s) => (
+          <li key={s.key} className={`pipeline-stage pipeline-stage--${s.state}`}>
+            <span className="pipeline-stage__mark" aria-hidden>
+              {s.state === 'done' ? '✓' : s.state === 'active' ? '→' : '○'}
+            </span>
+            {s.label}
+          </li>
+        ))}
+      </ul>
+      <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)' }}>
+        Local OCR engine — real recognition, no cloud calls.
+      </span>
+    </div>
   );
 }
 

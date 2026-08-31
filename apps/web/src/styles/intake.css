@@ -6,6 +6,50 @@
  * READY_FOR_ANALYSIS at most.
  */
 
+/* --- Pipeline map: the whole flow, always visible (Prompt 11, Phase 2) ----- */
+.pipeline-map {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin: var(--space-2) 0 var(--space-4);
+  font-size: var(--fs-xs);
+}
+.pipeline-map__step {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+.pipeline-map__step.is-active {
+  color: var(--text-strong);
+  border-color: var(--accent);
+  font-weight: var(--fw-semibold);
+}
+.pipeline-map__step.is-done {
+  color: var(--text-muted);
+}
+.pipeline-map__step.is-done::after {
+  content: '→';
+  margin-left: 6px;
+  color: var(--text-faint);
+}
+.pipeline-map__step.is-active::after {
+  content: '→';
+  margin-left: 6px;
+  color: var(--text-faint);
+}
+.pipeline-map__step:last-child::after {
+  content: '';
+}
+.pipeline-map__step--perception.is-active {
+  border-color: var(--tone-accent);
+}
+
 /* --- Method tabs ---------------------------------------------------------- */
 .intake-tabs {
   display: flex;

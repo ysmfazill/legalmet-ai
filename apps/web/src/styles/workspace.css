@@ -410,6 +410,37 @@
   background: linear-gradient(135deg, #141d33, #0e1524);
   overflow: hidden;
 }
+/* REAL package-photo thumbnails (live evidence) — the actual stored image. */
+.evi-card__thumb--real img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.evi-card__thumb--real .spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+.evi-card__thumb-missing {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text-faint);
+}
+.evi-card__no-region {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.02em;
+}
 .evi-card__region {
   position: absolute;
   border: 2px solid var(--tone-info);
@@ -484,6 +515,42 @@
 .spinner--sm {
   width: 14px;
   height: 14px;
+}
+
+/* --- Perception pipeline stage checklist (Prompt 11, Phase 4) --------------- */
+.pipeline-stages {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-sm);
+}
+.pipeline-stage {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-faint);
+}
+.pipeline-stage__mark {
+  width: 1.4em;
+  text-align: center;
+  font-family: var(--font-mono);
+  flex: none;
+}
+.pipeline-stage--done {
+  color: var(--text-muted);
+}
+.pipeline-stage--done .pipeline-stage__mark {
+  color: var(--tone-positive);
+}
+.pipeline-stage--active {
+  color: var(--text-strong);
+  font-weight: var(--fw-semibold);
+}
+.pipeline-stage--active .pipeline-stage__mark {
+  color: var(--tone-accent);
 }
 
 /* --- Perception declaration rows (real extraction, Prompt 4) ---------------- */

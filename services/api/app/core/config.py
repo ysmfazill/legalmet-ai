@@ -67,6 +67,10 @@ class Settings(BaseSettings):
     # claimed. Available script models include: en, devanagari (Hindi/Marathi),
     # tamil, telugu — see docs/ocr.md.
     perception_ocr_langs: str = "en"
+    # PaddleOCR model tier: "mobile" (PP-OCRv5 mobile det+rec — the default,
+    # ~5x faster on CPU and measured equally accurate on the project's labels)
+    # or "server" (PP-OCRv5 server det+rec — slower, highest capacity).
+    perception_ocr_model_tier: str = "mobile"
     # Hard ceiling for one OCR inference call (seconds).
     perception_ocr_timeout_seconds: float = 180.0
     # Candidate confidence below this marks a field REVIEW_REQUIRED.
@@ -74,6 +78,10 @@ class Settings(BaseSettings):
     # OCR derivative conditioning (see PillowOcrPreprocessor).
     perception_ocr_min_long_edge: int = 1000
     perception_ocr_max_long_edge: int = 2400
+    # Prewarm the OCR engine (model load) at startup so the FIRST perception
+    # request never pays engine-init latency. Costs ~10s of boot time when the
+    # perception backend is "paddle"; no effect otherwise.
+    perception_ocr_prewarm: bool = True
 
     # --- Demo seeding (DEMO ONLY) -----------------------------------------
     seed_demo_data: bool = True

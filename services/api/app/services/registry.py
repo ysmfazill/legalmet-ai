@@ -135,11 +135,13 @@ def _build_perception_ocr(settings: Settings) -> OCRService:
         return PaddleOCRService(
             langs=settings.perception_ocr_lang_list,
             timeout_seconds=settings.perception_ocr_timeout_seconds,
+            model_tier=settings.perception_ocr_model_tier,
         )
     if backend == "mock":
         return MockOCRService()
     raise ValueError(
-        f"Unknown perception_ocr_backend: {settings.perception_ocr_backend!r} (use 'paddle' or 'mock')"
+        f"Unknown perception_ocr_backend: {settings.perception_ocr_backend!r} "
+        "(use 'paddle' or 'mock')"
     )
 
 

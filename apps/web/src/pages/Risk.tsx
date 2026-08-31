@@ -33,8 +33,10 @@ export function RiskPage() {
         <Icon name="shield" size={15} />
         <span>
           The <strong>Inspection Assistance Risk Score</strong> is a heuristic combining evidence
-          confidence, finding severity and image quality. It prioritises attention — it does{' '}
-          <strong>not</strong> determine compliance.
+          confidence, finding severity and image quality. <strong>Prioritization signal — not a
+          legal determination.</strong> It ranks which packages an inspector should look at first;
+          it does <strong>not</strong> determine compliance, and the demo scores below come from
+          labelled demonstration data.
         </span>
       </div>
 

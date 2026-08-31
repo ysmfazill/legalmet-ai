@@ -88,6 +88,20 @@ async def _lifespan(app: FastAPI):
     if settings.using_insecure_secret and settings.is_production:
         logger.warning("insecure_secret_in_production")
 
+    # Prewarm the REAL OCR engine at startup so the first perception request
+    # never pays engine-init latency during a live demo (the demo inspections
+    # seed above usually warms it already; this covers boots where they skip).
+    # Failures are logged, never fatal — perception then fails honestly with
+    # AI_SERVICE_UNAVAILABLE at request time.
+    if settings.perception_ocr_prewarm and settings.perception_ocr_backend == "paddle":
+        from app.services.registry import get_services
+
+        try:
+            services = get_services()
+            services.perception.prewarm_ocr()
+        except Exception:  # noqa: BLE001 - prewarm must never block startup
+            logger.exception("ocr_prewarm_failed")
+
     logger.info(
         "app_startup",
         app=settings.app_name,

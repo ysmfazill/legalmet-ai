@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { INSPECTION_STATUS_META } from '@legalmet/config';
 import type { Tone } from '@legalmet/config';
@@ -144,10 +144,25 @@ function RealInspectionWorkspace({ inspection }: { inspection: Inspection }) {
   const images = inspection.packages?.flatMap((p) => p.images ?? []) ?? [];
   const statusMeta = INSPECTION_STATUS_META[inspection.status];
   const isReady = inspection.status === 'READY_FOR_ANALYSIS';
+  // Deep link from Evidence Explorer: ?field=<extractedFieldId> opens the
+  // evidence drawer for that field and highlights its region on the image.
+  const [searchParams] = useSearchParams();
+  const deepLinkFieldId = searchParams.get('field');
 
   const perception = usePerception(inspection.id);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
   const [openFindingId, setOpenFindingId] = useState<string | null>(null);
+
+  // Once perception data loads, resolve the deep-linked field exactly once.
+  const appliedDeepLink = useRef<string | null>(null);
+  useEffect(() => {
+    if (!deepLinkFieldId || appliedDeepLink.current === deepLinkFieldId) return;
+    if (perception.loading) return;
+    if (perception.fields.some((f) => f.id === deepLinkFieldId)) {
+      appliedDeepLink.current = deepLinkFieldId;
+      setSelectedFieldId(deepLinkFieldId);
+    }
+  }, [deepLinkFieldId, perception.loading, perception.fields]);
 
   const hasRuns = perception.analysis?.hasRuns ?? false;
 
@@ -177,6 +192,9 @@ function RealInspectionWorkspace({ inspection }: { inspection: Inspection }) {
         lead={`${inspection.product?.category ?? '—'} · Real package perception`}
         actions={
           <>
+            <span className="tag tag--live" title="This inspection was created through real intake and lives in the backend database">
+              LIVE INSPECTION
+            </span>
             <InspectionStatusBadge status={inspection.status} />
             <Link to="/inspections/new" className="btn btn--subtle btn--sm">
               <Icon name="camera" size={15} />
@@ -247,6 +265,8 @@ function RealInspectionWorkspace({ inspection }: { inspection: Inspection }) {
               analysis={perception.analysis}
               starting={perception.starting}
               hasImages={images.length > 0}
+              runs={perception.runs}
+              hasEvaluation={Boolean(compliance.evaluation)}
               onStart={() => void perception.start()}
             />
 
