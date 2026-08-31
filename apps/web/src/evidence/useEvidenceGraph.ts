@@ -12,6 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { api } from '../api/client';
 import type { EvidenceTraceGraph, TraceEdge, TraceNode } from '@legalmet/types';
+import { EMPTY_TRACE, traceFrom, type TracePath } from './tracePath';
 
 export type EvidenceGraphLoader = (signal?: AbortSignal) => Promise<EvidenceTraceGraph>;
 
@@ -26,6 +27,19 @@ export interface EvidenceGraphState {
   /** The selected node object (null when nothing is selected). */
   selectedNode: TraceNode | null;
   reload: () => void;
+  /** --- Trace mode (Prompt 12) ------------------------------------------- */
+  /** True while trace mode is armed — the selected node's chain is highlighted. */
+  tracing: boolean;
+  /** The node the active trace started from (null when not tracing). */
+  traceRootId: string | null;
+  /** The traced node/edge id sets + discovery order. */
+  trace: TracePath;
+  /** Arm trace mode. With no argument, traces the current selection. */
+  startTrace: (nodeId?: string | null) => void;
+  /** Disarm trace mode and restore the normal graph. */
+  clearTrace: () => void;
+  /** True when trace mode is armed but the traced node has no connected path. */
+  traceEmpty: boolean;
 }
 
 export function useEvidenceGraph(loader: EvidenceGraphLoader): EvidenceGraphState {
@@ -34,10 +48,16 @@ export function useEvidenceGraph(loader: EvidenceGraphLoader): EvidenceGraphStat
   const [graph, setGraph] = useState<EvidenceTraceGraph | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
+  const [tracing, setTracing] = useState(false);
+  const [traceRootId, setTraceRootId] = useState<string | null>(null);
 
   const alive = useRef(true);
   const loaderRef = useRef(loader);
   loaderRef.current = loader;
+  // Latest selection without re-creating startTrace (avoids stale-closure bugs
+  // when the Trace button is armed before any node is selected).
+  const selectedIdRef = useRef<string | null>(null);
+  selectedIdRef.current = selectedId;
 
   useEffect(() => {
     alive.current = true;
@@ -63,6 +83,15 @@ export function useEvidenceGraph(loader: EvidenceGraphLoader): EvidenceGraphStat
     };
   }, [reloadToken]);
 
+  // A reloaded graph invalidates the old trace root: the node ids may no
+  // longer exist, so trace mode resets rather than highlighting a stale id.
+  useEffect(() => {
+    if (tracing && traceRootId && graph && !graph.nodes.some((n) => n.id === traceRootId)) {
+      setTracing(false);
+      setTraceRootId(null);
+    }
+  }, [graph, tracing, traceRootId]);
+
   const adjacency = useMemo(() => {
     const map = new Map<string, TraceEdge[]>();
     if (!graph) return map;
@@ -81,7 +110,28 @@ export function useEvidenceGraph(loader: EvidenceGraphLoader): EvidenceGraphStat
     [graph, selectedId],
   );
 
+  const trace = useMemo(
+    () => (tracing && graph ? traceFrom(graph, traceRootId) : EMPTY_TRACE),
+    [tracing, traceRootId, graph],
+  );
+
+  const traceEmpty = tracing && trace.order.length <= 1;
+
   const select = useCallback((id: string | null) => setSelectedId(id), []);
+
+  const startTrace = useCallback((nodeId?: string | null) => {
+    const target = nodeId !== undefined ? nodeId : selectedIdRef.current;
+    if (!target) return;
+    setSelectedId(target);
+    setTraceRootId(target);
+    setTracing(true);
+  }, []);
+
+  const clearTrace = useCallback(() => {
+    setTracing(false);
+    setTraceRootId(null);
+  }, []);
+
   const reload = useCallback(() => setReloadToken((t) => t + 1), []);
 
   return {
@@ -90,9 +140,15 @@ export function useEvidenceGraph(loader: EvidenceGraphLoader): EvidenceGraphStat
     graph,
     adjacency,
     selectedId,
-    selectedNode,
     select,
+    selectedNode,
     reload,
+    tracing,
+    traceRootId,
+    trace,
+    startTrace,
+    clearTrace,
+    traceEmpty,
   };
 }
 

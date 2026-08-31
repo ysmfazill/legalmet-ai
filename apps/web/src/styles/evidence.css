@@ -42,6 +42,16 @@
   stroke-width: 2.5;
 }
 
+/* --- Trace mode (Prompt 12): traced chain highlighted, rest muted --------- */
+.egraph__edge.is-traced {
+  stroke: var(--tone-info);
+  stroke-width: 2.5;
+}
+
+.egraph__edge.is-muted-edge {
+  opacity: 0.15;
+}
+
 .egraph__node {
   cursor: pointer;
 }
@@ -60,6 +70,19 @@
 .egraph__node.is-selected rect {
   stroke: var(--tone-info);
   stroke-width: 2.5;
+}
+
+/* Traced nodes: stronger emphasis than a plain selection — a filled accent
+   border plus a subtle glow keeps the traced chain readable inside a large
+   bounded graph. */
+.egraph__node.is-traced rect {
+  stroke: var(--tone-info);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--tone-info) 55%, transparent));
+}
+
+.egraph__node.is-traced.is-selected rect {
+  stroke-width: 3;
 }
 
 .egraph__node.is-dimmed {

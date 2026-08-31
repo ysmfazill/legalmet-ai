@@ -1,5 +1,5 @@
 /**
- * Evidence Graph view (Prompt 7, Phases 9–11).
+ * Evidence Graph view (Prompt 7, Phases 9–11; trace interaction — Prompt 12).
  *
  * Renders the read-only traceability graph as an SVG diagram with a
  * deterministic layered layout (see graphLayout.ts — same input, same picture,
@@ -9,6 +9,8 @@
  * Interaction model:
  * - Click a node → it becomes the selection; its edges highlight; the detail
  *   panel (rendered by the parent) shows its whitelisted metadata.
+ * - Trace mode (armed by the parent) → the selected node's ENTIRE connected
+ *   evidence chain highlights; unrelated nodes/edges are muted.
  * - Hover → highlight the node's immediate relationships.
  * - The view is read-only. There is no compliance action anywhere in it.
  */
@@ -23,6 +25,7 @@ import type { EvidenceTraceGraph, TraceEdge } from '@legalmet/types';
 import { cn } from '../lib/cn';
 import { toneColor } from '../lib/tone';
 import { GRAPH_NODE_SIZE, layoutGraph } from './graphLayout';
+import type { TracePath } from './tracePath';
 
 const { width: NODE_W, height: NODE_H } = GRAPH_NODE_SIZE;
 
@@ -35,11 +38,14 @@ export function EvidenceGraphView({
   selectedId,
   onSelect,
   maxHeight = 520,
+  /** Trace mode: the traced chain (null when trace mode is off). */
+  trace = null,
 }: {
   graph: EvidenceTraceGraph;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   maxHeight?: number;
+  trace?: TracePath | null;
 }) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
@@ -51,8 +57,11 @@ export function EvidenceGraphView({
     return map;
   }, [layout]);
 
+  // In trace mode the traced set IS the focus; otherwise hover/selection
+  // highlights immediate neighbours as before.
   const focusId = hoveredId ?? selectedId;
   const related = useMemo(() => {
+    if (trace) return null; // tracing wins — traced set drives emphasis
     if (!focusId) return null;
     const set = new Set<string>([focusId]);
     for (const e of graph.edges) {
@@ -60,7 +69,7 @@ export function EvidenceGraphView({
       if (e.target === focusId) set.add(e.source);
     }
     return set;
-  }, [focusId, graph.edges]);
+  }, [trace, focusId, graph.edges]);
 
   const pad = 24;
   const viewBoxWidth = layout.width + pad * 2;
@@ -86,7 +95,10 @@ export function EvidenceGraphView({
             const from = positions.get(edge.source);
             const to = positions.get(edge.target);
             if (!from || !to) return null;
-            const active = focusId != null && (edge.source === focusId || edge.target === focusId);
+            const traced = trace?.edgeIds.has(edge.id) ?? false;
+            const active =
+              traced ||
+              (!trace && focusId != null && (edge.source === focusId || edge.target === focusId));
             const x1 = from.x + NODE_W / 2 + pad;
             const y1 = from.y + NODE_H / 2 + pad;
             const x2 = to.x + NODE_W / 2 + pad;
@@ -100,8 +112,13 @@ export function EvidenceGraphView({
                 y1={y1}
                 x2={x2}
                 y2={y2}
-                className={cn('egraph__edge', active && 'is-active')}
-                stroke={active ? 'var(--tone-info)' : undefined}
+                className={cn(
+                  'egraph__edge',
+                  active && 'is-active',
+                  traced && 'is-traced',
+                  trace != null && !traced && 'is-muted-edge',
+                )}
+                stroke={traced ? 'var(--tone-info)' : undefined}
               >
                 <title>{`${
                   EVIDENCE_GRAPH_EDGE_META[edge.type]?.label ?? edge.type
@@ -114,7 +131,10 @@ export function EvidenceGraphView({
           {layout.nodes.map(({ node, x, y }) => {
             const meta = EVIDENCE_GRAPH_NODE_META[node.type];
             const isSelected = node.id === selectedId;
-            const dimmed = related != null && !related.has(node.id);
+            const isTraced = trace?.nodeIds.has(node.id) ?? false;
+            const dimmed =
+              (trace != null && !isTraced) ||
+              (!trace && related != null && !related.has(node.id));
             return (
               <g
                 key={node.id}
@@ -122,6 +142,7 @@ export function EvidenceGraphView({
                 className={cn(
                   'egraph__node',
                   isSelected && 'is-selected',
+                  isTraced && 'is-traced',
                   dimmed && 'is-dimmed',
                 )}
                 onClick={() => onSelect(isSelected ? null : node.id)}

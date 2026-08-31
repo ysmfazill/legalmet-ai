@@ -13,6 +13,10 @@ import { defineConfig } from 'vite';
  *
  * `/api` is proxied to the FastAPI backend in dev so the browser talks to the
  * frontend origin only (no CORS juggling during development).
+ *
+ * The `test` block configures vitest with the same source aliases (node
+ * environment by default; the jsdom annotation on a per-file basis enables
+ * React hook tests).
  */
 export default defineConfig({
   plugins: [react()],
@@ -34,5 +38,9 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
+  },
+  test: {
+    environment: 'node',
+    include: ['src/**/*.test.{ts,tsx}'],
   },
 });
