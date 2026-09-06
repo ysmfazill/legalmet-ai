@@ -32,12 +32,27 @@ class PackageOut(CamelModel):
     images: list[ImageOut] = []
 
 
+class SourceComplaintRefOut(CamelModel):
+    """Compact pointer to the citizen complaint an inspection was targeted
+    from (UI-05). Carried on inspection list/detail rows so the inspector
+    side can show provenance without a second fetch."""
+
+    id: UUID
+    reference: str
+    status: str
+    issue: str
+    location: str | None = None
+    priority: str | None = None
+
+
 class InspectionSummaryOut(CamelModel):
     id: UUID
     reference_no: str
     status: InspectionStatus
     product_id: UUID | None = None
     inspector_id: UUID | None = None
+    # UI-05: the assigned inspector's real name (was only the id before).
+    inspector_name: str | None = None
     batch_id: UUID | None = None
     note: str | None = None
     is_demo: bool
@@ -45,6 +60,8 @@ class InspectionSummaryOut(CamelModel):
     updated_at: datetime
     completed_at: datetime | None = None
     finding_counts: FindingCounts | None = None
+    # UI-05: present when this inspection originated from a citizen complaint.
+    source_complaint: SourceComplaintRefOut | None = None
 
 
 class InspectionDetailOut(InspectionSummaryOut):
@@ -58,6 +75,16 @@ class CreateInspectionRequest(CamelModel):
     gtin: str | None = Field(default=None, max_length=64)
     note: str | None = Field(default=None, max_length=2000)
     batch_id: UUID | None = None
+
+
+class AssignInspectionRequest(CamelModel):
+    """POST /inspections/{id}/assign (UI-05) — a department act."""
+
+    inspector_id: UUID
+    note: str | None = Field(default=None, max_length=2000)
+    # Must be explicitly true to move an already-assigned inspection to a
+    # different inspector (guards accidental duplicate assignment).
+    reassign: bool = False
 
 
 class AnalyzeInspectionRequest(CamelModel):

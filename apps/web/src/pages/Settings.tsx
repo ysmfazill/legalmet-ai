@@ -15,6 +15,7 @@ import { Badge, RoleBadge } from '../components/Badge';
 import { Card, CardBody, CardHead, SectionCard } from '../components/Card';
 import { Icon } from '../components/Icon';
 import { PageHeader } from '../components/PageHeader';
+import { initials } from '../lib/user';
 
 interface Pref {
   id: string;
@@ -27,15 +28,6 @@ const PREFERENCES: Pref[] = [
   { id: 'contrast', label: 'High-contrast regions', description: 'Stronger overlay colours in the evidence viewer.' },
   { id: 'confirmReview', label: 'Confirm before recording a decision', description: 'Ask for confirmation on every inspector decision.' },
 ];
-
-function initials(name: string): string {
-  return name
-    .replace(/^Dr\.?\s+/i, '')
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? '')
-    .join('');
-}
 
 export function SettingsPage() {
   const { user, connection } = useApp();

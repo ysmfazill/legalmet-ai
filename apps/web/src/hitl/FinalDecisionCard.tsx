@@ -1,13 +1,17 @@
 /**
- * Final-decision card (Prompt 8, Phases 11–14).
+ * Final-decision card (Prompt 8, Phases 11–14; gate extended in UI-06).
  *
  * This is the ONLY place in the product where a legal conclusion is recorded —
  * by an authorised human, never by the engine. The card shows:
  *
  * - review progress (per-state counts, critical unresolved findings)
- * - the DECISION GATE: critical/major findings still PENDING_REVIEW or
- *   ESCALATED block COMPLIANT / NON_COMPLIANT; REQUIRES_FURTHER_REVIEW is
- *   always available as the honest deferral
+ * - verification progress (UI-06: open REQUIRED verification tasks)
+ * - the DECISION GATE, with two DISTINCT blocker kinds:
+ *     · unresolved critical/major FINDINGS, and
+ *     · open REQUIRED VERIFICATION TASKS (e.g. an unrecorded measurement)
+ *   Both block COMPLIANT / NON_COMPLIANT; RECOMMENDED verifications never
+ *   block, and REQUIRES_FURTHER_REVIEW is always available as the honest
+ *   deferral.
  * - the current decision + the full supersede history (nothing is deleted)
  *
  * The submit button only REQUESTS the decision — the backend owns the gate.
@@ -52,6 +56,18 @@ export function FinalDecisionCard({
   const history = hitl.decisions?.history ?? [];
   const blockers = status?.decisionBlockers ?? [];
   const gateOpen = Boolean(status?.decisionAllowed) || blockers.length === 0;
+
+  // UI-06 — the gate has two distinct blocker kinds. The backend prefixes
+  // verification blockers with a stable contract string so the UI can label
+  // them separately (findings vs required evidence still outstanding).
+  const VERIFICATION_BLOCKER_PREFIX = 'Required verification task';
+  const verificationBlockers = blockers.filter((b) =>
+    b.startsWith(VERIFICATION_BLOCKER_PREFIX),
+  );
+  const findingBlockers = blockers.filter(
+    (b) => !b.startsWith(VERIFICATION_BLOCKER_PREFIX),
+  );
+  const openRequired = status?.verificationOpenRequired ?? 0;
 
   const reasonRequired = choice !== null && REASON_REQUIRED.has(choice);
   const blockedByGate =
@@ -129,15 +145,78 @@ export function FinalDecisionCard({
             </div>
           )}
 
-          {/* Decision gate */}
-          {blockers.length > 0 && (
+          {/* UI-06 — verification progress (REQUIRED tasks gate the decision;
+              RECOMMENDED ones never do). */}
+          {status && status.verificationTotal > 0 && (
+            <div className="detail-list">
+              <div className="detail-list__row">
+                <span className="detail-list__key">Verification tasks</span>
+                <span className="detail-list__val">{status.verificationTotal}</span>
+              </div>
+              <div className="detail-list__row">
+                <span className="detail-list__key">Required, still open</span>
+                <span
+                  className="detail-list__val"
+                  style={{
+                    color:
+                      status.verificationOpenRequired > 0
+                        ? 'var(--tone-critical)'
+                        : undefined,
+                  }}
+                >
+                  {status.verificationOpenRequired}
+                </span>
+              </div>
+              <div className="detail-list__row">
+                <span className="detail-list__key">In progress</span>
+                <span className="detail-list__val">{status.verificationInProgress}</span>
+              </div>
+              <div className="detail-list__row">
+                <span className="detail-list__key">Completed</span>
+                <span className="detail-list__val">{status.verificationCompleted}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Decision gate — findings */}
+          {findingBlockers.length > 0 && (
             <div className="demo-note" style={{ borderColor: 'var(--tone-warning)', display: 'flex', gap: 8 }}>
               <Icon name="alert" size={15} />
               <span>
-                <strong>Decision gate.</strong> {blockers.length} critical/major finding
-                {blockers.length > 1 ? 's are' : ' is'} still unresolved. Resolve them (confirm,
-                reject or escalate) before recording COMPLIANT / NON_COMPLIANT — or record
+                <strong>Decision gate — findings.</strong> {findingBlockers.length} critical/major
+                finding{findingBlockers.length > 1 ? 's are' : ' is'} still unresolved. Resolve them
+                (confirm, reject or escalate) before recording COMPLIANT / NON_COMPLIANT — or record
                 REQUIRES_FURTHER_REVIEW to defer honestly.
+              </span>
+            </div>
+          )}
+
+          {/* Decision gate — required evidence still outstanding (UI-06) */}
+          {verificationBlockers.length > 0 && (
+            <div className="demo-note" style={{ borderColor: 'var(--tone-warning)', display: 'flex', gap: 8, flexDirection: 'column' }}>
+              <span style={{ display: 'flex', gap: 8 }}>
+                <Icon name="scale" size={15} />
+                <span>
+                  <strong>Decision gate — evidence incomplete.</strong> {verificationBlockers.length}{' '}
+                  REQUIRED verification task{verificationBlockers.length > 1 ? 's are' : ' is'} still
+                  open. The decision needs that evidence — complete the task{verificationBlockers.length > 1 ? 's' : ''} in
+                  the evidence planner, or record REQUIRES_FURTHER_REVIEW to defer. RECOMMENDED
+                  verifications never block the decision.
+                </span>
+              </span>
+              <ul style={{ margin: 0, paddingLeft: 'var(--space-4)', fontSize: 'var(--fs-sm)' }}>
+                {verificationBlockers.map((b) => (
+                  <li key={b}>{b}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {blockers.length === 0 && openRequired === 0 && status && status.verificationTotal > 0 && (
+            <div className="demo-note" style={{ display: 'flex', gap: 8 }}>
+              <Icon name="check" size={15} />
+              <span>
+                All required verification tasks are complete. RECOMMENDED verifications, if any, never
+                block the decision.
               </span>
             </div>
           )}
@@ -209,7 +288,9 @@ export function FinalDecisionCard({
                   type="button"
                   className="btn btn--subtle btn--sm"
                   title={INSPECTION_DECISION_META[c].description}
-                  disabled={!hasFindings || !gateOpen}
+                  disabled={
+                    !hasFindings || (!gateOpen && c !== 'REQUIRES_FURTHER_REVIEW')
+                  }
                   onClick={() => setChoice(c)}
                 >
                   Record {INSPECTION_DECISION_META[c].label}
@@ -234,8 +315,11 @@ export function FinalDecisionCard({
                 <div className="demo-note" style={{ borderColor: 'var(--tone-warning)', display: 'flex', gap: 8 }}>
                   <Icon name="alert" size={15} />
                   <span>
-                    Blocked by the decision gate — {blockers.length} unresolved critical/major
-                    finding{blockers.length > 1 ? 's' : ''}. Resolve them or choose REQUIRES_FURTHER_REVIEW.
+                    Blocked by the decision gate — {blockers.length} unresolved blocker
+                    {blockers.length > 1 ? 's' : ''} ({findingBlockers.length} finding
+                    {findingBlockers.length === 1 ? '' : 's'}, {verificationBlockers.length} required
+                    verification task{verificationBlockers.length === 1 ? '' : 's'}). Resolve them or
+                    choose REQUIRES_FURTHER_REVIEW.
                   </span>
                 </div>
               )}

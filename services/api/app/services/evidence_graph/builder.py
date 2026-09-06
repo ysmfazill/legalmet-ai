@@ -41,6 +41,7 @@ from app.core.enums import (
     EvidenceNodeType,
     EvidenceStrength,
     ExtractionStatus,
+    VerificationTaskType,
 )
 from app.core.errors import NotFoundError
 from app.models import (
@@ -55,6 +56,9 @@ from app.models import (
     ImageRegion,
     Inspection,
     InspectionDecision,
+    Lot,
+    LotPackage,
+    MeasurementEvaluation,
     OcrTextResult,
     Package,
     ProcessingRun,
@@ -62,6 +66,9 @@ from app.models import (
     RegulationVersion,
     RegulatorySource,
     Rule,
+    SamplingRun,
+    VerificationResult,
+    VerificationTask,
 )
 
 EVIDENCE_GRAPH_BOUNDARY_NOTE = (
@@ -83,16 +90,23 @@ MAX_FIELD_FINDINGS = 20
 MAX_AUDIT_EVENTS = 50
 MAX_CORRECTIONS = 40
 MAX_DECISIONS = 20
+MAX_MEASUREMENTS = 40
+MAX_LOTS = 20
 
 # Entity types whose audit events are overlaid on the inspection graph. The
-# Prompt 8 HITL events (field corrections, finding reviews, decisions) are
-# included so the audit trail and the human nodes stay linked in one view.
+# Prompt 8 HITL events (field corrections, finding reviews, decisions) and
+# the UI-06/07 verification + lot events are included so the audit trail and
+# the human nodes stay linked in one view.
 _AUDIT_ENTITY_TYPES = (
     "compliance_evaluation",
     "extracted_field",
     "evaluation_finding",
     "inspection",
     "inspection_decision",
+    "verification_task",
+    "measurement_evaluation",
+    "lot",
+    "sampling_run",
 )
 
 # Label truncation for readable node chips.
@@ -257,6 +271,12 @@ class EvidenceGraphService:
         # final decision — present even when no evaluation exists yet.
         self._add_human_review_for_inspection(db, g, inspection_id, insp, ev_node)
 
+        # UI-07 overlays: physical measurements (+ instruments, frozen
+        # evaluations) and the lot intelligence chain. Added BEFORE the audit
+        # overlay so verification / lot audit events can link to these nodes.
+        self._add_physical_verification(db, g, inspection_id)
+        self._add_lots_for_inspection(db, g, inspection_id, insp)
+
         # Audit overlay LAST: HITL audit events link to the correction /
         # decision nodes created above, so those must already exist.
         if evaluation is not None:
@@ -345,8 +365,10 @@ class EvidenceGraphService:
         g = _Graph()
         insp = self._add_inspection(g, inspection)
         self._add_field_chain(db, g, field, insp)
-        # Human overlay for this field: its full correction history.
+        # Human overlay for this field: its full correction history + the
+        # physical measurements recorded against it (UI-07).
         self._add_corrections_for_field(db, g, field)
+        self._add_measurements_for_field(db, g, field.id)
 
         # Reverse: every finding whose evidence was this field.
         findings = list(
@@ -654,6 +676,11 @@ class EvidenceGraphService:
                 {"strength": strength},
             )
             self._add_field_chain(db, g, field, insp_node)
+            # UI-07: the physical half of this finding's chain — recorded
+            # measurements verifying the declaration (+ instrument, frozen
+            # evaluation). Absent when nothing was measured: a missing
+            # measurement is never converted into compliance.
+            self._add_measurements_for_field(db, g, field.id)
         elif finding.evidence_region_id is not None:
             # A region exists without a usable field (e.g. value not read).
             region = db.get(ImageRegion, finding.evidence_region_id)
@@ -802,6 +829,36 @@ class EvidenceGraphService:
                 g.edge(
                     audit_node,
                     g.node(EvidenceNodeType.EXTRACTED_FIELD, field_id, ""),
+                    EvidenceEdgeType.AUDIT_RECORDS_ACTION,
+                )
+                continue
+            # UI-07: verification / lot audit events link to the measurement
+            # record or the lot they acted upon.
+            result_id = payload.get("resultId")
+            if result_id and g.has_node(EvidenceNodeType.MEASUREMENT, result_id):
+                g.edge(
+                    audit_node,
+                    g.node(EvidenceNodeType.MEASUREMENT, result_id, ""),
+                    EvidenceEdgeType.AUDIT_RECORDS_ACTION,
+                )
+                continue
+            lot_id = payload.get("lotId")
+            if lot_id and g.has_node(EvidenceNodeType.LOT, lot_id):
+                g.edge(
+                    audit_node,
+                    g.node(EvidenceNodeType.LOT, lot_id, ""),
+                    EvidenceEdgeType.AUDIT_RECORDS_ACTION,
+                )
+                continue
+            if event.entity_type in (
+                "verification_task",
+                "measurement_evaluation",
+                "lot",
+                "sampling_run",
+            ):
+                g.edge(
+                    audit_node,
+                    g.node(EvidenceNodeType.INSPECTION, inspection_id, ""),
                     EvidenceEdgeType.AUDIT_RECORDS_ACTION,
                 )
                 continue
@@ -1350,6 +1407,281 @@ class EvidenceGraphService:
                         ),
                         EvidenceEdgeType.FIELD_CORRECTION_CORRECTS_FIELD,
                     )
+
+    # ---------------------------------------- UI-07: physical + lot overlays
+
+    def _add_physical_verification(
+        self, db: Session, g: _Graph, inspection_id: uuid.UUID
+    ) -> None:
+        """The physical half of the quantity chain (UI-07).
+
+        Every recorded measurement (a ``VerificationResult``) becomes a
+        HUMAN node; it verifies the DECLARATION (extracted field) or the LOT
+        PACKAGE it was recorded against, names the INSTRUMENT it was read
+        from (verification status only when actually recorded), and carries
+        its frozen MEASUREMENT_EVALUATION with the rule version used.
+        """
+        tasks = list(
+            db.execute(
+                select(VerificationTask)
+                .where(
+                    VerificationTask.inspection_id == inspection_id,
+                    VerificationTask.task_type
+                    == VerificationTaskType.MEASUREMENT.value,
+                )
+                .options(selectinload(VerificationTask.results))
+                .order_by(VerificationTask.created_at.asc())
+            )
+            .scalars()
+            .all()
+        )
+        result_count = 0
+        for task in tasks:
+            for result in task.results:
+                result_count += 1
+                if result_count > MAX_MEASUREMENTS:
+                    g.truncated = True
+                    return
+                self._add_measurement_record(db, g, task, result)
+
+    def _add_measurements_for_field(
+        self, db: Session, g: _Graph, field_id: uuid.UUID
+    ) -> None:
+        """Measurements verifying ONE declaration (focused graphs)."""
+        tasks = list(
+            db.execute(
+                select(VerificationTask)
+                .where(
+                    VerificationTask.extracted_field_id == field_id,
+                    VerificationTask.task_type
+                    == VerificationTaskType.MEASUREMENT.value,
+                )
+                .options(selectinload(VerificationTask.results))
+                .order_by(VerificationTask.created_at.asc())
+            )
+            .scalars()
+            .all()
+        )
+        for task in tasks[:MAX_MEASUREMENTS]:
+            for result in task.results:
+                self._add_measurement_record(db, g, task, result)
+
+    def _add_measurement_record(
+        self,
+        db: Session,
+        g: _Graph,
+        task: VerificationTask,
+        result: VerificationResult,
+    ) -> None:
+        value = f"{result.measured_value} {result.unit or ''}".strip()
+        meas_node = g.node(
+            EvidenceNodeType.MEASUREMENT,
+            result.id,
+            f"Measured: {_short(value, 32)}",
+            {
+                "resultId": str(result.id),
+                "taskId": str(task.id),
+                "measuredValue": result.measured_value,
+                "unit": result.unit,
+                "observation": result.observation,
+                "recordedBy": str(result.recorded_by),
+                "recordedAt": _iso(result.recorded_at),
+                "createdAt": _iso(result.created_at),
+                "origin": EvidenceNodeOrigin.HUMAN.value,
+            },
+        )
+
+        # The instrument the reading came from. Verification status appears
+        # ONLY when the inspector supplied it — absent means "not recorded".
+        if result.instrument_id:
+            instr_node = g.node(
+                EvidenceNodeType.INSTRUMENT,
+                result.instrument_id,
+                result.instrument_id,
+                {
+                    "instrumentId": result.instrument_id,
+                    "verificationStatus": (
+                        result.instrument_verification_status
+                        or "Verification status not recorded"
+                    ),
+                    "origin": EvidenceNodeOrigin.SYSTEM.value,
+                },
+            )
+            g.edge(
+                instr_node, meas_node, EvidenceEdgeType.INSTRUMENT_USED_FOR_MEASUREMENT
+            )
+
+        # What the measurement verifies: the declaration, or the lot package.
+        if task.extracted_field_id is not None:
+            field = db.get(ExtractedField, task.extracted_field_id)
+            if field is not None:
+                field_node = self._add_field(g, field)
+                g.edge(
+                    meas_node, field_node, EvidenceEdgeType.MEASUREMENT_VERIFIES_FIELD
+                )
+        if task.lot_package_id is not None:
+            package = db.get(LotPackage, task.lot_package_id)
+            if package is not None:
+                pkg_node = self._add_lot_package(g, package)
+                g.edge(
+                    meas_node,
+                    pkg_node,
+                    EvidenceEdgeType.MEASUREMENT_VERIFIES_LOT_PACKAGE,
+                )
+
+        # The frozen deterministic evaluation of this measurement (may be
+        # absent for results recorded before evaluation existed).
+        evaluation = (
+            db.execute(
+                select(MeasurementEvaluation).where(
+                    MeasurementEvaluation.verification_result_id == result.id
+                )
+            )
+            .scalars()
+            .first()
+        )
+        if evaluation is not None:
+            ev_node = self._add_measurement_evaluation(g, evaluation)
+            g.edge(
+                meas_node, ev_node, EvidenceEdgeType.MEASUREMENT_HAS_EVALUATION
+            )
+
+    def _add_lots_for_inspection(
+        self,
+        db: Session,
+        g: _Graph,
+        inspection_id: uuid.UUID,
+        insp_node: str | None,
+    ) -> None:
+        """The lot intelligence chain (UI-07): LOT → PACKAGES, SAMPLING RUN →
+        selected packages, lot decision → inspection."""
+        lots = list(
+            db.execute(
+                select(Lot)
+                .where(Lot.inspection_id == inspection_id)
+                .options(selectinload(Lot.packages))
+                .order_by(Lot.created_at.asc())
+                .limit(MAX_LOTS)
+            )
+            .scalars()
+            .all()
+        )
+        if len(lots) == MAX_LOTS:
+            g.truncated = True
+        for lot in lots:
+            lot_node = g.node(
+                EvidenceNodeType.LOT,
+                lot.id,
+                f"Lot {lot.label}",
+                {
+                    "lotId": str(lot.id),
+                    "label": lot.label,
+                    "declaredValue": lot.declared_value,
+                    "lotSize": lot.lot_size,
+                    "status": lot.status,
+                    "decision": lot.decision,
+                    "decisionReason": lot.decision_reason,
+                    "decidedAt": _iso(lot.decided_at),
+                    "createdAt": _iso(lot.created_at),
+                    "origin": EvidenceNodeOrigin.SYSTEM.value,
+                },
+            )
+            g.edge(insp_node, lot_node, EvidenceEdgeType.INSPECTION_HAS_LOT)
+            if lot.decision is not None:
+                # The explicit lot result (a human submission) for the
+                # inspection — never an automatic classification.
+                g.edge(
+                    lot_node, insp_node, EvidenceEdgeType.LOT_DECISION_FOR_INSPECTION
+                )
+            for package in lot.packages:
+                pkg_node = self._add_lot_package(g, package)
+                g.edge(lot_node, pkg_node, EvidenceEdgeType.LOT_HAS_PACKAGE)
+
+            runs = list(
+                db.execute(
+                    select(SamplingRun)
+                    .where(SamplingRun.lot_id == lot.id)
+                    .order_by(SamplingRun.created_at.asc())
+                )
+                .scalars()
+                .all()
+            )
+            for run in runs:
+                run_node = self._add_sampling_run(g, run)
+                g.edge(lot_node, run_node, EvidenceEdgeType.LOT_HAS_SAMPLING_RUN)
+                for package in lot.packages:
+                    if package.sampling_run_id == run.id:
+                        g.edge(
+                            run_node,
+                            g.node(EvidenceNodeType.LOT_PACKAGE, package.id, ""),
+                            EvidenceEdgeType.SAMPLING_RUN_SELECTED_PACKAGE,
+                        )
+
+    def _add_lot_package(self, g: _Graph, package: LotPackage) -> str | None:
+        return g.node(
+            EvidenceNodeType.LOT_PACKAGE,
+            package.id,
+            package.label,
+            {
+                "packageId": str(package.id),
+                "label": package.label,
+                "status": package.status,
+                "position": package.position,
+                "lotId": str(package.lot_id),
+                "samplingRunId": (
+                    str(package.sampling_run_id) if package.sampling_run_id else None
+                ),
+                "origin": EvidenceNodeOrigin.SYSTEM.value,
+            },
+        )
+
+    def _add_sampling_run(self, g: _Graph, run: SamplingRun) -> str | None:
+        method = (
+            "AI-recommended" if run.is_ai_recommended else "configured procedure"
+        )
+        return g.node(
+            EvidenceNodeType.SAMPLING_RUN,
+            run.id,
+            f"Sample: {run.sample_size} ({method})",
+            {
+                "runId": str(run.id),
+                "sampleSize": run.sample_size,
+                "selectionMethod": run.selection_method,
+                "procedureCode": run.procedure_code,
+                "procedureVersionLabel": run.procedure_version_label,
+                "isAiRecommended": run.is_ai_recommended,
+                "seed": run.seed,
+                "randomization": run.randomization,
+                "createdBy": str(run.created_by),
+                "createdAt": _iso(run.created_at),
+                "origin": EvidenceNodeOrigin.HUMAN.value,
+            },
+        )
+
+    def _add_measurement_evaluation(
+        self, g: _Graph, evaluation: MeasurementEvaluation
+    ) -> str | None:
+        outcome = (
+            f"{evaluation.outcome}" if evaluation.outcome else evaluation.status
+        )
+        return g.node(
+            EvidenceNodeType.MEASUREMENT_EVALUATION,
+            evaluation.id,
+            f"Evaluation: {outcome}",
+            {
+                "evaluationId": str(evaluation.id),
+                "status": evaluation.status,
+                "outcome": evaluation.outcome,
+                "ruleCode": evaluation.rule_code,
+                "ruleVersionId": (
+                    str(evaluation.rule_version_id) if evaluation.rule_version_id else None
+                ),
+                "provenance": evaluation.provenance,
+                "detail": evaluation.detail,
+                "evaluatedAt": _iso(evaluation.evaluated_at),
+                "origin": EvidenceNodeOrigin.AI.value,
+            },
+        )
 
 
 _STRENGTH_DESCRIPTIONS = {

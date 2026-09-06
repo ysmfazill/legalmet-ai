@@ -12,7 +12,12 @@ import type {
   ComplianceFinding,
   ComplianceRuleConfig,
   DashboardSummary,
+  DepartmentDashboard,
   EngineFinding,
+  LotDetail,
+  LotList,
+  MeasurementHistory,
+  SamplingRun,
   EngineInfo,
   Evidence,
   EvidenceGraph,
@@ -187,3 +192,13 @@ export type UserResponse = User;
 export type EvidenceTraceGraphResponse = EvidenceTraceGraph;
 /** GET /evidence-graph — strength vocabulary + boundary note. */
 export type EvidenceGraphVocabularyResponse = EvidenceGraphVocabulary;
+
+// --- Physical verification + lot intelligence (UI-07) -------------------------
+
+export type MeasurementHistoryResponse = MeasurementHistory;
+export type LotListResponse = LotList;
+export type LotDetailResponse = LotDetail;
+export type LotCreateResponse = LotDetail;
+export type SampleGenerateResponse = SamplingRun;
+export type LotDecisionResponse = LotDetail;
+export type DepartmentDashboardResponse = DepartmentDashboard;

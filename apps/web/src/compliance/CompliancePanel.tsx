@@ -192,7 +192,7 @@ export function ComplianceFindingsCard({
                   alignItems: 'flex-start',
                   textAlign: 'left',
                   padding: 'var(--space-3)',
-                  background: selectedFindingId === finding.id ? 'var(--surface-raised)' : 'transparent',
+                  background: selectedFindingId === finding.id ? 'var(--surface-hover)' : 'transparent',
                   border: '1px solid var(--border)',
                   borderRadius: 'var(--radius-md)',
                   cursor: 'pointer',

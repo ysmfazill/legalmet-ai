@@ -18,6 +18,7 @@ import { Segmented } from '../components/Tabs';
 import { useAsync } from '../data/useAsync';
 import { formatDateTime } from '../lib/format';
 import { mockApi } from '../mock/adapter';
+import { api } from '../api/client';
 import type { ReviewQueueItem } from '../mock/types';
 
 type Range = 'today' | 'week' | 'month';
@@ -51,6 +52,9 @@ export function DashboardPage() {
   const [range, setRange] = useState<Range>('week');
   const dash = useAsync(() => mockApi.getDashboard(), []);
   const queue = useAsync(() => mockApi.getReviewQueue(), []);
+  // UI-03: live complaint intake counts — REAL COUNT(*) values from the
+  // database, deliberately separate from the demo-labelled figures below.
+  const complaintStats = useAsync(() => api.complaintStats(), []);
   const navigate = useNavigate();
   const openInspection = (id: string) => navigate(`/inspections/${id}`);
 
@@ -77,6 +81,46 @@ export function DashboardPage() {
           <Link to="/review">Review</Link> (Engine findings) and <Link to="/evidence">Evidence Explorer</Link>.
         </span>
       </div>
+
+      {/* UI-03 — live citizen complaint intake: real database values. */}
+      <SectionCard
+        eyebrow="Live source"
+        title="Citizen complaint intake"
+        subtitle="Real counts from the complaints database — 0 means none exist, nothing is simulated"
+        actions={
+          <Link to="/complaints" className="btn btn--subtle btn--sm">
+            Open intake queue
+            <Icon name="arrowRight" size={14} />
+          </Link>
+        }
+      >
+        <AsyncView query={complaintStats} loadingLabel="Loading complaint counts…">
+          {(stats) => (
+            <div className="grid grid--metrics">
+              <MetricCard label="Total complaints" value={stats.total} icon="complaints" hint="all statuses" />
+              <MetricCard label="New (submitted)" value={stats.submitted} icon="clock" hint="awaiting first review" />
+              <MetricCard
+                label="Needs review"
+                value={stats.underReview + stats.requestInformation}
+                icon="review"
+                hint="under review or awaiting citizen info"
+              />
+              <MetricCard
+                label="High-priority open"
+                value={stats.unassignedOpen}
+                icon="alert"
+                hint="open and unassigned — assign first"
+              />
+              <MetricCard
+                label="Inspection pending"
+                value={stats.inspectionPending}
+                icon="inspections"
+                hint="inspection created, not completed"
+              />
+            </div>
+          )}
+        </AsyncView>
+      </SectionCard>
 
       <AsyncView query={dash} loadingLabel="Loading command center…">
         {({ summary, trends, activity, risk }) => (

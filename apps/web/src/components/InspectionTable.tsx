@@ -2,6 +2,7 @@ import type { FindingCounts, Inspection } from '@legalmet/types';
 
 import { formatRelative } from '../lib/format';
 import { inspectorName } from '../mock/fixtures';
+import { Badge } from './Badge';
 import { InspectionStatusBadge } from './Badge';
 import { DataTable } from './DataTable';
 import type { Column } from './DataTable';
@@ -50,6 +51,27 @@ export function InspectionTable({
       render: (i) => <span className="cell-mono cell-strong">{i.referenceNo}</span>,
     },
     {
+      key: 'source',
+      header: 'Source',
+      render: (i) =>
+        i.sourceComplaint ? (
+          <span
+            className="row"
+            style={{ gap: 6, flexWrap: 'nowrap' }}
+            title={`Targeted inspection — originated from complaint ${i.sourceComplaint.reference}: ${i.sourceComplaint.issue}`}
+          >
+            <Badge tone="info" outline>Targeted</Badge>
+            <span className="cell-mono" style={{ fontSize: 'var(--fs-xs)' }}>
+              {i.sourceComplaint.reference}
+            </span>
+          </span>
+        ) : (
+          <span className="cell-muted" title="Created directly by an inspector — not from a citizen complaint">
+            Standard intake
+          </span>
+        ),
+    },
+    {
       key: 'product',
       header: 'Product',
       render: (i) => (
@@ -66,7 +88,10 @@ export function InspectionTable({
     {
       key: 'inspector',
       header: 'Inspector',
-      render: (i) => <span className="cell-muted">{inspectorName(i.inspectorId)}</span>,
+      // Live rows carry the API-computed name; demo rows keep the mock lookup.
+      render: (i) => (
+        <span className="cell-muted">{i.inspectorName ?? inspectorName(i.inspectorId)}</span>
+      ),
     },
     {
       key: 'updated',

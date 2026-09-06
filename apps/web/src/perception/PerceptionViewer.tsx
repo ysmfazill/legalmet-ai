@@ -193,7 +193,7 @@ export function PerceptionViewer({
                 >
                   <span
                     className="viewer__region-tag"
-                    style={selected ? undefined : { background: o.color, color: '#fff' }}
+                    style={selected ? undefined : { background: o.color, color: 'var(--text-on-accent)' }}
                   >
                     {o.label}
                   </span>

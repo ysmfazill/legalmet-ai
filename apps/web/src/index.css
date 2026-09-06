@@ -1,6 +1,7 @@
 /**
  * Global stylesheet manifest for @legalmet/web.
- * Order matters: tokens → base → components → layout → charts → workspace.
+ * Order matters: tokens → base → components → layout → charts → workspace →
+ * intake → evidence → citizen/complaints.
  */
 @import './styles/tokens.css';
 @import './styles/base.css';
@@ -10,3 +11,9 @@
 @import './styles/workspace.css';
 @import './styles/intake.css';
 @import './styles/evidence.css';
+@import './styles/citizen.css';
+@import './styles/citizen-flow.css';
+@import './styles/complaints.css';
+@import './styles/department.css';
+@import './styles/reports.css';
+@import './styles/discovery.css';

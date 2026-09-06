@@ -22,6 +22,12 @@ import type {
 } from '@legalmet/types';
 
 import { currentUser, regulation, regulationVersions, rules } from './fixtures';
+import {
+  citizenMyReports,
+  citizenScanDemo,
+  complaints,
+  nearbyComplaints,
+} from './citizen';
 import { inspectionDetails, inspections } from './inspections';
 import {
   activityByRange,
@@ -48,6 +54,12 @@ import type {
   ReviewQueueItem,
   RiskCase,
 } from './types';
+import type {
+  CitizenReport,
+  CitizenScanResult,
+  Complaint,
+  NearbyComplaint,
+} from './citizen';
 
 const LATENCY_MS = 260;
 
@@ -128,6 +140,58 @@ export const mockApi = {
     void action;
     void note;
     return delay({ ok: true } as const, 200);
+  },
+
+  /* --- Complaint management (demo — no complaint backend exists yet) ------ */
+
+  listComplaints: (filters: { status?: string; search?: string } = {}): Promise<Complaint[]> => {
+    let rows = complaints;
+    if (filters.status) rows = rows.filter((c) => c.status === filters.status);
+    if (filters.search) {
+      const q = filters.search.toLowerCase();
+      rows = rows.filter(
+        (c) =>
+          c.referenceNo.toLowerCase().includes(q) ||
+          c.product.toLowerCase().includes(q) ||
+          c.location.toLowerCase().includes(q),
+      );
+    }
+    return delay(rows);
+  },
+
+  getComplaint: (id: string): Promise<Complaint | undefined> =>
+    delay(complaints.find((c) => c.id === id)),
+
+  /**
+   * Simulated complaint → inspection conversion (demo). The REAL conversion
+   * navigates to the New Inspection flow, which creates a genuine backend
+   * inspection; this seam exists so the demo keeps working offline.
+   */
+  convertComplaintToInspection: (complaintId: string): Promise<{ ok: true; inspectionId: string }> =>
+    delay({ ok: true as const, inspectionId: `INS-DEMO-${complaintId.slice(-3).toUpperCase()}` }, 400),
+
+  /* --- Citizen mode (demo — public experience) ---------------------------- */
+
+  getCitizenScanDemo: (): Promise<CitizenScanResult> => delay(citizenScanDemo),
+
+  listCitizenReports: (): Promise<CitizenReport[]> => delay(citizenMyReports),
+
+  listNearbyComplaints: (): Promise<NearbyComplaint[]> => delay(nearbyComplaints),
+
+  /**
+   * Simulated citizen report submission (demo). Wording contract: the result
+   * says the report was received — never that a violation is confirmed.
+   */
+  submitCitizenReport: (input: {
+    product: string;
+    issue: string;
+    location: string;
+  }): Promise<{ ok: true; referenceNo: string }> => {
+    void input;
+    return delay(
+      { ok: true as const, referenceNo: `CMP-2026-0${150 + Math.floor(input.product.length / 7)}` },
+      600,
+    );
   },
 };
 

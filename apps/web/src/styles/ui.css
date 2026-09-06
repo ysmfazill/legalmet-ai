@@ -40,7 +40,7 @@
   cursor: not-allowed;
 }
 .btn--primary {
-  color: #fff;
+  color: var(--text-on-accent);
   background: var(--accent);
   border-color: var(--accent);
 }
@@ -62,7 +62,7 @@
   border-color: var(--border);
 }
 .btn--danger {
-  color: #fff;
+  color: var(--text-on-accent);
   background: var(--tone-critical);
   border-color: var(--tone-critical);
 }
@@ -292,9 +292,9 @@
   font-weight: var(--fw-semibold);
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--text-faint);
+  color: var(--accent-strong);
   padding: var(--space-3) var(--space-4);
-  background: var(--surface);
+  background: var(--surface-2);
   border-bottom: var(--border-width) solid var(--border);
   white-space: nowrap;
 }
@@ -668,7 +668,7 @@
   position: absolute;
   inset: 0;
   transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
   animation: lm-shimmer 1.3s infinite;
 }
 @keyframes lm-shimmer {
@@ -683,7 +683,7 @@
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(5, 8, 18, 0.62);
+  background: var(--overlay);
   backdrop-filter: blur(2px);
   z-index: var(--z-drawer);
   animation: lm-fade var(--transition-base);

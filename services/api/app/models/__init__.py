@@ -6,6 +6,7 @@ Evidence Graph dependency direction.
 """
 from app.models.audit import AuditEvent
 from app.models.batch import BatchInspection
+from app.models.citizen import CitizenReport, CitizenReportEvent, CitizenScan
 from app.models.compliance import (
     ComplianceEvaluation,
     ComplianceRule,
@@ -21,6 +22,13 @@ from app.models.hitl import (
 )
 from app.models.image import Image, ImageRegion
 from app.models.inspection import Inspection, Package
+from app.models.lot import (
+    Lot,
+    LotPackage,
+    MeasurementEvaluation,
+    RegulatoryProcedure,
+    SamplingRun,
+)
 from app.models.model_version import ModelVersion
 from app.models.perception import OcrTextResult, ProcessingRun
 from app.models.product import Product
@@ -31,12 +39,17 @@ from app.models.regulatory import (
     Rule,
     RuleApplicability,
 )
+from app.models.report import Report, ReportEvidence, ReportVersion
 from app.models.review import ReviewAction
 from app.models.user import User
+from app.models.verification import VerificationResult, VerificationTask
 
 __all__ = [
     "AuditEvent",
     "BatchInspection",
+    "CitizenReport",
+    "CitizenReportEvent",
+    "CitizenScan",
     "ComplianceEvaluation",
     "ComplianceFinding",
     "ComplianceRule",
@@ -50,6 +63,9 @@ __all__ = [
     "ImageRegion",
     "Inspection",
     "InspectionDecision",
+    "Lot",
+    "LotPackage",
+    "MeasurementEvaluation",
     "ModelVersion",
     "OcrTextResult",
     "Package",
@@ -57,9 +73,16 @@ __all__ = [
     "Product",
     "Regulation",
     "RegulationVersion",
+    "RegulatoryProcedure",
     "RegulatorySource",
+    "Report",
+    "ReportEvidence",
+    "ReportVersion",
     "Rule",
     "RuleApplicability",
+    "SamplingRun",
     "ReviewAction",
     "User",
+    "VerificationResult",
+    "VerificationTask",
 ]

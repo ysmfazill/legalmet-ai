@@ -1,0 +1,254 @@
+/* ========================================================================== */
+/* Department Command Center (UI-04) — /department                              */
+/* Every value on this page is a real backend aggregation; these styles only    */
+/* present it. Reuses the metric/card/tone system — no new design language.     */
+/* ========================================================================== */
+
+/* Real-dates meta strip under the page header (today / server data / refreshed). */
+.dept-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-5);
+  background: var(--surface-2);
+  border: var(--border-width) solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+.dept-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.dept-meta svg {
+  color: var(--text-faint);
+}
+
+/* KPI cards are Links into filtered queues — same .metric anatomy, clickable. */
+a.metric--link,
+a.metric--link:visited {
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+a.metric--link:hover {
+  border-color: var(--border-strong);
+  box-shadow: 0 1px 4px rgba(59, 42, 31, 0.08);
+}
+a.metric--link:hover .metric__label {
+  color: var(--accent-strong);
+}
+a.metric--link:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+a.metric--link .metric__foot span {
+  overflow-wrap: anywhere;
+}
+
+/* Clickable status / rollup rows: label + proportional bar + count. */
+.dept-rollup {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.dept-rollup__row {
+  display: grid;
+  grid-template-columns: minmax(96px, 1fr) 3fr auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-2);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  color: inherit;
+}
+.dept-rollup__row:hover {
+  background: var(--surface-hover);
+}
+.dept-rollup__row:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: -2px;
+}
+.dept-rollup__label {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-strong);
+}
+.dept-rollup__track {
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.dept-rollup__fill {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: var(--radius-pill);
+}
+.dept-rollup__fill.tone-info {
+  background: var(--tone-info);
+}
+.dept-rollup__fill.tone-warning {
+  background: var(--tone-warning);
+}
+.dept-rollup__fill.tone-positive {
+  background: var(--tone-positive);
+}
+.dept-rollup__fill.tone-neutral {
+  background: var(--tone-neutral);
+}
+.dept-rollup__fill.tone-critical {
+  background: var(--tone-critical);
+}
+.dept-rollup__value {
+  font-size: var(--fs-sm);
+  min-width: 2ch;
+  text-align: right;
+}
+
+/* Complaints-per-day trend — zero-filled, real created_at grouping. */
+.dept-trend {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 132px;
+  padding-top: var(--space-2);
+}
+.dept-trend__col {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+.dept-trend__bar {
+  width: 100%;
+  min-height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--accent-strong);
+}
+.dept-trend__bar[data-empty='true'] {
+  background: var(--surface-3);
+  min-height: 2px;
+}
+
+/* Needs-attention + activity rows: clickable cards with real counts. */
+.dept-attention,
+.dept-activity {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  color: inherit;
+}
+a.dept-attention:hover,
+a.dept-activity:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+}
+a.dept-attention:focus-visible,
+a.dept-activity:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+.dept-attention--muted {
+  opacity: 0.62;
+}
+
+/* Complaint → Inspection pipeline (the METRASIGHT principle, real counts). */
+.dept-pipeline {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+.dept-pipeline__stage {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  background: var(--surface-2);
+  border: var(--border-width) solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+.dept-pipeline__stage:not(:last-child)::after {
+  content: '→';
+  position: absolute;
+  right: -11px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+  color: var(--text-faint);
+  font-size: var(--fs-md);
+  background: var(--surface);
+  padding: 1px 0;
+}
+.dept-pipeline__actor {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-strong);
+}
+.dept-pipeline__count {
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-bold);
+  line-height: 1.1;
+}
+.dept-pipeline__label {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-strong);
+}
+.dept-pipeline__caption {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+/* Deterministic evidence-scoring explanation. */
+.dept-explain summary:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+@media (max-width: 1024px) {
+  .dept-pipeline {
+    flex-wrap: wrap;
+  }
+  .dept-pipeline__stage {
+    flex: 1 1 40%;
+  }
+  .dept-pipeline__stage:not(:last-child)::after {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .dept-pipeline__stage {
+    flex: 1 1 100%;
+  }
+  .dept-rollup__row {
+    grid-template-columns: 1fr auto;
+  }
+  .dept-rollup__track {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}

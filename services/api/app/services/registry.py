@@ -17,6 +17,7 @@ from app.services.analytics.service import AnalyticsService
 from app.services.audit.service import AuditService
 from app.services.compliance.engine import ComplianceEngine
 from app.services.compliance.service import ComplianceService
+from app.services.discovery.service import DiscoveryService
 from app.services.evidence.service import EvidenceService
 from app.services.evidence_graph import EvidenceGraphService
 from app.services.hitl.service import HitlService
@@ -31,6 +32,7 @@ from app.services.interfaces import (
     RuleEngine,
     VisionService,
 )
+from app.services.lot.service import LotService
 from app.services.ocr.mock import MockOCRService
 from app.services.ocr.paddle import PaddleOCRService
 from app.services.perception.extract import DeterministicFieldExtractor
@@ -41,10 +43,12 @@ from app.services.product.mock import MockProductUnderstandingService
 from app.services.quality.mock import MockImageQualityAnalyzer
 from app.services.quality.pillow import PillowImageQualityAnalyzer
 from app.services.regulatory.service import RegulatoryService
+from app.services.report.service import ReportService
 from app.services.review.service import ReviewService
 from app.services.rules.engine import DeterministicRuleEngine
 from app.services.storage.base import StorageService
 from app.services.storage.local import LocalStorage
+from app.services.verification.service import VerificationService
 from app.services.vision.mock import MockVisionService
 from app.services.vision.opencv import OpenCVVisionService
 
@@ -69,15 +73,26 @@ class Services:
     evidence_graph: EvidenceGraphService
     # --- Prompt 8: human-in-the-loop review, correction, final decision -----
     hitl: HitlService
+    # --- UI-06: evidence planner + verification task lifecycle --------------
+    verification: VerificationService
+    # --- UI-07: lot intelligence (physical verification of whole lots) ------
+    lots: LotService
+    # --- UI-08: reporting & evidence pack (versioned snapshots, exports) ----
+    reports: ReportService
     audit: AuditService
     review: ReviewService
     analytics: AnalyticsService
+    # --- UI-09: global search / history / product repository (read-only) ----
+    discovery: DiscoveryService
     inspection: InspectionService
     intake: IntakeService
     # --- Prompt 4: real perception stack ---------------------------------
     preprocessor: ImagePreprocessor
     field_extractor: FieldExtractionProvider
     perception: PerceptionService
+    # UI-02: the REAL OCR engine (perception_ocr_backend, Paddle when enabled)
+    # shared by the perception pipeline and the citizen screening path.
+    perception_ocr: OCRService
     # Session factory used by background perception execution (each run gets
     # its own session; tests inject the in-memory engine's factory here).
     session_factory: Callable[[], object]
@@ -199,8 +214,17 @@ def build_services(
     # final decisions) — the ONLY path from a human action to the decision
     # tables, sharing the same audit trail.
     hitl = HitlService(audit)
+    # UI-06: the evidence planner / verification layer shares the same audit
+    # trail; it never writes findings or decisions. UI-07 wires the regulatory
+    # service in so every recorded measurement is deterministically evaluated
+    # (or explicitly marked UNAVAILABLE when no procedure is configured).
+    verification = VerificationService(audit, regulatory=regulatory)
+    lots = LotService(audit, regulatory=regulatory)
+    reports = ReportService(audit)
     review = ReviewService(audit)
     analytics = AnalyticsService()
+    # UI-09: pure read layer over existing entities — no constructor wiring.
+    discovery = DiscoveryService()
 
     inspection = InspectionService(
         settings=settings,
@@ -225,10 +249,14 @@ def build_services(
 
     preprocessor = _build_preprocessor(settings)
     field_extractor = _build_field_extractor(settings)
+    # UI-02: the real OCR engine (Paddle when enabled) is exposed on Services
+    # so the anonymous Citizen screening path reuses the exact same instance
+    # the perception pipeline runs — never the demo mock OCR.
+    perception_ocr = _build_perception_ocr(settings)
     pipeline = PackagePerceptionPipeline(
         settings=settings,
         storage=storage,
-        ocr=_build_perception_ocr(settings),
+        ocr=perception_ocr,
         vision=_build_perception_vision(settings),
         preprocessor=preprocessor,
         extractor=field_extractor,
@@ -250,14 +278,21 @@ def build_services(
         evidence=evidence,
         evidence_graph=evidence_graph,
         hitl=hitl,
+        verification=verification,
+        lots=lots,
+        reports=reports,
         audit=audit,
         review=review,
         analytics=analytics,
+        discovery=discovery,
         inspection=inspection,
         intake=intake,
         preprocessor=preprocessor,
         field_extractor=field_extractor,
         perception=perception,
+        # UI-02: real OCR engine instance shared with the perception pipeline
+        # (the plain `ocr` field stays the seeded demo mock for the demo flow).
+        perception_ocr=perception_ocr,
         session_factory=session_factory,
     )
 

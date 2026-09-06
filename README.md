@@ -88,6 +88,8 @@ hierarchy, versioning, seed honesty contract, candidate mapping).
 Compliance-engine docs: [`docs/compliance.md`](docs/compliance.md)
 (pipeline, rule vocabulary, explainability, legal-safety invariants).
 Review/decision docs: [`docs/human-review.md`](docs/human-review.md).
+Reporting docs: [`docs/reports.md`](docs/reports.md) (report lifecycle,
+finalization gate, Evidence Pack, PDF/DOCX exports, versioning, audit).
 
 **Production hardening (Prompt 9):** role enforcement on every mutating route,
 storage path-traversal fix, upload dimension guard, ORM/migration drift
@@ -254,22 +256,25 @@ and what each seeded inspection contains: [`docs/demo.md`](docs/demo.md).
 **For the SIH presentation itself** — the 3/5/10-minute judge walkthroughs and
 the backup/failure plans: [`docs/judge-demo.md`](docs/judge-demo.md).
 
-### Final verification matrix (Prompt 10, 2026-08-31)
+### Final verification matrix (UI-10 hardening pass, 2026-09-06)
 
 | Check | Result |
 | --- | --- |
 | Frontend typecheck (`tsc --noEmit`) | PASS — 0 errors |
-| Frontend lint (ESLint) | PASS — 0 errors (2 pre-existing warnings) |
-| Frontend production build (Vite) | PASS — 114 modules, 398 kB JS (115 kB gzip) |
-| Backend unit/API suite (pytest, in-memory SQLite) | PASS — 424 passed |
-| Backend integration suite (real PaddleOCR + OpenCV) | PASS — 22 passed |
+| Frontend lint (ESLint) | PASS — 0 errors (4 pre-existing warnings) |
+| Frontend test suite (vitest) | PASS — 108 passed |
+| Frontend production build (Vite) | PASS |
+| Backend unit/API suite (pytest, in-memory SQLite) | PASS — 707 passed |
+| Backend integration suite (real PaddleOCR + OpenCV) | PASS — 22 passed (Prompt 10 run) |
 | OCR / vision / perception pipeline tests | PASS (integration marks above) |
-| Regulatory / compliance-engine tests | PASS (in the 424) |
-| Evidence / evidence-graph tests | PASS (in the 424) |
-| Review (HITL) / decision-gate tests | PASS (in the 424) |
-| API security (auth, roles, traversal) tests | PASS — 36 tests (in the 424) |
-| Audit-trail tests | PASS (in the 424) |
-| Golden demo flow + failure resilience (live HTTP, `scripts/walkthrough_p10.py`) | PASS — 28/28 checks |
+| Regulatory / compliance-engine tests | PASS (in the 707) |
+| Evidence / evidence-graph tests | PASS (in the 707) |
+| Review (HITL) / decision-gate tests | PASS (in the 707) |
+| API security (auth, roles, traversal, IDOR) tests | PASS (in the 707) |
+| Audit-trail tests | PASS (in the 707) |
+| PDF/DOCX export from all four demo inspections (incl. embedded evidence images, no placeholders, no fake seals) | PASS — 8/8 files |
+| Live RBAC/IDOR probes (anonymous, auditor-write, dummy-UUID IDOR) | PASS — all correctly rejected |
+| Secrets scan of tracked files | PASS — no real secrets tracked |
 
 ---
 
@@ -286,37 +291,53 @@ the backup/failure plans: [`docs/judge-demo.md`](docs/judge-demo.md).
   claimed beyond what is configured and tested.
 - **Unbenchmarked accuracy:** no OCR/vision accuracy percentages are claimed
   anywhere; the engines have not been benchmarked on real Indian packaging.
-- **Aggregate UI pages still on the labelled mock adapter:** Dashboard, Risk
-  Radar, Reports, Audit and Batches read clearly-labelled demo data; the real
-  API powers auth, inspections, intake, perception, compliance, review and
-  decisions. The Risk Radar score is demo scoring — no real risk model exists
-  and none was added in Prompt 9.
-- **Inspection `status` is not fully wired:** the perception/compliance/review
-  services do not advance it past the intake transitions.
-- No frontend unit tests (typecheck + lint only).
-- Auth uses demo credentials seeded on startup; secrets default to insecure dev
-  values and must be overridden outside development.
+- **Some aggregate UI pages still on the labelled mock adapter:** the Command
+  Center (Dashboard), Risk Radar, Batches and Audit pages render clearly
+  labelled demonstration data for their aggregate figures (each carries a
+  visible demo-data notice). The live API powers auth, inspections, intake,
+  perception, compliance, review, decisions, complaints, reports (list +
+  detail + PDF/DOCX export), search, history, products and analytics. The Risk
+  Radar score is demo scoring — no real risk model exists.
+- **Legacy mock analyze path retained:** the early `/analyze` demo endpoint
+  and its clearly-labelled mock finding flow remain (covered by tests); the
+  production UI exclusively uses the real perception → deterministic-engine
+  path. Analytics counts union both sources — they are mutually exclusive per
+  inspection, so nothing is double-counted.
+- **Demo credentials / dev secrets:** auth uses demo credentials seeded on
+  startup; the secret key defaults to an insecure dev value and must be
+  overridden outside development (the app refuses to run silently with it in
+  production mode).
+- **First-boot OCR cost:** on a fresh database the demo seeding runs the real
+  local OCR engine (~1–2 minutes on CPU); subsequent boots skip it.
+- **Test-suite sensitivity:** the frontend vitest suite occasionally hits its
+  5s per-test timeout on a busy machine (dev servers + OCR running); a clean
+  re-run passes 108/108. Backend suite: 707/707.
 
 ---
 
-## Future roadmap (Prompt 10 candidates)
+## Future roadmap
 
 1. **Verified regulatory data** — flip the seeded source to VERIFIED after
    human checking against the official Gazette / India Code text, and broaden
    document coverage.
-2. **Wire the aggregate pages** (Dashboard, Risk Radar, Reports, Audit) to the
-   live API. For the Risk Radar: consume the already-exposed structured
-   signals (finding status/severity, per-field OCR confidence, image usability
-   grade, unresolved-review counts) with the transparent weighted factors
-   unchanged and documented — not a new black-box score.
+2. **Wire the remaining aggregate pages** (Command Center, Risk Radar,
+   Batches, Audit) to the live API. For the Risk Radar: consume the
+   already-exposed structured signals (finding status/severity, per-field OCR
+   confidence, image usability grade, unresolved-review counts) with the
+   transparent weighted factors unchanged and documented — not a new
+   black-box score. *(Reporting, search, history, products and analytics are
+   already live.)*
 3. **Product understanding** — real category/declaration-profile classification.
 4. **Expanded deterministic rule coverage** across commodity categories.
 5. **More OCR languages** — enable + actually validate Hindi/Marathi
    (Devanagari) and other Indian-script models before claiming them.
-6. **Inspection status lifecycle** — advance `status` through
-   perception/review/decision transitions.
-7. **Reporting / export** of completed inspections.
 
+> Done since the Prompt 10 roadmap was written: inspection status lifecycle
+> (finalized reports now complete their inspections), reporting/export of
+> completed inspections (report lifecycle, finalization gate, versioned
+> snapshots, PDF/DOCX exports with embedded evidence images), and the
+> search / history / products / analytics surfaces (UI-09).
+>
 > LLM assistance is not implemented — the architecture provides the interfaces
 > and seams where it attaches without touching call sites. The regulatory
 > intelligence layer is a knowledge foundation, not a legal determination.

@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import type { BatchUploadResponse, ImageType, PackageImage } from '@legalmet/types';
 
+import type { Complaint } from '../mock/citizen';
 import { api, ApiClientError } from '../api/client';
 import { useApp } from '../app/AppContext';
 import { Card, CardBody, CardHead, SectionCard } from '../components/Card';
@@ -33,8 +34,15 @@ const METHODS: { id: Method; icon: IconName; label: string }[] = [
   { id: 'BATCH', icon: 'batch', label: 'Batch import' },
 ];
 
-/** The whole pipeline, always visible so the flow is never a mystery. */
-const PIPELINE_STEPS: { label: string; phase: 'intake' | 'perception' | 'review' }[] = [
+/**
+ * The whole pipeline, always visible so the flow is never a mystery.
+ * UI-06 adds the evidence phase: FINDINGS → EVIDENCE (planner) → VERIFY
+ * (inspector verification) → REVIEW (final human decision).
+ */
+const PIPELINE_STEPS: {
+  label: string;
+  phase: 'intake' | 'perception' | 'evidence' | 'review';
+}[] = [
   { label: 'Create inspection', phase: 'intake' },
   { label: 'Add image', phase: 'intake' },
   { label: 'Validation', phase: 'intake' },
@@ -44,6 +52,8 @@ const PIPELINE_STEPS: { label: string; phase: 'intake' | 'perception' | 'review'
   { label: 'Extraction', phase: 'perception' },
   { label: 'Evaluation', phase: 'perception' },
   { label: 'Findings', phase: 'review' },
+  { label: 'Evidence', phase: 'evidence' },
+  { label: 'Verify', phase: 'evidence' },
   { label: 'Review', phase: 'review' },
 ];
 
@@ -72,9 +82,14 @@ function PipelineMap({ stage }: { stage: 'collect' | 'images' | 'ready' }) {
 export function NewInspectionPage() {
   const { isLive, auth } = useApp();
   const navigate = useNavigate();
+  const location = useLocation();
   const session = useIntakeSession();
   const [method, setMethod] = useState<Method>('SCAN');
   const [imageType, setImageType] = useState<ImageType>('FRONT');
+
+  /** Prefill when arriving from a complaint conversion (Complaints page). */
+  const fromComplaint =
+    (location.state as { fromComplaint?: Complaint } | null)?.fromComplaint ?? null;
 
   const lastImage = session.images.length ? session.images[session.images.length - 1] : null;
 
@@ -85,6 +100,18 @@ export function NewInspectionPage() {
         title="New inspection"
         lead="Capture or upload real label images for a packaged commodity. Images are validated, quality-checked and stored, then the package is marked ready for analysis."
       />
+
+      {fromComplaint && (
+        <div className="demo-note demo-note--block" role="status">
+          <Icon name="complaints" size={15} />
+          <span>
+            <strong>Converted from complaint {fromComplaint.referenceNo}.</strong> The product and
+            note are prefilled from the citizen report ({fromComplaint.reporter};{' '}
+            {fromComplaint.location}). The complaint–inspection relationship is preserved in the
+            reference.
+          </span>
+        </div>
+      )}
 
       <div className="demo-note demo-note--block">
         <Icon name="info" size={15} />
@@ -126,7 +153,7 @@ export function NewInspectionPage() {
       <PipelineMap stage={session.phase === 'collect' ? 'collect' : 'images'} />
 
       {session.phase === 'collect' ? (
-        <PackageDetailsStep session={session} disabled={!isLive} />
+        <PackageDetailsStep session={session} disabled={!isLive} prefill={fromComplaint} />
       ) : (
         <>
           <SectionCard eyebrow="Step 2" title="Add label images">
@@ -227,10 +254,26 @@ export function NewInspectionPage() {
 /* -------------------------------------------------------------------------- */
 /* Step 1 — package details                                                   */
 /* -------------------------------------------------------------------------- */
-function PackageDetailsStep({ session, disabled }: { session: IntakeSession; disabled: boolean }) {
-  const [productName, setProductName] = useState('');
-  const [category, setCategory] = useState(CATEGORY_OPTIONS[0].value);
-  const [note, setNote] = useState('');
+function PackageDetailsStep({
+  session,
+  disabled,
+  prefill,
+}: {
+  session: IntakeSession;
+  disabled: boolean;
+  prefill?: Complaint | null;
+}) {
+  const [productName, setProductName] = useState(prefill?.product ?? '');
+  const [category, setCategory] = useState(
+    prefill && CATEGORY_OPTIONS.some((o) => o.value === prefill.category.toLowerCase())
+      ? prefill.category.toLowerCase()
+      : CATEGORY_OPTIONS[0].value,
+  );
+  const [note, setNote] = useState(
+    prefill
+      ? `From complaint ${prefill.referenceNo} — ${prefill.issue} (${prefill.location})`
+      : '',
+  );
 
   const canSubmit = productName.trim().length > 0 && !disabled && !session.creating;
 

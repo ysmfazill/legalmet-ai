@@ -307,6 +307,8 @@ class AuditEventType(StrEnum):
     REVIEW_RECORDED = "REVIEW_RECORDED"
     INSPECTION_COMPLETED = "INSPECTION_COMPLETED"
     INSPECTION_ARCHIVED = "INSPECTION_ARCHIVED"
+    # UI-05 — targeted inspection assignment (department act, audited)
+    INSPECTION_ASSIGNED = "INSPECTION_ASSIGNED"
     # Prompt 3 — real package intake pipeline
     PACKAGE_CREATED = "PACKAGE_CREATED"
     IMAGE_UPLOAD_STARTED = "IMAGE_UPLOAD_STARTED"
@@ -347,6 +349,145 @@ class AuditEventType(StrEnum):
     DECISION_SUBMITTED = "DECISION_SUBMITTED"
     DECISION_CHANGED = "DECISION_CHANGED"
     SUPERVISOR_REVIEWED = "SUPERVISOR_REVIEWED"
+    # UI-02 — Citizen Mode (anonymous screening + suspected-issue reports).
+    # No actor is recorded for citizen events (anonymous by design); the
+    # payload carries the public scan/report reference.
+    CITIZEN_SCAN_COMPLETED = "CITIZEN_SCAN_COMPLETED"
+    CITIZEN_REPORT_SUBMITTED = "CITIZEN_REPORT_SUBMITTED"
+    # UI-03 — complaint lifecycle. Department actions record the acting user
+    # (actor); CITIZEN_INFO_PROVIDED stays anonymous like the other citizen
+    # events. Every transition of a citizen report is audited here AND kept
+    # in the citizen_report_events history table the timeline reads.
+    COMPLAINT_REVIEW_STARTED = "COMPLAINT_REVIEW_STARTED"
+    COMPLAINT_ACCEPTED = "COMPLAINT_ACCEPTED"
+    COMPLAINT_REJECTED = "COMPLAINT_REJECTED"
+    COMPLAINT_INFO_REQUESTED = "COMPLAINT_INFO_REQUESTED"
+    CITIZEN_INFO_PROVIDED = "CITIZEN_INFO_PROVIDED"
+    COMPLAINT_ASSIGNED = "COMPLAINT_ASSIGNED"
+    COMPLAINT_INSPECTION_CREATED = "COMPLAINT_INSPECTION_CREATED"
+    COMPLAINT_INSPECTION_COMPLETED = "COMPLAINT_INSPECTION_COMPLETED"
+    COMPLAINT_ACTION_TAKEN = "COMPLAINT_ACTION_TAKEN"
+    COMPLAINT_CLOSED = "COMPLAINT_CLOSED"
+    # UI-06 — evidence planner verification lifecycle. Every event records the
+    # acting human (never the engine) and the task/inspection it belongs to.
+    VERIFICATION_CREATED = "VERIFICATION_CREATED"
+    VERIFICATION_STARTED = "VERIFICATION_STARTED"
+    VERIFICATION_RESULT_RECORDED = "VERIFICATION_RESULT_RECORDED"
+    VERIFICATION_COMPLETED = "VERIFICATION_COMPLETED"
+    VERIFICATION_CANCELLED = "VERIFICATION_CANCELLED"
+    # UI-07 — physical verification + lot intelligence. Lot lifecycle events and
+    # the deterministic measurement evaluation always record the acting human;
+    # the evaluation event additionally freezes the rule version used.
+    LOT_CREATED = "LOT_CREATED"
+    LOT_PACKAGE_ADDED = "LOT_PACKAGE_ADDED"
+    LOT_SAMPLE_GENERATED = "LOT_SAMPLE_GENERATED"
+    MEASUREMENT_EVALUATED = "MEASUREMENT_EVALUATED"
+    LOT_DECISION_SUBMITTED = "LOT_DECISION_SUBMITTED"
+    # UI-08 — reporting & evidence pack. Every report lifecycle transition is
+    # audited (creation, generation, review, finalization, both export
+    # formats, amendment). The actor is always the authenticated human.
+    REPORT_CREATED = "REPORT_CREATED"
+    REPORT_GENERATED = "REPORT_GENERATED"
+    REPORT_REVIEWED = "REPORT_REVIEWED"
+    REPORT_FINALIZED = "REPORT_FINALIZED"
+    REPORT_EXPORTED_PDF = "REPORT_EXPORTED_PDF"
+    REPORT_EXPORTED_DOCX = "REPORT_EXPORTED_DOCX"
+    REPORT_AMENDED = "REPORT_AMENDED"
+
+
+class ReportStatus(StrEnum):
+    """Lifecycle of one report record (UI-08).
+
+    DRAFT          created, not yet generated (no snapshot exists)
+    UNDER_REVIEW   generated; an authorized human is reviewing the content
+    FINALIZED      passed the evidence gate and locked by an authorized human
+    EXPORTED       at least one PDF/DOCX export happened after finalization
+    AMENDED        a new version superseded a FINALIZED one (reason mandatory)
+
+    AMENDED reports are re-generatable and re-finalizable — the version
+    history preserves every superseded snapshot verbatim.
+    """
+
+    DRAFT = "DRAFT"
+    UNDER_REVIEW = "UNDER_REVIEW"
+    FINALIZED = "FINALIZED"
+    EXPORTED = "EXPORTED"
+    AMENDED = "AMENDED"
+
+
+class ReportEvidenceType(StrEnum):
+    """What one evidence-manifest entry references (UI-08)."""
+
+    IMAGE = "IMAGE"
+    IMAGE_REGION = "IMAGE_REGION"
+    EXTRACTED_FIELD = "EXTRACTED_FIELD"
+    MEASUREMENT = "MEASUREMENT"
+    LOT = "LOT"
+    COMPLAINT = "COMPLAINT"
+    FINDING = "FINDING"
+
+
+class LotStatus(StrEnum):
+    """Lifecycle of one lot under physical verification (UI-07).
+
+    A lot starts IN_PROGRESS and only reaches a decision state through an
+    explicit inspector submission — never automatically. While required
+    measurements are outstanding the computed assessment state is
+    INSUFFICIENT_EVIDENCE (not a stored status: it is derived, so it can never
+    be set prematurely).
+    """
+
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLIANT = "COMPLIANT"
+    NON_COMPLIANT = "NON_COMPLIANT"
+    REQUIRES_REVIEW = "REQUIRES_REVIEW"
+
+
+class LotPackageStatus(StrEnum):
+    """One package inside a lot, from the sampling perspective."""
+
+    NOT_SAMPLED = "NOT_SAMPLED"  # in the lot, outside the drawn sample
+    PENDING = "PENDING"          # sampled, measurement still outstanding
+    MEASURED = "MEASURED"        # a physical measurement is recorded
+
+
+class SamplingMethod(StrEnum):
+    """How a sample was selected."""
+
+    RANDOM = "RANDOM"  # seeded, reproducible random draw
+    MANUAL = "MANUAL"  # inspector-picked packages
+
+
+class MeasurementEvaluationStatus(StrEnum):
+    """Outcome of the deterministic declared-vs-measured regulatory check.
+
+    UNAVAILABLE means the applicable permissible-error procedure is NOT
+    configured — the system states that honestly and defers to the inspector
+    instead of guessing a tolerance.
+    """
+
+    EVALUATED = "EVALUATED"
+    UNAVAILABLE = "UNAVAILABLE"
+
+
+class MeasurementOutcome(StrEnum):
+    """Result of an EVALUATED measurement (decision support, never a verdict)."""
+
+    WITHIN_TOLERANCE = "WITHIN_TOLERANCE"
+    EXCEEDS_TOLERANCE = "EXCEEDS_TOLERANCE"
+
+
+class RegulatoryProcedureKind(StrEnum):
+    """Kinds of versioned regulatory procedures that govern physical work.
+
+    MEASUREMENT_TOLERANCE  the permissible error applied to a declared-vs-
+                           measured difference (never hardcoded — read from the
+                           configured procedure)
+    SAMPLING               the legal sampling method/size for a lot
+    """
+
+    MEASUREMENT_TOLERANCE = "MEASUREMENT_TOLERANCE"
+    SAMPLING = "SAMPLING"
 
 
 class BatchStatus(StrEnum):
@@ -505,6 +646,18 @@ class EvidenceNodeType(StrEnum):
     FIELD_CORRECTION = "FIELD_CORRECTION"
     FINDING_REVIEW = "FINDING_REVIEW"
     INSPECTION_DECISION = "INSPECTION_DECISION"
+    # UI-07 — physical evidence + lot intelligence. Every node is still ONE
+    # persisted record: a recorded measurement (VerificationResult), the
+    # instrument it names, and the lot / sampling-run / package chain.
+    MEASUREMENT = "MEASUREMENT"
+    INSTRUMENT = "INSTRUMENT"
+    LOT = "LOT"
+    LOT_PACKAGE = "LOT_PACKAGE"
+    SAMPLING_RUN = "SAMPLING_RUN"
+    # The frozen deterministic evaluation of ONE recorded measurement
+    # (MeasurementEvaluation): rule code, regulation version and inputs are
+    # stored on the row — a later rule update never rewrites it.
+    MEASUREMENT_EVALUATION = "MEASUREMENT_EVALUATION"
 
 
 class EvidenceNodeOrigin(StrEnum):
@@ -562,6 +715,20 @@ class EvidenceEdgeType(StrEnum):
     DECISION_FOR_INSPECTION = "DECISION_FOR_INSPECTION"
     DECISION_BASED_ON_EVALUATION = "DECISION_BASED_ON_EVALUATION"
     DECISION_SUPERSEDES_DECISION = "DECISION_SUPERSEDES_DECISION"
+    # UI-07 — physical verification + lot intelligence relations. The physical
+    # half of the quantity chain: a MEASUREMENT (a recorded VerificationResult,
+    # origin=HUMAN) verifies a DECLARATION (extracted field) or a LOT PACKAGE,
+    # names the INSTRUMENT it was read from, and is evaluated by a frozen
+    # MEASUREMENT_EVALUATION that references the rule version it used.
+    MEASUREMENT_VERIFIES_FIELD = "MEASUREMENT_VERIFIES_FIELD"
+    MEASUREMENT_VERIFIES_LOT_PACKAGE = "MEASUREMENT_VERIFIES_LOT_PACKAGE"
+    INSTRUMENT_USED_FOR_MEASUREMENT = "INSTRUMENT_USED_FOR_MEASUREMENT"
+    MEASUREMENT_HAS_EVALUATION = "MEASUREMENT_HAS_EVALUATION"
+    INSPECTION_HAS_LOT = "INSPECTION_HAS_LOT"
+    LOT_HAS_PACKAGE = "LOT_HAS_PACKAGE"
+    LOT_HAS_SAMPLING_RUN = "LOT_HAS_SAMPLING_RUN"
+    SAMPLING_RUN_SELECTED_PACKAGE = "SAMPLING_RUN_SELECTED_PACKAGE"
+    LOT_DECISION_FOR_INSPECTION = "LOT_DECISION_FOR_INSPECTION"
 
 
 class EvidenceStrength(StrEnum):
@@ -615,3 +782,78 @@ class InspectionDecisionType(StrEnum):
     NON_COMPLIANT = "NON_COMPLIANT"
     REQUIRES_FURTHER_REVIEW = "REQUIRES_FURTHER_REVIEW"
     NOT_EVALUATED = "NOT_EVALUATED"
+
+
+# --- UI-06 — Evidence Planner & verification tasks ------------------------------
+
+
+class EvidenceItemStatus(StrEnum):
+    """Status of ONE piece of evidence behind a finding or declaration.
+
+    A traceability label ONLY — it never upgrades or downgrades a compliance
+    status and it is never a probability of violation.
+    """
+
+    AVAILABLE = "AVAILABLE"  # the artifact exists and supports the row
+    MISSING = "MISSING"  # the artifact does not exist (yet)
+    REQUIRES_VERIFICATION = "REQUIRES_VERIFICATION"  # an inspector action can close this
+    VERIFIED = "VERIFIED"  # an authorised human recorded the verification
+    REJECTED = "REJECTED"  # an authorised human rejected the finding
+    NOT_APPLICABLE = "NOT_APPLICABLE"  # the requirement does not apply
+
+
+class EvidenceRequirementKind(StrEnum):
+    """What KIND of evidence an evidence-plan row needs.
+
+    Deliberately limited to what the system actually supports: perception
+    artifacts (IMAGE / OCR / REGION / FIELD), the deterministic evaluation, and
+    the two human verification channels (MEASUREMENT, INSPECTOR_OBSERVATION).
+    """
+
+    IMAGE = "IMAGE"
+    OCR = "OCR"
+    REGION = "REGION"
+    FIELD = "FIELD"
+    EVALUATION = "EVALUATION"
+    MEASUREMENT = "MEASUREMENT"
+    INSPECTOR_OBSERVATION = "INSPECTOR_OBSERVATION"
+
+
+class VerificationTaskType(StrEnum):
+    """The kind of physical/field verification a task asks the inspector to do.
+
+    The system can READ a declared value; it can never MEASURE contents. A
+    MEASUREMENT task is closed only by a human recording a reading from an
+    appropriate Legal Metrology instrument (manual entry in this prototype).
+    """
+
+    MEASUREMENT = "MEASUREMENT"
+    INSPECTOR_OBSERVATION = "INSPECTOR_OBSERVATION"
+
+
+class VerificationTaskStatus(StrEnum):
+    """Lifecycle of one verification task (UI-06).
+
+    PENDING → IN_PROGRESS → COMPLETED, or PENDING/IN_PROGRESS → CANCELLED.
+    Transitions are enforced in the service layer, never in the frontend.
+    """
+
+    PENDING = "PENDING"
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
+
+    @property
+    def is_open(self) -> bool:
+        return self in (VerificationTaskStatus.PENDING, VerificationTaskStatus.IN_PROGRESS)
+
+
+class VerificationLevel(StrEnum):
+    """Whether a verification task MUST be closed before a final decision.
+
+    REQUIRED tasks block COMPLIANT / NON_COMPLIANT decisions while open.
+    RECOMMENDED tasks are advisory — they never block finalization.
+    """
+
+    REQUIRED = "REQUIRED"
+    RECOMMENDED = "RECOMMENDED"

@@ -95,13 +95,17 @@ export function ErrorState({
 export function AsyncView<T>({
   query,
   loadingLabel,
+  errorTitle,
   children,
 }: {
   query: AsyncState<T> & { reload: () => void };
   loadingLabel?: string;
+  /** Optional page-specific error headline (the message always comes from the error itself). */
+  errorTitle?: string;
   children: (data: T) => ReactNode;
 }) {
   if (query.status === 'loading') return <LoadingState label={loadingLabel} />;
-  if (query.status === 'error') return <ErrorState error={query.error} onRetry={query.reload} />;
+  if (query.status === 'error')
+    return <ErrorState error={query.error} onRetry={query.reload} title={errorTitle} />;
   return <>{children(query.data)}</>;
 }

@@ -220,6 +220,7 @@ function InspectionsBody({
         (!category || i.product?.category === category) &&
         (!q ||
           i.referenceNo.toLowerCase().includes(q) ||
+          (i.sourceComplaint?.reference.toLowerCase().includes(q) ?? false) ||
           (i.product?.name.toLowerCase().includes(q) ?? false)),
     );
   }, [all, search, status, category]);

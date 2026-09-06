@@ -21,7 +21,7 @@ import binascii
 import uuid
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import Settings
@@ -32,13 +32,26 @@ from app.core.enums import (
     InspectionStatus,
 )
 from app.core.errors import (
+    ConflictError,
     ImageTooLargeError,
     InvalidImageError,
     NotFoundError,
     UnsupportedFileError,
+    ValidationError,
 )
 from app.core.logging import get_logger
-from app.models import ComplianceFinding, Image, ImageRegion, Inspection, Package, Product
+from app.models import (
+    AuditEvent,
+    CitizenReport,
+    CitizenReportEvent,
+    ComplianceFinding,
+    Image,
+    ImageRegion,
+    Inspection,
+    Package,
+    Product,
+    User,
+)
 from app.schemas.image import RegisterImageRequest
 from app.schemas.inspection import AnalyzeInspectionRequest, CreateInspectionRequest
 from app.services.analytics.service import AnalyticsService
@@ -105,6 +118,10 @@ class InspectionService:
             .where(Inspection.id == inspection_id)
             .options(
                 selectinload(Inspection.product),
+                selectinload(Inspection.inspector),
+                # UI-05: complaint provenance rides along (None for ordinary
+                # inspections) so the workspace can show the source brief.
+                selectinload(Inspection.source_complaint),
                 selectinload(Inspection.packages).selectinload(Package.images).selectinload(
                     Image.regions
                 ),
@@ -118,7 +135,10 @@ class InspectionService:
     def list(
         self, db: Session, *, status: str | None, limit: int, offset: int
     ) -> tuple[list[Inspection], int]:
-        base = select(Inspection)
+        base = select(Inspection).options(
+            selectinload(Inspection.inspector),
+            selectinload(Inspection.source_complaint),
+        )
         if status:
             base = base.where(Inspection.status == status)
         total = len(db.execute(base).scalars().all())
@@ -128,6 +148,161 @@ class InspectionService:
             .offset(offset)
         )
         return list(db.execute(page).scalars().all()), total
+
+    def get_source_complaint(self, db: Session, inspection_id: uuid.UUID) -> CitizenReport:
+        """The citizen complaint this inspection was targeted from (UI-05).
+
+        Raises NotFoundError for an unknown inspection; returns None when the
+        inspection did not originate from a complaint (an ordinary intake)."""
+        inspection = self.get(db, inspection_id)
+        if inspection.source_complaint is None:
+            return None
+        report = db.execute(
+            select(CitizenReport)
+            .where(CitizenReport.id == inspection.source_complaint.id)
+            .options(
+                selectinload(CitizenReport.events),
+                selectinload(CitizenReport.inspector),
+                selectinload(CitizenReport.inspection),
+                selectinload(CitizenReport.scan),
+            )
+        ).scalar_one()
+        return report
+
+    # --- Assignment (UI-05) --------------------------------------------------
+
+    _ASSIGNABLE_ROLES = ("INSPECTOR", "SUPERVISOR", "ADMIN")
+    _FINALIZED_STATUSES = (InspectionStatus.COMPLETED.value, InspectionStatus.ARCHIVED.value)
+
+    def assign_inspection(
+        self,
+        db: Session,
+        *,
+        inspection_id: uuid.UUID,
+        actor: User,
+        inspector_id: uuid.UUID,
+        note: str | None = None,
+        reassign: bool = False,
+    ) -> Inspection:
+        """Assign (or explicitly reassign) the inspector of a targeted
+        inspection — a department act, audited, with the source complaint kept
+        in sync so the two records never disagree.
+
+        Safety: finalized inspections cannot be assigned; the target must be
+        an active user with an operational role; moving an inspection that was
+        FORMALLY assigned to a different inspector requires ``reassign=True``.
+        The creator default written by CREATE_INSPECTION (the converting
+        officer) is not a formal assignment, so the first real assignment
+        never needs the flag. Re-assigning the same formally-assigned
+        inspector is an idempotent no-op.
+        """
+        inspection = self.get(db, inspection_id)
+
+        if inspection.status in self._FINALIZED_STATUSES:
+            raise ConflictError(
+                f"Inspection {inspection.reference_no} is {inspection.status} — "
+                "a finalized inspection cannot be assigned."
+            )
+
+        inspector = db.get(User, inspector_id)
+        if inspector is None or not inspector.is_active:
+            raise NotFoundError("Inspector not found or inactive.")
+        if inspector.role not in self._ASSIGNABLE_ROLES:
+            raise ValidationError(
+                "Only INSPECTOR, SUPERVISOR or ADMIN users can be assigned."
+            )
+
+        # A formal assignment is one recorded through this endpoint or
+        # inherited from a complaint-level ASSIGN that preceded conversion.
+        report = inspection.source_complaint
+        formally_assigned = (
+            db.execute(
+                select(func.count())
+                .select_from(AuditEvent)
+                .where(
+                    AuditEvent.inspection_id == inspection.id,
+                    AuditEvent.event_type == AuditEventType.INSPECTION_ASSIGNED.value,
+                )
+            ).scalar_one()
+            > 0
+            or (
+                report is not None
+                and report.assigned_inspector_id is not None
+                and report.assigned_inspector_id == inspection.inspector_id
+            )
+        )
+
+        if formally_assigned and inspection.inspector_id == inspector.id:
+            # Idempotent: the same inspector, formally assigned, again.
+            return inspection
+
+        if formally_assigned and not reassign:
+            raise ConflictError(
+                f"Inspection {inspection.reference_no} is already assigned to "
+                f"{inspection.inspector.full_name if inspection.inspector else 'another inspector'}. "
+                "Confirm the reassignment explicitly."
+            )
+
+        previous_inspector_id = inspection.inspector_id
+        inspection.inspector_id = inspector.id
+        db.flush()
+
+        self._audit.record(
+            db,
+            event_type=AuditEventType.INSPECTION_ASSIGNED,
+            entity_type="inspection",
+            entity_id=inspection.id,
+            actor_id=actor.id,
+            inspection_id=inspection.id,
+            payload={
+                "referenceNo": inspection.reference_no,
+                "inspectorId": str(inspector.id),
+                "inspectorName": inspector.full_name,
+                "previousInspectorId": (
+                    str(previous_inspector_id) if previous_inspector_id else None
+                ),
+                "reassign": bool(reassign),
+                "note": (note.strip() if note and note.strip() else None),
+            },
+        )
+
+        # Keep the source complaint (if any) in sync: same inspector, and the
+        # complaint advances along its own state machine (ACCEPTED → ASSIGNED)
+        # rather than silently holding a stale assignment.
+        if report is not None:
+            report.assigned_inspector_id = inspector.id
+            if report.status == "ACCEPTED":
+                report.status = "ASSIGNED"
+            db.add(
+                CitizenReportEvent(
+                    report_id=report.id,
+                    event="ASSIGNED",
+                    actor_type="DEPARTMENT",
+                    actor_id=actor.id,
+                    note=(
+                        f"Inspection {inspection.reference_no} assigned to "
+                        f"{inspector.full_name}"
+                        + (f" — {note.strip()}" if note and note.strip() else "")
+                    ),
+                )
+            )
+            self._audit.record(
+                db,
+                event_type=AuditEventType.COMPLAINT_ASSIGNED,
+                entity_type="citizen_report",
+                entity_id=report.id,
+                actor_id=actor.id,
+                inspection_id=inspection.id,
+                payload={
+                    "reference": report.reference,
+                    "inspectorName": inspector.full_name,
+                    "via": "inspection_assignment",
+                },
+            )
+            db.add(report)
+
+        db.commit()
+        return self.get(db, inspection.id)
 
     # --- Create ------------------------------------------------------------
 

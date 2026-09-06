@@ -1,0 +1,209 @@
+/* ========================================================================== */
+/* UI-09 — Search, history & operational intelligence                          */
+/* Global search palette, inspection timeline, product repository gallery.     */
+/* Every visual follows the existing METRASIGHT system: deep navy surfaces,    */
+/* light blue accent, semantic tones.                                          */
+/* ========================================================================== */
+
+/* --- Global search palette (TopBar) ---------------------------------------- */
+.gsearch {
+  position: relative;
+  margin-left: auto;
+  width: min(380px, 34vw);
+}
+.gsearch__panel {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  left: 0;
+  right: 0;
+  max-height: 60vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border: var(--border-width) solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-topbar);
+}
+.gsearch__group + .gsearch__group {
+  border-top: var(--border-width) solid var(--border);
+}
+.gsearch__group-head {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  background: var(--surface-2);
+  position: sticky;
+  top: 0;
+}
+.gsearch__hit {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text);
+  text-decoration: none;
+}
+.gsearch__hit:hover,
+.gsearch__hit:focus-visible {
+  background: var(--surface-2);
+}
+.gsearch__hit-title {
+  font-weight: var(--fw-semibold);
+  overflow-wrap: anywhere;
+}
+.gsearch__hit-meta {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+.gsearch__foot {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  border-top: var(--border-width) solid var(--border);
+}
+
+/* --- Inspection history timeline ------------------------------------------- */
+.htimeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.htimeline__item {
+  position: relative;
+  display: flex;
+  gap: var(--space-3);
+}
+.htimeline__item::before {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: 18px;
+  bottom: calc(var(--space-4) * -1);
+  width: 2px;
+  background: var(--border);
+}
+.htimeline__item:last-child::before {
+  display: none;
+}
+.htimeline__dot {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  border-radius: 50%;
+  border: 2px solid var(--tone-info);
+  background: var(--surface-2);
+}
+.htimeline__dot--decision {
+  border-color: var(--tone-positive);
+  background: color-mix(in srgb, var(--tone-positive) 18%, var(--surface-2));
+}
+.htimeline__dot--report {
+  border-color: var(--accent-strong);
+  background: color-mix(in srgb, var(--accent-strong) 18%, var(--surface-2));
+}
+.htimeline__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.htimeline__label {
+  font-weight: var(--fw-semibold);
+}
+.htimeline__meta {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+/* --- Product repository ----------------------------------------------------- */
+.pgallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: var(--space-3);
+}
+.pgallery__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--surface-2);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  color: var(--text);
+}
+.pgallery__card:hover,
+.pgallery__card:focus-visible {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface-2));
+}
+.pgallery__thumb {
+  display: grid;
+  place-items: center;
+  height: 84px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-3);
+  color: var(--text-faint);
+}
+.pgallery__name {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  overflow-wrap: anywhere;
+}
+.pgallery__meta {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+.pgallery__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* --- Analytics pipeline (stage rows) ---------------------------------------- */
+.pipeline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.pipeline__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+}
+.pipeline__track {
+  position: relative;
+  height: 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.pipeline__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--accent);
+  border-radius: var(--radius-sm);
+}
+.pipeline__label {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+.pipeline__count {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--fw-semibold);
+}

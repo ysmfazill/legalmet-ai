@@ -6,47 +6,63 @@
  * (packages/config/src/domain.ts) map 1:1 to the `--tone-*` custom properties
  * here; components must reference tokens, never hard-coded values.
  *
+ * VISUAL IDENTITY — professional white + brown (government / legal metrology):
+ * precise, trustworthy, official, modern, calm, evidence-driven. Warm neutrals
+ * with a restrained brown primary; status colours are muted, never neon.
+ *
  * Semantic status colour language (fixed for the whole product):
  *   GREEN  = Compliant            AMBER = Review required
  *   RED    = Potential violation  BLUE  = Info / evidence
  *   GRAY   = Neutral / not applicable
  */
 :root {
-  color-scheme: dark;
+  color-scheme: light;
+
+  /* --- Brand palette (raw, referenced by the semantic tokens below) ------- */
+  --brand-brown: #6b4226;      /* primary brown */
+  --brand-brown-secondary: #8b5e3c;
+  --brand-brown-dark: #3e2a1f;
+  --brand-brown-soft: #f0e8e0;
 
   /* --- Base surfaces & text ------------------------------------------------ */
-  --bg: #090d1a;
-  --bg-elevated: #0d1424;
-  --surface: #121a2e;
-  --surface-2: #18223b;
-  --surface-3: #1f2b49;
-  --surface-hover: #1c2842;
-  --border: #26324c;
-  --border-strong: #33436a;
-  --border-subtle: #1c2740;
+  --bg: #f8f6f2;               /* warm app background */
+  --bg-elevated: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f6f3ee;        /* warm secondary surface */
+  --surface-3: #efe9e1;        /* warm tertiary surface */
+  --surface-hover: #f1ece5;
+  --border: #e5ded6;           /* warm border */
+  --border-strong: #d3c8bc;
+  --border-subtle: #efeae3;
 
-  --text: #e8edf7;
-  --text-muted: #97a4bd;
-  --text-faint: #6c7a96;
-  --text-inverse: #0a0f1e;
+  --text: #2b211b;             /* primary text — dark warm brown-black */
+  --text-strong: #3e2a1f;      /* darkest text for emphasis (was undefined) */
+  --text-muted: #756a62;       /* secondary text */
+  --text-faint: #a69a91;       /* muted */
+  --text-inverse: #ffffff;     /* text on accent/dark surfaces */
 
-  --accent: #4c7dff;
-  --accent-strong: #6a93ff;
-  --accent-soft: rgba(76, 125, 255, 0.14);
-  --focus-ring: rgba(106, 147, 255, 0.65);
+  /* --- Primary (brown) ----------------------------------------------------- */
+  --accent: #6b4226;           /* primary brown */
+  --accent-strong: #8b5e3c;    /* hover / secondary brown */
+  --accent-dark: #3e2a1f;      /* pressed / dark brown */
+  --accent-soft: rgba(107, 66, 38, 0.09);
+  --focus-ring: rgba(139, 94, 60, 0.55);
+  --text-on-accent: #ffffff;   /* text on brown surfaces */
+  --overlay: rgba(43, 33, 27, 0.45); /* scrims, modals, image captions */
 
   /* --- Semantic status tones (map 1:1 to config `Tone`) -------------------- */
-  --tone-positive: #34d399;
-  --tone-warning: #f5b544;
-  --tone-critical: #ff5f6e;
-  --tone-neutral: #8b97ad;
-  --tone-info: #4c7dff;
+  /* Restrained, professional; readable on white at small sizes. */
+  --tone-positive: #2e7d4f;    /* restrained green  — compliant */
+  --tone-warning: #a16207;     /* restrained amber  — review required */
+  --tone-critical: #b3362b;    /* restrained red    — potential violation */
+  --tone-neutral: #756a62;     /* warm neutral      — N/A */
+  --tone-info: #3d6a8e;        /* restrained steel blue — info / evidence */
 
-  --tone-positive-soft: rgba(52, 211, 153, 0.14);
-  --tone-warning-soft: rgba(245, 181, 68, 0.14);
-  --tone-critical-soft: rgba(255, 95, 110, 0.14);
-  --tone-neutral-soft: rgba(139, 151, 173, 0.14);
-  --tone-info-soft: rgba(76, 125, 255, 0.14);
+  --tone-positive-soft: rgba(46, 125, 79, 0.10);
+  --tone-warning-soft: rgba(161, 98, 7, 0.10);
+  --tone-critical-soft: rgba(179, 54, 43, 0.10);
+  --tone-neutral-soft: rgba(117, 106, 98, 0.10);
+  --tone-info-soft: rgba(61, 106, 142, 0.10);
 
   /* Compliance status aliases (readability at call sites) */
   --status-compliant: var(--tone-positive);
@@ -56,12 +72,12 @@
   --status-info: var(--tone-info);
 
   /* --- Risk scale ---------------------------------------------------------- */
-  --risk-high: #ff5f6e;
-  --risk-medium: #f5b544;
-  --risk-low: #38bdf8;
-  --risk-high-soft: rgba(255, 95, 110, 0.16);
-  --risk-medium-soft: rgba(245, 181, 68, 0.16);
-  --risk-low-soft: rgba(56, 189, 248, 0.16);
+  --risk-high: #b3362b;
+  --risk-medium: #a16207;
+  --risk-low: #3d6a8e;
+  --risk-high-soft: rgba(179, 54, 43, 0.10);
+  --risk-medium-soft: rgba(161, 98, 7, 0.10);
+  --risk-low-soft: rgba(61, 106, 142, 0.10);
 
   /* --- Confidence bands ---------------------------------------------------- */
   --confidence-high: var(--tone-positive);
@@ -79,7 +95,7 @@
   --fs-lg: 16px;
   --fs-xl: 19px;
   --fs-2xl: 23px;
-  --fs-3xl: 30px;
+  --fs-3xl: 28px;
 
   --fw-regular: 400;
   --fw-medium: 500;
@@ -101,19 +117,19 @@
   --space-8: 40px;
   --space-9: 56px;
 
-  /* --- Radius -------------------------------------------------------------- */
-  --radius: 10px; /* legacy alias */
+  /* --- Radius (enterprise: small, precise) --------------------------------- */
+  --radius: 8px; /* legacy alias */
   --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
   --radius-pill: 999px;
 
-  /* --- Borders & shadows --------------------------------------------------- */
+  /* --- Borders & shadows (light, minimal) --------------------------------- */
   --border-width: 1px;
-  --shadow-sm: 0 1px 2px rgba(3, 7, 18, 0.4);
-  --shadow-md: 0 6px 20px rgba(3, 7, 18, 0.45);
-  --shadow-lg: 0 18px 48px rgba(3, 7, 18, 0.55);
+  --shadow-sm: 0 1px 2px rgba(43, 33, 27, 0.06);
+  --shadow-md: 0 4px 14px rgba(43, 33, 27, 0.08);
+  --shadow-lg: 0 12px 32px rgba(43, 33, 27, 0.12);
   --shadow-focus: 0 0 0 3px var(--focus-ring);
 
   /* --- Motion -------------------------------------------------------------- */
@@ -129,6 +145,25 @@
   --z-modal: 70;
   --z-topbar: 40;
   --z-sidebar: 45;
+}
+
+/* --- Requested semantic aliases (design-contract tokens) ------------------
+ * Kept 1:1 with the tokens above so both naming conventions stay valid. */
+:root {
+  --color-primary: var(--accent);
+  --color-primary-hover: var(--accent-strong);
+  --color-primary-dark: var(--accent-dark);
+  --color-secondary: var(--brand-brown-secondary);
+  --color-background: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-warm: var(--surface-2);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-muted-strong: var(--text-faint);
+  --color-success: var(--tone-positive);
+  --color-warning: var(--tone-warning);
+  --color-danger: var(--tone-critical);
 }
 
 @media (prefers-reduced-motion: reduce) {

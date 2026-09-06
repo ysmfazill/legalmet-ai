@@ -185,6 +185,12 @@ def auditor_headers(client: TestClient) -> dict[str, str]:
     return {"Authorization": f"Bearer {_login(client, AUDITOR_EMAIL, INSPECTOR_PASSWORD)}"}
 
 
+@pytest.fixture()
+def supervisor_headers(client: TestClient) -> dict[str, str]:
+    # Supervisor is seeded with the inspector demo password (UI-05 assignment).
+    return {"Authorization": f"Bearer {_login(client, SUPERVISOR_EMAIL, INSPECTOR_PASSWORD)}"}
+
+
 # --- End-to-end flow helper ------------------------------------------------
 
 # A valid 1x1 PNG. Its pixels are irrelevant — the foundation-phase perception

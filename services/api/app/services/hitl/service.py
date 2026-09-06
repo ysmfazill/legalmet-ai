@@ -587,7 +587,11 @@ class HitlService:
                 "A reason is mandatory when changing an existing decision."
             )
 
-        # --- decision gate (Phase 13) ------------------------------------------
+        # --- decision gate (Phase 13 + UI-06) ----------------------------------
+        # Two kinds of blockers, both human-resolvable:
+        #   * unresolved CRITICAL/MAJOR findings, and
+        #   * open REQUIRED verification tasks (an AI RECOMMENDED task never
+        #     blocks — the system must distinguish REQUIRED from suggested).
         blockers: list[str] = []
         if decision in (
             InspectionDecisionType.COMPLIANT,
@@ -596,8 +600,8 @@ class HitlService:
             blockers = self._decision_blockers(db, inspection_id)
             if blockers:
                 raise ConflictError(
-                    "Critical findings remain unresolved — resolve them (or "
-                    "record REQUIRES_FURTHER_REVIEW) before recording a final "
+                    "Unresolved blockers remain — resolve them (or record "
+                    "REQUIRES_FURTHER_REVIEW) before recording a final "
                     "decision. Blockers: " + "; ".join(blockers)
                 )
 
@@ -745,9 +749,14 @@ class HitlService:
             list(latest_eval.findings) if latest_eval else []
         )
         counts = self._review_counts(db, inspection_id, findings=findings)
-        blockers = self._decision_blockers(
+        finding_blockers = self._decision_blockers(
             db, inspection_id, findings=findings
         )
+        verification_counts = self._verification_counts(db, inspection_id)
+        verification_blockers = self._required_verification_blockers(
+            db, inspection_id
+        )
+        blockers = finding_blockers + verification_blockers
         decision = self.latest_decision(db, inspection_id)
         return {
             "inspection_id": inspection_id,
@@ -759,10 +768,14 @@ class HitlService:
             "overridden": counts["overridden"],
             "escalated": counts["escalated"],
             "unreviewed": counts["unreviewed"],
-            "critical_unresolved": len(blockers),
+            "critical_unresolved": len(finding_blockers),
             "decision": decision,
             "decision_allowed": not blockers,
             "decision_blockers": blockers,
+            "verification_total": verification_counts["total"],
+            "verification_open_required": verification_counts["open_required"],
+            "verification_in_progress": verification_counts["in_progress"],
+            "verification_completed": verification_counts["completed"],
         }
 
     # --------------------------------------------------------------- internals
@@ -859,6 +872,86 @@ class HitlService:
                     f"Finding {finding.id} ({finding.severity}, status "
                     f"{finding.status}) is {state}"
                 )
+        # UI-06: open REQUIRED verification tasks also block. RECOMMENDED
+        # tasks never do — an AI recommendation is not a legal obligation.
+        blockers.extend(self._required_verification_blockers(db, inspection_id))
+        return blockers
+
+    @staticmethod
+    def _verification_counts(
+        db: Session, inspection_id: uuid.UUID
+    ) -> dict[str, int]:
+        """UI-06 verification-task counts for the review-status payload."""
+        from app.core.enums import VerificationTaskStatus
+        from app.models import VerificationTask
+
+        rows = db.execute(
+            select(VerificationTask.status, func.count())
+            .where(VerificationTask.inspection_id == inspection_id)
+            .group_by(VerificationTask.status)
+        ).all()
+        by_status = {status: count for status, count in rows}
+        total = sum(by_status.values())
+        open_required = (
+            db.execute(
+                select(func.count())
+                .select_from(VerificationTask)
+                .where(
+                    VerificationTask.inspection_id == inspection_id,
+                    VerificationTask.requirement_level == "REQUIRED",
+                    VerificationTask.status.in_(
+                        [
+                            VerificationTaskStatus.PENDING.value,
+                            VerificationTaskStatus.IN_PROGRESS.value,
+                        ]
+                    ),
+                )
+            ).scalar_one()
+            or 0
+        )
+        return {
+            "total": total,
+            "open_required": open_required,
+            "in_progress": by_status.get(
+                VerificationTaskStatus.IN_PROGRESS.value, 0
+            ),
+            "completed": by_status.get(
+                VerificationTaskStatus.COMPLETED.value, 0
+            ),
+        }
+
+    @staticmethod
+    def _required_verification_blockers(
+        db: Session, inspection_id: uuid.UUID
+    ) -> list[str]:
+        """Open REQUIRED verification tasks, as gate messages.
+
+        Queried directly on the model (not via VerificationService) so the
+        decision gate has no service-dependency wiring and can never be
+        bypassed by leaving a service unwired.
+        """
+        from app.core.enums import VerificationTaskStatus
+        from app.models import VerificationTask
+
+        blockers: list[str] = []
+        for task in db.execute(
+            select(VerificationTask)
+            .where(
+                VerificationTask.inspection_id == inspection_id,
+                VerificationTask.requirement_level == "REQUIRED",
+                VerificationTask.status.in_(
+                    [
+                        VerificationTaskStatus.PENDING.value,
+                        VerificationTaskStatus.IN_PROGRESS.value,
+                    ]
+                ),
+            )
+            .order_by(VerificationTask.created_at.asc())
+        ).scalars():
+            blockers.append(
+                f"Required verification task {task.id} ({task.task_type}) is "
+                f"{task.status}"
+            )
         return blockers
 
     @staticmethod

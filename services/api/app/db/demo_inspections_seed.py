@@ -44,6 +44,7 @@ from app.core.enums import (
     CaptureSource,
     ImageType,
     InspectionDecisionType,
+    InspectionStatus,
     UserRole,
 )
 from app.core.errors import AppError
@@ -220,6 +221,14 @@ def _seed_one(
     # REAL audit trail (inspection created, image uploaded, perception run,
     # evaluation, finding reviews, decision) — the demo set is identifiable by
     # reference_no and is_demo.
+    # The seeding drives the services directly (not the HTTP endpoints that
+    # own the READY_FOR_ANALYSIS → ANALYZING → ANALYZED transitions), so bring
+    # the inspection status to its honest terminal state here: perception ran
+    # and the engine evaluated — that IS "analyzed". Reports are deliberately
+    # NOT seeded (the on-stage demo generates + finalizes one live).
+    db.expire_all()
+    inspection = db.get(Inspection, inspection.id)
+    inspection.status = InspectionStatus.ANALYZED.value
     db.commit()
     return (
         f"complete: runs={sorted(statuses)}, findings={len(findings)}, "

@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
-import { INSPECTION_STATUS_META } from '@legalmet/config';
+import { FIELD_TYPE_LABELS, INSPECTION_STATUS_META } from '@legalmet/config';
 import type { Tone } from '@legalmet/config';
-import type { Inspection, PackageImage } from '@legalmet/types';
+import type { Inspection, PackageImage, SourceComplaint } from '@legalmet/types';
 
-import { api } from '../api/client';
+import { api, ApiClientError } from '../api/client';
 import { useApp } from '../app/AppContext';
 import {
+  Badge,
+  DemoBadge,
   ImageProcessingBadge,
   ImageQualityGradeBadge,
   InspectionStatusBadge,
@@ -20,8 +22,12 @@ import { EvidenceViewer } from '../components/EvidenceViewer';
 import { FindingCard } from '../components/FindingCard';
 import { Icon } from '../components/Icon';
 import { PageHeader } from '../components/PageHeader';
-import { AsyncView, EmptyState } from '../components/states';
+import { AsyncView, EmptyState, ErrorState } from '../components/states';
 import { useAsync } from '../data/useAsync';
+import {
+  COMPLAINT_RISK_META,
+  COMPLAINT_STATUS_META as COMPLAINT_STATUS_LABELS,
+} from '../lib/complaintStatus';
 import {
   ComplianceControlCard,
   ComplianceFindingsCard,
@@ -32,6 +38,7 @@ import { FinalDecisionCard } from '../hitl/FinalDecisionCard';
 import { useHitl } from '../hitl/useHitl';
 import { EvidenceTraceCard } from '../evidence/EvidenceTraceCard';
 import { QualityReadout } from '../intake/QualityReadout';
+import { useObjectUrl } from '../intake/useObjectUrl';
 import { FieldEvidenceDrawer } from '../perception/FieldEvidenceDrawer';
 import {
   PerceptionControlCard,
@@ -40,6 +47,12 @@ import {
 } from '../perception/PerceptionPanel';
 import { PerceptionViewer } from '../perception/PerceptionViewer';
 import { usePerception } from '../perception/usePerception';
+import { EvidencePlanner } from '../evidence/EvidencePlanner';
+import type { EvidencePlanRow } from '../evidence/EvidencePlanner';
+import { EvidencePlannerLive } from '../evidence/EvidencePlannerLive';
+import { EvidenceTimelineCard } from '../evidence/EvidenceTimelineCard';
+import { PhysicalVerificationCard } from '../evidence/PhysicalVerificationCard';
+import { LotIntelligenceCard } from '../lot/LotIntelligenceCard';
 import { formatBytes, formatDateTime, humanizeEnum } from '../lib/format';
 import { toneColor, toneSoft } from '../lib/tone';
 import { mockApi } from '../mock/adapter';
@@ -140,7 +153,10 @@ function NoWorkspace() {
 /* a compliance verdict — the strongest statement available is                */
 /* "awaiting regulatory evaluation".                                          */
 /* -------------------------------------------------------------------------- */
-function RealInspectionWorkspace({ inspection }: { inspection: Inspection }) {
+function RealInspectionWorkspace({ inspection: initial }: { inspection: Inspection }) {
+  // UI-05: assignment updates the inspector in place — keep a local copy so
+  // the header, the assign card and the source brief stay consistent.
+  const [inspection, setInspection] = useState<Inspection>(initial);
   const images = inspection.packages?.flatMap((p) => p.images ?? []) ?? [];
   const statusMeta = INSPECTION_STATUS_META[inspection.status];
   const isReady = inspection.status === 'READY_FOR_ANALYSIS';
@@ -168,6 +184,9 @@ function RealInspectionWorkspace({ inspection }: { inspection: Inspection }) {
 
   const compliance = useCompliance(inspection.id, hasRuns);
   const hitl = useHitl(inspection.id, hasRuns);
+  // UI-07 — bumped after every verification write so the physical-verification
+  // history and the lot read models reload alongside the planner.
+  const [verificationVersion, setVerificationVersion] = useState(0);
   const openFinding =
     compliance.findings.find((f) => f.id === openFindingId) ?? null;
 
@@ -227,6 +246,13 @@ function RealInspectionWorkspace({ inspection }: { inspection: Inspection }) {
           <span>Could not load perception data: {perception.error}</span>
         </div>
       )}
+
+      {/* UI-05 — the inspection brief: why this targeted inspection exists,
+          with the immutable citizen evidence it originated from. */}
+      {inspection.sourceComplaint && <SourceComplaintCard inspection={inspection} />}
+
+      {/* UI-05 — department assignment (SUPERVISOR/ADMIN; backend-enforced). */}
+      <AssignInspectorCard inspection={inspection} onAssigned={setInspection} />
 
       {images.length === 0 ? (
         <Card>
@@ -313,12 +339,40 @@ function RealInspectionWorkspace({ inspection }: { inspection: Inspection }) {
                   evaluationId={compliance.evaluation?.id ?? null}
                   hasEvaluation={Boolean(compliance.evaluation)}
                 />
+                {/* UI-06 — the LIVE evidence planner: what exists, what is
+                    missing, and which inspector action closes the gap. The
+                    plan is computed by the backend from real rows only. */}
+                <EvidencePlannerLive
+                  inspectionId={inspection.id}
+                  enabled={hasRuns}
+                  onChanged={() => {
+                    void hitl.reload();
+                    setVerificationVersion((v) => v + 1);
+                  }}
+                />
+                {/* UI-07 §31 — the verification layering:
+                    FINDINGS → EVIDENCE PLANNER → PHYSICAL VERIFICATION →
+                    LOT INTELLIGENCE → FINAL REVIEW. */}
+                <PhysicalVerificationCard
+                  inspectionId={inspection.id}
+                  enabled={hasRuns}
+                  refreshKey={verificationVersion}
+                />
+                <LotIntelligenceCard
+                  inspectionId={inspection.id}
+                  enabled={hasRuns}
+                  refreshKey={verificationVersion}
+                />
                 <FinalDecisionCard
                   hitl={hitl}
                   hasFindings={compliance.findings.length > 0}
                 />
               </>
             )}
+
+            {/* UI-06 — the append-only evidence timeline. Real server
+                timestamps only; visible from inspection creation. */}
+            <EvidenceTimelineCard inspectionId={inspection.id} />
 
             <PerceptionRunHistoryCard
               runs={perception.runs}
@@ -349,6 +403,355 @@ function RealInspectionWorkspace({ inspection }: { inspection: Inspection }) {
         />
       )}
     </>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* UI-05 — SOURCE COMPLAINT BRIEF                                              */
+/* The immutable citizen evidence behind a targeted inspection. Everything in  */
+/* this card is SOURCE MATERIAL submitted by the citizen: a suspected issue to */
+/* verify, never an official finding. The inspector's own images stay in the  */
+/* normal workflow below, clearly separate from this evidence.                */
+/* -------------------------------------------------------------------------- */
+
+/** evidence.imageUrl is an app-relative `/api/v1/storage/{key}` URL; the
+ * bearer-authed fetcher wants the bare storage key. */
+function sourceStorageKeyFromUrl(url: string): string {
+  return url.replace(/^\/api\/v1\/storage\//, '');
+}
+
+function SourceEvidenceImage({ url, small }: { url: string; small?: boolean }) {
+  const state = useObjectUrl(sourceStorageKeyFromUrl(url));
+  if (state.status === 'loading') return <p className="cell-muted">Loading photo…</p>;
+  if (state.status === 'error') return <p className="cell-muted">{state.message}</p>;
+  return (
+    <a
+      href={state.url}
+      target="_blank"
+      rel="noreferrer"
+      className={`complaint-photo${small ? ' complaint-photo--sm' : ''}`}
+    >
+      <img src={state.url} alt="Source evidence photo submitted by the citizen" />
+    </a>
+  );
+}
+
+function SourceComplaintCard({ inspection }: { inspection: Inspection }) {
+  const query = useAsync(() => api.getInspectionSourceComplaint(inspection.id), [inspection.id]);
+  const ref = inspection.sourceComplaint!;
+
+  return (
+    <Card>
+      <CardHead
+        eyebrow="Inspection brief"
+        title={`Source complaint ${ref.reference}`}
+        subtitle="This inspection originated from a citizen complaint. The evidence below is what the citizen submitted — source material to verify, not an official finding."
+        actions={
+          <Link to={`/complaints/${ref.id}`} className="btn btn--subtle btn--sm">
+            <Icon name="complaints" size={14} />
+            Open complaint
+          </Link>
+        }
+      />
+      <CardBody>
+        {query.status === 'error' ? (
+          <ErrorState
+            title="Source complaint unavailable"
+            error={query.error}
+            onRetry={query.reload}
+          />
+        ) : query.status === 'loading' ? (
+          <p className="cell-muted">Loading the source complaint…</p>
+        ) : (
+          <SourceComplaintBrief brief={query.data} />
+        )}
+      </CardBody>
+    </Card>
+  );
+}
+
+function SourceComplaintBrief({ brief }: { brief: SourceComplaint }) {
+  const followUps = brief.evidence?.citizenFollowUps ?? [];
+  const detectedFields = brief.evidence?.detectedFields ?? [];
+  const priority = brief.officialPriority ?? brief.screeningRisk;
+  const statusMeta = COMPLAINT_STATUS_LABELS[brief.status];
+
+  return (
+    <div className="grid grid--2">
+      {/* Left — the brief itself */}
+      <div>
+        <dl className="kv">
+          <dt>Complaint</dt>
+          <dd className="cell-mono">{brief.reference}</dd>
+          <dt>Reported concern</dt>
+          <dd>{brief.issue}</dd>
+          <dt>Product</dt>
+          <dd>{brief.product}</dd>
+          {brief.shop && (
+            <>
+              <dt>Shop</dt>
+              <dd>{brief.shop}</dd>
+            </>
+          )}
+          <dt>Location</dt>
+          <dd>{brief.location ?? '—'}</dd>
+          <dt>Submitted</dt>
+          <dd>{formatDateTime(brief.createdAt)}</dd>
+          <dt>Priority</dt>
+          <dd>
+            {priority ? (
+              <Badge tone={COMPLAINT_RISK_META[priority]?.tone} outline>
+                {priority} ({brief.officialPriority ? 'official decision' : 'system screening'})
+              </Badge>
+            ) : (
+              'Not assessed'
+            )}
+          </dd>
+          <dt>Department action</dt>
+          <dd>
+            {statusMeta ? (
+              <Badge tone={statusMeta.tone} dot>{statusMeta.label}</Badge>
+            ) : (
+              brief.status
+            )}
+          </dd>
+          {brief.assignedInspectorName && (
+            <>
+              <dt>Assigned inspector</dt>
+              <dd>{brief.assignedInspectorName}</dd>
+            </>
+          )}
+        </dl>
+        {brief.description && (
+          <div className="complaint-followup" style={{ marginTop: 'var(--space-3)' }}>
+            <div className="cell-muted" style={{ fontSize: 'var(--fs-xs)' }}>
+              Citizen&rsquo;s description
+            </div>
+            <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{brief.description}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Right — the immutable source evidence */}
+      <div>
+        <h3 className="cell-strong" style={{ margin: '0 0 var(--space-2)' }}>
+          Source complaint evidence
+        </h3>
+        <p className="cell-muted" style={{ fontSize: 'var(--fs-sm)', margin: 0 }}>
+          Citizen-submitted at report time and never modified. These are readings and photos from
+          the citizen — <strong>not official findings</strong>. Anything the inspector verifies is
+          added as new inspection evidence in the workflow below.
+        </p>
+        {brief.evidence?.imageUrl && (
+          <div style={{ marginTop: 'var(--space-3)' }}>
+            <SourceEvidenceImage url={brief.evidence.imageUrl} />
+          </div>
+        )}
+        {detectedFields.length > 0 && (
+          <>
+            <h4 className="cell-strong" style={{ margin: 'var(--space-4) 0 var(--space-2)', fontSize: 'var(--fs-sm)' }}>
+              Declarations read from the citizen&rsquo;s photo
+            </h4>
+            <ul className="complaint-fields">
+              {detectedFields.map((f, i) => (
+                <li key={i} className="complaint-fields__row">
+                  <span className="complaint-fields__label">{f.label}</span>
+                  <span className={f.status === 'NOT_EXTRACTED' ? 'cell-muted' : 'cell-strong'}>
+                    {f.status === 'NOT_EXTRACTED' ? 'not read' : (f.normalizedValue ?? f.rawText ?? '—')}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+        {followUps.length > 0 && (
+          <>
+            <h4 className="cell-strong" style={{ margin: 'var(--space-4) 0 var(--space-2)', fontSize: 'var(--fs-sm)' }}>
+              Citizen responses
+            </h4>
+            <ul className="stack stack--sm">
+              {followUps.map((f, i) => (
+                <li key={i} className="complaint-followup">
+                  <div className="cell-muted" style={{ fontSize: 'var(--fs-xs)' }}>
+                    {formatDateTime(f.at)}
+                    {f.location ? ` · ${f.location}` : ''}
+                  </div>
+                  <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{f.message}</p>
+                  {f.imageUrl && <SourceEvidenceImage url={f.imageUrl} small />}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* UI-05 — ASSIGN INSPECTOR (department act)                                   */
+/* SUPERVISOR/ADMIN only — the backend enforces the same rule. Moving away     */
+/* from a formally assigned inspector requires an explicit reassignment        */
+/* confirmation; finalized inspections cannot be assigned at all.              */
+/* -------------------------------------------------------------------------- */
+
+const ASSIGN_ROLES = ['SUPERVISOR', 'ADMIN'];
+
+function AssignInspectorCard({
+  inspection,
+  onAssigned,
+}: {
+  inspection: Inspection;
+  onAssigned: (inspection: Inspection) => void;
+}) {
+  const { user } = useApp();
+  const canAssign = ASSIGN_ROLES.includes(user.role);
+  const finalized = inspection.status === 'COMPLETED' || inspection.status === 'ARCHIVED';
+
+  const inspectors = useAsync(() => (canAssign && !finalized ? api.complaintInspectors() : Promise.resolve([])), [
+    canAssign,
+    finalized,
+  ]);
+  const [inspectorId, setInspectorId] = useState('');
+  const [note, setNote] = useState('');
+  const [confirmReassign, setConfirmReassign] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  if (!canAssign) return null;
+
+  async function submit() {
+    if (!inspectorId) {
+      setError('Choose an inspector to assign.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const updated = await api.assignInspection(inspection.id, {
+        inspectorId,
+        note: note.trim() || undefined,
+        reassign: confirmReassign || undefined,
+      });
+      onAssigned(updated);
+      setNotice(
+        `Inspector assigned — ${updated.inspectorName ?? 'inspector'}. The assignment is audited and the source complaint (if any) is kept in sync.`,
+      );
+      setInspectorId('');
+      setNote('');
+      setConfirmReassign(false);
+    } catch (err) {
+      setError(
+        err instanceof ApiClientError
+          ? err.message
+          : 'The assignment could not be applied. Check your connection and try again.',
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHead
+        eyebrow="Department action"
+        title="Assign inspector"
+        subtitle={
+          finalized
+            ? 'This inspection is finalized — no further assignment is possible.'
+            : 'Assignment is a department act (supervisor/admin). It is audited and keeps the source complaint in sync.'
+        }
+      />
+      <CardBody>
+        <dl className="kv">
+          <dt>Current inspector</dt>
+          <dd>{inspection.inspectorName ?? 'Not formally assigned'}</dd>
+        </dl>
+
+        {finalized ? (
+          <p className="cell-muted" style={{ margin: 0 }}>
+            The inspection is {humanizeEnum(inspection.status).toLowerCase()} — the inspector record
+            is frozen with the rest of the evidence chain.
+          </p>
+        ) : (
+          <div className="stack" style={{ marginTop: 'var(--space-3)' }}>
+            {notice && (
+              <div className="demo-note demo-note--block" role="status">
+                <Icon name="check" size={15} />
+                <span>{notice}</span>
+              </div>
+            )}
+            {error && (
+              <div className="demo-note demo-note--block demo-note--error" role="alert">
+                <Icon name="alert" size={15} />
+                <span>{error}</span>
+              </div>
+            )}
+            <div className="field">
+              <label className="field__label" htmlFor="assign-insp-select">
+                Inspector
+              </label>
+              <select
+                id="assign-insp-select"
+                className="input"
+                value={inspectorId}
+                onChange={(e) => setInspectorId(e.target.value)}
+                disabled={busy}
+              >
+                <option value="">Choose an inspector…</option>
+                {(inspectors.data ?? []).map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.fullName} ({u.role.toLowerCase()})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label className="field__label" htmlFor="assign-insp-note">
+                Department note (optional, audited)
+              </label>
+              <textarea
+                id="assign-insp-note"
+                className="input"
+                rows={2}
+                maxLength={2000}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="e.g. Verify the MRP marking in person at the reported shop"
+                disabled={busy}
+              />
+            </div>
+            {inspection.inspectorName && (
+              <label
+                className="row"
+                style={{ gap: 6, fontSize: 'var(--fs-sm)', cursor: 'pointer' }}
+                title="Moving the inspection away from the currently assigned inspector"
+              >
+                <input
+                  type="checkbox"
+                  checked={confirmReassign}
+                  onChange={(e) => setConfirmReassign(e.target.checked)}
+                  disabled={busy}
+                />
+                Confirm reassignment — replace {inspection.inspectorName}
+              </label>
+            )}
+            <div>
+              <button
+                type="button"
+                className="btn btn--primary"
+                onClick={() => void submit()}
+                disabled={busy}
+              >
+                {busy ? <span className="spinner" aria-hidden /> : <Icon name="user" size={15} />}
+                Assign inspector
+              </button>
+            </div>
+          </div>
+        )}
+      </CardBody>
+    </Card>
   );
 }
 
@@ -430,6 +833,18 @@ function Workspace({ detail }: { detail: InspectionDetail }) {
   const [reviewedIds, setReviewedIds] = useState<Set<string>>(new Set());
 
   const counts = countsFrom(findings);
+
+  // Demo mirror of the live evidence plan: declared values are read from the
+  // label; measured values stay honestly NOT VERIFIED until an instrument
+  // integration exists. Net quantity always needs a physical measurement.
+  const evidencePlanRows: EvidencePlanRow[] = declarations.map((d) => ({
+    declaration: FIELD_TYPE_LABELS[d.field] ?? d.field,
+    declaredValue: d.value,
+    measuredValue: null,
+    confidence: d.confidence,
+    gaps: d.field === 'NET_QUANTITY' ? (['PHYSICAL_MEASUREMENT'] as const) : [],
+  }));
+
   const breakdown: { label: string; value: number; tone: Tone }[] = [
     { label: 'Compliant', value: counts.compliant, tone: 'positive' },
     { label: 'Review required', value: counts.reviewRequired, tone: 'warning' },
@@ -450,6 +865,7 @@ function Workspace({ detail }: { detail: InspectionDetail }) {
         lead={`${inspection.product?.category ?? '—'} · Inspector ${inspectorName(inspection.inspectorId)}`}
         actions={
           <>
+            <DemoBadge />
             <InspectionStatusBadge status={inspection.status} />
             <Link to="/reports" className="btn btn--subtle btn--sm">
               <Icon name="reports" size={15} />
@@ -562,6 +978,8 @@ function Workspace({ detail }: { detail: InspectionDetail }) {
               ))}
             </div>
           </SectionCard>
+
+          <EvidencePlanner rows={evidencePlanRows} />
         </div>
       </div>
 

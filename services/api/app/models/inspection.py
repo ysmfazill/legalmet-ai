@@ -47,6 +47,16 @@ class Inspection(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     findings = relationship(
         "ComplianceFinding", back_populates="inspection", cascade="all, delete-orphan"
     )
+    # UI-05: the citizen complaint this inspection was targeted from, when the
+    # department converted an accepted complaint (CitizenReport.inspection_id).
+    # View-only reverse of that FK — the complaint row stays the single writer,
+    # so no duplicate relationship or column is introduced.
+    source_complaint = relationship(
+        "CitizenReport",
+        foreign_keys="[CitizenReport.inspection_id]",
+        viewonly=True,
+        uselist=False,
+    )
 
 
 class Package(UUIDPrimaryKeyMixin, TimestampMixin, Base):

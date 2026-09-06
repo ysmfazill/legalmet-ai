@@ -133,3 +133,54 @@ history — perception never silently decides applicability.
   build; confidence numbers are OCR recognition scores, not legal confidence.
 - Language support is English only (as configured and actually tested); Hindi
   and Kannada models exist in PaddleOCR but are **not** enabled or claimed.
+
+---
+
+## 8. UI-09 demo flow — search, history & operational intelligence
+
+Extends §5 with the intelligence layer (see
+`docs/ui-09-search-history-intelligence.md` for the architecture). Every
+number shown is a live database count — nothing is mocked.
+
+1. Stay logged in as **inspector** (or admin). The **global search** box in
+   the top bar is the entry point: type `DEMO` and pause — grouped results
+   appear (Inspections / Complaints / Products / Reports / Findings /
+   Evidence), each linking to its existing detail page.
+2. Search by ID: type a reference like `LM-…` or a product name, a rule code
+   (`LM-PC-2011-6.1(a)`), or an OCR-extracted value — all are searchable,
+   case-insensitive, server-side.
+3. Press **Enter** to land on **Inspection History** (`/history`) with the
+   query applied — note the URL carries the filter
+   (`/history?q=demo`), so it can be bookmarked and shared.
+4. On `/history`: read the KPI cards (Total / Compliant / Non-Compliant /
+   Review Required / Open — all real counts), then apply **Source = Citizen
+   Complaint** + **Result = Non-Compliant** and click **Apply** — the URL
+   changes and the table refilters server-side. Clear with **Clear**.
+5. Click **Timeline** on a row: the drawer shows the recorded chain
+   (created → package captured → OCR processed → findings generated →
+   decision → report) — **only events that actually exist**; missing stages
+   are simply absent, never fabricated.
+6. From a complaint-led row, note the **Establishment** column (the shop from
+   the citizen complaint) and the **Evidence** count (captured images).
+7. Open an inspection from the history table → findings → **Evidence Graph**
+   (§5 step 2) → the **Report** — the whole existing chain still works.
+8. Go to **Product Repository** (`/products`): search `DEMO`, open
+   **DEMO Water** (or any product) → overview, declared-field history,
+   inspection history, repeated findings ("A historical pattern — not a
+   verdict") and the package-image gallery. Read the boundary note: a
+   historical record does not prove current compliance.
+9. Go to **Operational Intelligence** (`/analytics`): KPIs (rates show
+   **N/A** when there is insufficient data, never 0%), the inspection trend
+   (switch day/week/month), outcome distribution, and the
+   **complaint → inspection pipeline** with real stage counts and the real
+   conversion rate.
+10. Still on `/analytics`: evidence completeness (from the Evidence Planner),
+    finding categories (real rule codes), repeated findings (neutral
+    wording), location intelligence (real complaint locations; an honest
+    "not enough data yet" state when locations are sparse), and the
+    [View Reports] / [View Audit Trail] cross-links.
+11. **Role enforcement**: in a private window with no login, hit
+    `http://localhost:8000/api/v1/analytics/operational` → **401**. Citizens
+    use only the anonymous complaint surface and can never reach
+    history/products/analytics — the backend rejects them, no UI hiding
+    involved.

@@ -37,6 +37,13 @@ def _mutating_routes() -> list[tuple[str, str]]:
             continue
         if route.path == "/api/v1/auth/login":  # the one public mutation
             continue
+        # UI-02 — Citizen Mode: anonymous by design. These endpoints run the
+        # read-only screening pipeline (quality + OCR + extraction — the rule
+        # engine is never invoked) and record a suspected-issue report. They
+        # cannot read, list or mutate any inspector/department data, and a
+        # record is reachable only by its unguessable UUID.
+        if route.path.startswith("/api/v1/citizen/"):
+            continue
         path = re.sub(r"\{[^}]+\}", _DUMMY_ID, route.path)
         for method in sorted(methods):
             routes.append((method, path))

@@ -1,0 +1,59 @@
+/* --- Reporting (UI-08) ------------------------------------------------------
+   Report Center + report detail. Three-column detail layout with a sticky
+   right action rail (§18), the finalization gate checklist (§13), and the
+   honest notice/error rows shared by the lifecycle panel. */
+
+.report-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.6fr) minmax(300px, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.report-col {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+/* The action rail stays reachable while the (long) center column scrolls. */
+.report-col--side {
+  position: sticky;
+  top: var(--space-4);
+}
+
+.report-actions .gate {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-2);
+}
+
+.boundary-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--space-4);
+}
+
+@media (max-width: 1280px) {
+  .report-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 1fr);
+  }
+  .report-col--meta {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .report-layout {
+    grid-template-columns: 1fr;
+  }
+  .report-col--meta {
+    grid-template-columns: 1fr;
+  }
+  .report-col--side {
+    position: static;
+  }
+}

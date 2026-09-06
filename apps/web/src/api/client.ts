@@ -18,13 +18,26 @@
  */
 import type {
   ApiError,
+  AssignInspectionRequest,
+  AuditEvent,
   AuthTokenResponse,
   BatchUploadResponse,
   CaptureSource,
+  CitizenReportDetail,
+  CitizenReportRequest,
+  CitizenReportResult,
+  CitizenScanResult,
+  ComplaintDetail,
+  ComplaintListParams,
+  ComplaintStats,
+  ComplaintSummary,
+  ComplaintTransitionRequest,
+  AssignableInspector,
   CreateInspectionRequest,
   CreatePackageRequest,
   DecisionHistory,
   DecisionRequest,
+  DepartmentDashboard,
   EngineFinding,
   EngineInfo,
   EvidenceGraphVocabulary,
@@ -57,8 +70,34 @@ import type {
   RegulatoryRequirementDetail,
   RegulatorySource,
   ReviewStatus,
+  SourceComplaint,
   User,
+  VerificationCreateRequest,
+  VerificationList,
+  VerificationResultRequest,
+  VerificationTask,
+  EvidencePlan,
+  LotCreateRequest,
+  LotDecisionRequest,
+  LotDetail,
+  LotList,
+  MeasurementHistory,
+  SampleGenerateRequest,
+  SamplingRun,
   VersionSelection,
+  ReportAudit,
+  ReportCreateRequest,
+  ReportDetail,
+  ReportEvidencePack,
+  ReportKpis,
+  ReportList,
+  ReportAmendRequest,
+  SearchResults,
+  HistoryPage,
+  InspectionTimeline,
+  ProductSummary,
+  ProductDetail,
+  OperationalAnalytics,
 } from '@legalmet/types';
 
 /** Base URL for all API calls. Dev default is proxied by Vite to the backend. */
@@ -288,6 +327,28 @@ export const api = {
   listInspections: (params: { page?: number; pageSize?: number } = {}): Promise<
     Paginated<Inspection>
   > => request<Paginated<Inspection>>('/inspections' + querySuffix(params)),
+
+  // --- Complaint → targeted inspection (UI-05) -------------------------------
+  /** GET /inspections/:id/source-complaint — the brief + immutable citizen
+   * evidence behind a TARGETED inspection. 404 when the inspection did not
+   * originate from a complaint. */
+  getInspectionSourceComplaint: (inspectionId: string): Promise<SourceComplaint> =>
+    request<SourceComplaint>(`/inspections/${inspectionId}/source-complaint`),
+
+  /**
+   * POST /inspections/:id/assign — SUPERVISOR/ADMIN only (a department act,
+   * enforced by the backend). Assigns the inspector, audits it, and keeps the
+   * source complaint in sync. Moving away from a formally assigned inspector
+   * requires `reassign: true`.
+   */
+  assignInspection: (
+    inspectionId: string,
+    body: AssignInspectionRequest,
+  ): Promise<Inspection> =>
+    request<Inspection>(`/inspections/${inspectionId}/assign`, {
+      method: 'POST',
+      body,
+    }),
 
   // --- real package intake (Prompt 3) --------------------------------------
   createPackage: (inspectionId: string, body: CreatePackageRequest = {}): Promise<Package> =>
@@ -587,6 +648,306 @@ export const api = {
   /** Review progress + the decision gate for one inspection. */
   getReviewStatus: (inspectionId: string): Promise<ReviewStatus> =>
     request<ReviewStatus>(`/inspections/${inspectionId}/review-status`),
+
+  /**
+   * The append-only audit trail for one inspection — the evidence timeline.
+   * Real server timestamps only; the trail cannot be edited by anyone.
+   */
+  getInspectionAudit: (inspectionId: string): Promise<AuditEvent[]> =>
+    request<AuditEvent[]>(`/inspections/${inspectionId}/audit`),
+
+  // --- Evidence Planner + verification (UI-06) ----------------------------------
+  // What evidence exists, what is missing, and which inspector action closes
+  // the gap. Verification tasks are AUTHORISED HUMAN actions only — the
+  // backend enforces roles, the task state machine and the anchor/duplicate
+  // rules. A recorded measurement is EVIDENCE: this client never compares it
+  // to the declared value, and never derives a compliance verdict from it.
+
+  /** GET /inspections/:id/evidence-plan — per finding/declaration: existing
+   *  evidence, open gaps, the verification that closes them. */
+  getEvidencePlan: (inspectionId: string): Promise<EvidencePlan> =>
+    request<EvidencePlan>(`/inspections/${inspectionId}/evidence-plan`),
+
+  /** POST /inspections/:id/verifications — create ONE task (reason mandatory). */
+  createVerification: (
+    inspectionId: string,
+    body: VerificationCreateRequest,
+  ): Promise<VerificationTask> =>
+    request<VerificationTask>(`/inspections/${inspectionId}/verifications`, {
+      method: 'POST',
+      body,
+    }),
+
+  /** GET /inspections/:id/verifications — tasks + append-only results. */
+  listVerifications: (inspectionId: string): Promise<VerificationList> =>
+    request<VerificationList>(`/inspections/${inspectionId}/verifications`),
+
+  /** GET /verifications/:taskId — one task with its result history. */
+  getVerification: (taskId: string): Promise<VerificationTask> =>
+    request<VerificationTask>(`/verifications/${taskId}`),
+
+  /** POST /verifications/:taskId/start — PENDING → IN_PROGRESS (409 otherwise). */
+  startVerification: (taskId: string): Promise<VerificationTask> =>
+    request<VerificationTask>(`/verifications/${taskId}/start`, { method: 'POST' }),
+
+  /**
+   * POST /verifications/:taskId/result — record ONE outcome (append-only).
+   * MEASUREMENT tasks require measuredValue (> 0) and unit. The measured
+   * value is stored SEPARATELY from the declared value; nothing evaluates
+   * the difference — the inspector does.
+   */
+  recordVerificationResult: (
+    taskId: string,
+    body: VerificationResultRequest,
+  ): Promise<VerificationTask> =>
+    request<VerificationTask>(`/verifications/${taskId}/result`, {
+      method: 'POST',
+      body,
+    }),
+
+  /** POST /verifications/:taskId/cancel — reason mandatory. */
+  cancelVerification: (
+    taskId: string,
+    body: { reason: string },
+  ): Promise<VerificationTask> =>
+    request<VerificationTask>(`/verifications/${taskId}/cancel`, {
+      method: 'POST',
+      body,
+    }),
+
+  // --- Physical verification + lot intelligence (UI-07) -----------------------
+  // LOT → PACKAGES → SAMPLE → MEASUREMENTS → EVALUATION → LOT RESULT.
+  // Every write is an AUTHORISED HUMAN action (backend-enforced RBAC); every
+  // read carries observed statistics and honesty labels — this client never
+  // derives a compliance verdict from any of them.
+
+  /** GET /inspections/:id/measurements — the append-only measurement
+   *  history: declared (never overwritten) beside measured, instrument
+   *  metadata, the observed difference and the frozen evaluation. */
+  getMeasurementHistory: (inspectionId: string): Promise<MeasurementHistory> =>
+    request<MeasurementHistory>(`/inspections/${inspectionId}/measurements`),
+
+  /** POST /inspections/:id/lots — create a lot + its package records. The
+   *  declared quantity is stored verbatim and is immutable after creation. */
+  createLot: (inspectionId: string, body: LotCreateRequest): Promise<LotDetail> =>
+    request<LotDetail>(`/inspections/${inspectionId}/lots`, {
+      method: 'POST',
+      body,
+    }),
+
+  /** GET /inspections/:id/lots — lot summaries with progress. */
+  listLots: (inspectionId: string): Promise<LotList> =>
+    request<LotList>(`/inspections/${inspectionId}/lots`),
+
+  /** GET /lots/:lotId — the full lot read model (packages, sampling runs,
+   *  observed statistics, progress). Read-only for any authenticated role. */
+  getLot: (lotId: string): Promise<LotDetail> =>
+    request<LotDetail>(`/lots/${lotId}`),
+
+  /**
+   * POST /lots/:lotId/sample — draw ONE audited, reproducible sample.
+   * Without a configured legal procedure the run is AI-recommended and the
+   * backend requires confirmAiSample (422 otherwise). Never regenerated on
+   * read; never silently replaced after a measurement.
+   */
+  generateLotSample: (lotId: string, body: SampleGenerateRequest): Promise<SamplingRun> =>
+    request<SamplingRun>(`/lots/${lotId}/sample`, {
+      method: 'POST',
+      body,
+    }),
+
+  /**
+   * POST /lots/:lotId/decision — the explicit, evidence-gated lot result.
+   * The backend blocks the submission with "Insufficient evidence" while
+   * sampled packages still lack measurements.
+   */
+  submitLotDecision: (lotId: string, body: LotDecisionRequest): Promise<LotDetail> =>
+    request<LotDetail>(`/lots/${lotId}/decision`, {
+      method: 'POST',
+      body,
+    }),
+
+  // --- Reporting & evidence pack (UI-08) --------------------------------------
+  // Report lifecycle: create → generate (frozen snapshot version) → finalize
+  // (gated) → export (PDF/DOCX) → amend (new version, reason mandatory). All
+  // writes are backend-authorized; the snapshot is the only export input so
+  // later data changes can never rewrite an exported claim.
+
+  /** POST /reports — create the one live report for an inspection. */
+  createReport: (body: ReportCreateRequest): Promise<ReportDetail> =>
+    request<ReportDetail>('/reports', { method: 'POST', body }),
+
+  /** GET /reports — the Report Center list (real DB records only). */
+  listReports: (params: { status?: string; inspectionId?: string; q?: string; page?: number; pageSize?: number } = {}): Promise<ReportList> =>
+    request<ReportList>('/reports' + querySuffix(params)),
+
+  /** GET /reports/kpis — real group-by counts (never fabricated). */
+  reportKpis: (): Promise<ReportKpis> => request<ReportKpis>('/reports/kpis'),
+
+  /** GET /reports/:id — full detail (snapshot + version history). */
+  getReport: (reportId: string): Promise<ReportDetail> =>
+    request<ReportDetail>(`/reports/${reportId}`),
+
+  /** POST /reports/:id/generate — freeze a new snapshot version. */
+  generateReport: (reportId: string, body: { note?: string } = {}): Promise<ReportDetail> =>
+    request<ReportDetail>(`/reports/${reportId}/generate`, { method: 'POST', body }),
+
+  /** POST /reports/:id/review — record the human review step. */
+  reviewReport: (reportId: string, body: { note?: string } = {}): Promise<ReportDetail> =>
+    request<ReportDetail>(`/reports/${reportId}/review`, { method: 'POST', body }),
+
+  /** POST /reports/:id/finalize — the gated finalization. */
+  finalizeReport: (reportId: string, body: { note?: string } = {}): Promise<ReportDetail> =>
+    request<ReportDetail>(`/reports/${reportId}/finalize`, { method: 'POST', body }),
+
+  /** POST /reports/:id/amend — new version; an explained reason is mandatory. */
+  amendReport: (reportId: string, body: ReportAmendRequest): Promise<ReportDetail> =>
+    request<ReportDetail>(`/reports/${reportId}/amend`, { method: 'POST', body }),
+
+  /** GET /reports/:id/evidence-pack — the E-00N evidence bundle. */
+  getEvidencePack: (reportId: string): Promise<ReportEvidencePack> =>
+    request<ReportEvidencePack>(`/reports/${reportId}/evidence-pack`),
+
+  /** GET /reports/:id/audit — the report's lifecycle events. */
+  getReportAudit: (reportId: string): Promise<ReportAudit> =>
+    request<ReportAudit>(`/reports/${reportId}/audit`),
+
+  /**
+   * GET /reports/:id/export/pdf|docx — REAL file download. Fetches the bytes
+   * with the bearer token (a plain <a href> cannot authenticate), hands back
+   * a blob URL the caller must revoke, and surfaces the backend's honest
+   * error strings on failure. On export failure nothing changes — retrying
+   * is always safe.
+   */
+  exportReport: async (
+    reportId: string,
+    format: 'pdf' | 'docx',
+    signal?: AbortSignal,
+  ): Promise<{ url: string; filename: string }> => {
+    const response = await fetch(
+      `${API_BASE_URL}/reports/${reportId}/export/${format}`,
+      { headers: authHeaders(), signal },
+    );
+    if (!response.ok) throw await toClientError(response);
+    const disposition = response.headers.get('content-disposition') ?? '';
+    const match = /filename="?([^";]+)"?/.exec(disposition);
+    const blob = await response.blob();
+    return {
+      url: URL.createObjectURL(blob),
+      filename: match?.[1] ?? `metrasight-report.${format}`,
+    };
+  },
+
+  // --- Citizen Mode (UI-02) — anonymous by design --------------------------
+  // No bearer token is required; the auth headers are simply absent when no
+  // inspector session exists, which is exactly the anonymous citizen case.
+  /** POST /citizen/scans — real quality gate + OCR + extraction, no login. */
+  citizenScan: (file: File | Blob, opts: XhrOptions = {}): Promise<CitizenScanResult> => {
+    const form = new FormData();
+    const name = file instanceof File ? file.name : 'capture.jpg';
+    form.append('file', file, name);
+    form.append('captureSource', 'CAMERA');
+    return xhrUpload<CitizenScanResult>('/citizen/scans', form, opts);
+  },
+  /** GET /citizen/scans/:id — re-read a scan by its unguessable UUID. */
+  citizenGetScan: (scanId: string): Promise<CitizenScanResult> =>
+    request<CitizenScanResult>(`/citizen/scans/${scanId}`),
+  /** POST /citizen/reports — submit a suspected issue for official review. */
+  citizenSubmitReport: (body: CitizenReportRequest): Promise<CitizenReportResult> =>
+    request<CitizenReportResult>('/citizen/reports', { method: 'POST', body }),
+  /** GET /citizen/reports/:id — read back a submitted complaint + timeline. */
+  citizenGetReport: (reportId: string): Promise<CitizenReportDetail> =>
+    request<CitizenReportDetail>(`/citizen/reports/${reportId}`),
+  /** POST /citizen/reports/:id/respond — answer a pending information request. */
+  citizenRespond: (
+    reportId: string,
+    input: { message: string; location?: string; file?: File | Blob },
+    opts: XhrOptions = {},
+  ): Promise<CitizenReportDetail> => {
+    const form = new FormData();
+    form.append('message', input.message);
+    if (input.location) form.append('location', input.location);
+    if (input.file) {
+      const name = input.file instanceof File ? input.file.name : 'response.jpg';
+      form.append('file', input.file, name);
+    }
+    return xhrUpload<CitizenReportDetail>(`/citizen/reports/${reportId}/respond`, form, opts);
+  },
+
+  // --- Department Command Center (UI-04) — aggregated, read-only -----------
+  /** GET /department/dashboard?days=7|30|90 — server-side aggregation only. */
+  departmentDashboard: (days: 7 | 30 | 90 = 30): Promise<DepartmentDashboard> =>
+    request<DepartmentDashboard>(`/department/dashboard${querySuffix({ days })}`),
+
+  // --- Complaint management (UI-03) — authenticated department surface -----
+  /** GET /citizen/complaints — intake queue. Filtering happens in SQL. */
+  complaintList: (params: ComplaintListParams = {}): Promise<ComplaintSummary[]> =>
+    request<ComplaintSummary[]>(`/citizen/complaints${querySuffix({ ...params })}`),
+  /** GET /citizen/complaints/stats — real COUNT(*) KPIs from the database. */
+  complaintStats: (): Promise<ComplaintStats> =>
+    request<ComplaintStats>('/citizen/complaints/stats'),
+  /** GET /citizen/complaints/inspectors — users a complaint may be assigned to. */
+  complaintInspectors: (): Promise<AssignableInspector[]> =>
+    request<AssignableInspector[]>('/citizen/complaints/inspectors'),
+  /** GET /citizen/complaints/:id — full complaint review detail. */
+  complaintGet: (complaintId: string): Promise<ComplaintDetail> =>
+    request<ComplaintDetail>(`/citizen/complaints/${complaintId}`),
+  /** POST /citizen/complaints/:id/transition — one state-machine action. */
+  complaintTransition: (
+    complaintId: string,
+    body: ComplaintTransitionRequest,
+  ): Promise<ComplaintDetail> =>
+    request<ComplaintDetail>(`/citizen/complaints/${complaintId}/transition`, {
+      method: 'POST',
+      body,
+    }),
+
+  // --- UI-09: global search / history / product repository / analytics --------
+  // Read-only intelligence surfaces over EXISTING entities. All filtering and
+  // aggregation happens server-side; results never carry citizen reporter PII,
+  // internal notes or storage keys. Rates arrive null when there is no valid
+  // denominator — the UI shows N/A, never a fabricated 0%.
+
+  /** GET /search — grouped, RBAC-aware, server-side global search. */
+  search: (params: { q: string; limit?: number }): Promise<SearchResults> =>
+    request<SearchResults>('/search' + querySuffix(params)),
+
+  /** GET /history/inspections — one server-side page + real filtered-set KPIs. */
+  inspectionHistory: (params: {
+    q?: string;
+    status?: string;
+    result?: string;
+    source?: string;
+    inspectorId?: string;
+    productId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<HistoryPage> =>
+    request<HistoryPage>('/history/inspections' + querySuffix(params)),
+
+  /** GET /history/inspections/:id/timeline — only events actually recorded. */
+  inspectionTimeline: (inspectionId: string): Promise<InspectionTimeline> =>
+    request<InspectionTimeline>(`/history/inspections/${inspectionId}/timeline`),
+
+  /** GET /products — searchable product directory (real aggregate counts). */
+  listProducts: (params: { q?: string; page?: number; pageSize?: number } = {}): Promise<
+    Paginated<ProductSummary>
+  > => request<Paginated<ProductSummary>>('/products' + querySuffix(params)),
+
+  /** GET /products/:id — the historical record: overview, inspections,
+   *  recurring findings, evidence gallery. Never a current-compliance claim. */
+  getProduct: (productId: string): Promise<ProductDetail> =>
+    request<ProductDetail>(`/products/${productId}`),
+
+  /** GET /analytics/operational — server-side aggregation over real DB rows. */
+  operationalAnalytics: (params: {
+    granularity?: 'day' | 'week' | 'month';
+    dateFrom?: string;
+    dateTo?: string;
+  }): Promise<OperationalAnalytics> =>
+    request<OperationalAnalytics>('/analytics/operational' + querySuffix(params)),
 };
 
 /** Query string for GET params (empty values dropped), '' when none. */

@@ -24,6 +24,11 @@ structlog>=24.1
 # statistics and safe resizing. No numpy/opencv — Pillow only.
 Pillow>=10,<12
 
+# UI-08 — official report exports: structured PDF via reportlab and editable
+# DOCX via python-docx (both rendered server-side from real inspection data).
+reportlab>=4,<5
+python-docx>=1.1,<2
+
 # Real perception (Prompt 4): local CPU OCR via PaddleOCR.
 # Version pins matter: paddleocr 3.1.0 requires paddlex==3.1.x (3.7+ changes
 # PaddlePredictorOption.__init__ and breaks engine construction). paddlepaddle

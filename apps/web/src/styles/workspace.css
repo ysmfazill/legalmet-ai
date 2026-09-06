@@ -14,9 +14,7 @@
   position: relative;
   aspect-ratio: 4 / 5;
   overflow: hidden;
-  background:
-    linear-gradient(135deg, #10182b, #0b1120),
-    var(--surface);
+  background: var(--surface-3);
   border: var(--border-width) solid var(--border);
   border-radius: var(--radius-md);
 }
@@ -32,8 +30,8 @@
   inset: 8% 14%;
   border-radius: 8px;
   background: linear-gradient(165deg, #f4f1e8, #e6e0d0);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
-  color: #23324a;
+  box-shadow: var(--shadow-md);
+  color: var(--text);
   padding: 7% 6%;
   display: flex;
   flex-direction: column;
@@ -44,16 +42,16 @@
   font-weight: var(--fw-bold);
   font-size: 15px;
   letter-spacing: 0.04em;
-  color: #16233a;
+  color: var(--brand-brown-dark);
 }
 .package-mock__row {
   display: flex;
   justify-content: space-between;
-  border-bottom: 1px dashed rgba(35, 50, 74, 0.28);
+  border-bottom: 1px dashed var(--border-strong);
   padding-bottom: 3%;
 }
 .package-mock__key {
-  color: #56617a;
+  color: var(--text-muted);
 }
 .viewer__region {
   position: absolute;
@@ -84,11 +82,11 @@
   white-space: nowrap;
   border-radius: 4px;
   background: var(--tone-info);
-  color: #fff;
+  color: var(--text-on-accent);
 }
 .viewer__region.is-selected .viewer__region-tag {
   background: var(--tone-warning);
-  color: #23324a;
+  color: var(--text-on-accent);
 }
 .viewer__toolbar {
   display: flex;
@@ -346,7 +344,7 @@
 }
 .capture-option--primary .capture-option__icon {
   background: var(--accent);
-  color: #fff;
+  color: var(--text-on-accent);
 }
 .dropzone {
   display: grid;
@@ -407,7 +405,7 @@
 .evi-card__thumb {
   aspect-ratio: 16 / 10;
   position: relative;
-  background: linear-gradient(135deg, #141d33, #0e1524);
+  background: var(--surface-3);
   overflow: hidden;
 }
 /* REAL package-photo thumbnails (live evidence) — the actual stored image. */
@@ -484,7 +482,7 @@
 .pviewer__stage {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, #10182b, #0b1120);
+  background: var(--surface-3);
   border: var(--border-width) solid var(--border);
   border-radius: var(--radius-md);
 }
@@ -550,7 +548,7 @@
   font-weight: var(--fw-semibold);
 }
 .pipeline-stage--active .pipeline-stage__mark {
-  color: var(--tone-accent);
+  color: var(--accent);
 }
 
 /* --- Perception declaration rows (real extraction, Prompt 4) ---------------- */

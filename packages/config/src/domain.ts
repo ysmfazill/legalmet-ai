@@ -29,6 +29,7 @@ import type {
   PackageStatus,
   ProcessingRunStatus,
   RequirementType,
+  ReportStatus,
   ReviewActionType,
   SourceType,
   UserRole,
@@ -419,6 +420,13 @@ export const EVIDENCE_GRAPH_NODE_META: Record<EvidenceGraphNodeKind, EnumMeta> =
   FIELD_CORRECTION: { label: 'Human Correction', tone: 'positive', description: 'A human correction of an AI-extracted value — append-only, actor-attributed.' },
   FINDING_REVIEW: { label: 'Human Review', tone: 'positive', description: 'An inspector review action on a system finding.' },
   INSPECTION_DECISION: { label: 'Final Decision', tone: 'positive', description: 'The final human decision — the only legal conclusion, never an AI output.' },
+  // UI-07 — physical verification + lot intelligence records.
+  MEASUREMENT: { label: 'Measurement', tone: 'positive', description: 'A physical measurement recorded by an inspector from an instrument reading.' },
+  INSTRUMENT: { label: 'Instrument', tone: 'info', description: 'The measuring instrument used — its verification status is shown only when recorded.' },
+  MEASUREMENT_EVALUATION: { label: 'Measurement Evaluation', tone: 'info', description: 'The frozen deterministic evaluation of a measurement against the configured permissible error.' },
+  LOT: { label: 'Lot', tone: 'neutral', description: 'A lot under physical verification: packages, sample, measurements, decision.' },
+  LOT_PACKAGE: { label: 'Lot Package', tone: 'neutral', description: 'One real package record in a lot.' },
+  SAMPLING_RUN: { label: 'Sampling Run', tone: 'neutral', description: 'One audited, reproducible sample draw — configured procedure or AI-recommended with inspector confirmation.' },
 };
 
 export const EVIDENCE_GRAPH_EDGE_META: Record<EvidenceGraphEdgeKind, EnumMeta> = {
@@ -448,6 +456,16 @@ export const EVIDENCE_GRAPH_EDGE_META: Record<EvidenceGraphEdgeKind, EnumMeta> =
   DECISION_FOR_INSPECTION: { label: 'decides on', tone: 'positive' },
   DECISION_BASED_ON_EVALUATION: { label: 'based on evaluation', tone: 'positive' },
   DECISION_SUPERSEDES_DECISION: { label: 'supersedes', tone: 'positive' },
+  // UI-07 — physical verification + lot intelligence relations.
+  MEASUREMENT_VERIFIES_FIELD: { label: 'physically verifies', tone: 'positive' },
+  MEASUREMENT_VERIFIES_LOT_PACKAGE: { label: 'physically verifies', tone: 'positive' },
+  INSTRUMENT_USED_FOR_MEASUREMENT: { label: 'used for', tone: 'neutral' },
+  MEASUREMENT_HAS_EVALUATION: { label: 'evaluated by', tone: 'neutral' },
+  INSPECTION_HAS_LOT: { label: 'has lot', tone: 'neutral' },
+  LOT_HAS_PACKAGE: { label: 'contains package', tone: 'neutral' },
+  LOT_HAS_SAMPLING_RUN: { label: 'sampled by', tone: 'neutral' },
+  SAMPLING_RUN_SELECTED_PACKAGE: { label: 'selected', tone: 'neutral' },
+  LOT_DECISION_FOR_INSPECTION: { label: 'lot decision for', tone: 'positive' },
 };
 
 /**
@@ -560,4 +578,45 @@ export const INSPECTION_DECISION_META: Record<InspectionDecisionType, EnumMeta> 
     tone: 'neutral',
     description: 'No decision recorded yet.',
   },
+};
+
+// --- Reporting (UI-08) ----------------------------------------------------------
+// The report lifecycle: DRAFT → UNDER_REVIEW → FINALIZED → EXPORTED, with
+// AMENDED marking a finalized report whose findings changed after generation.
+// A report is a decision-support artifact — never the legal authority.
+
+export const REPORT_STATUS_META: Record<ReportStatus, EnumMeta> = {
+  DRAFT: {
+    label: 'Draft',
+    tone: 'neutral',
+    description: 'Created, no snapshot generated yet.',
+  },
+  UNDER_REVIEW: {
+    label: 'Under Review',
+    tone: 'warning',
+    description: 'Snapshot generated; the inspector review is in progress.',
+  },
+  FINALIZED: {
+    label: 'Finalized',
+    tone: 'positive',
+    description: 'The finalization gate passed and the inspector signed off.',
+  },
+  EXPORTED: {
+    label: 'Exported',
+    tone: 'info',
+    description: 'A final version has been exported (PDF or DOCX).',
+  },
+  AMENDED: {
+    label: 'Amended',
+    tone: 'warning',
+    description: 'Findings changed after finalization; a newer version exists with a mandatory reason.',
+  },
+};
+
+/** Report-side result — the frozen inspector decision, or NOT_EVALUATED. */
+export const REPORT_RESULT_META: Record<string, EnumMeta> = {
+  COMPLIANT: { label: 'Compliant', tone: 'positive' },
+  NON_COMPLIANT: { label: 'Non-Compliant', tone: 'critical' },
+  REQUIRES_FURTHER_REVIEW: { label: 'Requires Review', tone: 'warning' },
+  NOT_EVALUATED: { label: 'Not Evaluated', tone: 'neutral' },
 };

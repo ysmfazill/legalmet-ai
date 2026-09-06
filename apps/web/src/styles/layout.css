@@ -33,8 +33,8 @@
   width: 34px;
   height: 34px;
   border-radius: var(--radius-sm);
-  background: linear-gradient(135deg, var(--accent), #7b5cff);
-  color: #fff;
+  background: var(--accent);
+  color: var(--text-on-accent);
   flex: none;
 }
 .sidebar__wordmark {
@@ -91,6 +91,18 @@
 .nav-item.is-active {
   background: var(--accent-soft);
   color: var(--accent-strong);
+  position: relative;
+}
+.nav-item.is-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 18px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
 }
 .nav-item.is-active .nav-item__icon {
   color: var(--accent-strong);
@@ -146,8 +158,7 @@
   gap: var(--space-4);
   height: var(--topbar-height);
   padding: 0 var(--space-6);
-  background: color-mix(in srgb, var(--bg) 82%, transparent);
-  backdrop-filter: blur(8px);
+  background: var(--surface);
   border-bottom: var(--border-width) solid var(--border);
   position: sticky;
   top: 0;
@@ -263,7 +274,7 @@
     display: block;
     position: fixed;
     inset: 0;
-    background: rgba(5, 8, 18, 0.55);
+    background: var(--overlay);
     z-index: var(--z-topbar);
   }
   .topbar__menu {

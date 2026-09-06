@@ -1,11 +1,10 @@
-import { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 
 import { Icon } from '../components/Icon';
-import { SearchBar } from '../components/inputs';
+import { initials } from '../lib/user';
 import { cn } from '../lib/cn';
-import { reviewQueue } from '../mock/aggregates';
 import { useApp } from './AppContext';
+import { GlobalSearch } from './GlobalSearch';
 import { resolvePage } from './nav';
 
 const CONN_LABEL: Record<string, string> = {
@@ -35,22 +34,17 @@ function ConnectionPill() {
 }
 
 /**
- * TOP BAR — page title + breadcrumb, a global inspection search, backend
+ * TOP BAR — page title + breadcrumb, the UI-09 global search, backend
  * connection status, notifications and the current inspector. On tablet/mobile
  * it exposes the hamburger that opens the off-canvas sidebar.
+ *
+ * The notification bell is informational only: with no real notification feed
+ * yet it renders no count (a mock count would misrepresent demo data as live).
  */
 export function TopBar() {
   const { user, navOpen, setNavOpen } = useApp();
   const location = useLocation();
-  const navigate = useNavigate();
-  const [query, setQuery] = useState('');
   const page = resolvePage(location.pathname);
-  const pendingReviews = reviewQueue.length;
-
-  function submitSearch(e: React.FormEvent) {
-    e.preventDefault();
-    navigate(query.trim() ? `/inspections?q=${encodeURIComponent(query.trim())}` : '/inspections');
-  }
 
   return (
     <header className="topbar">
@@ -78,28 +72,21 @@ export function TopBar() {
         <div className="topbar__title">{page.title}</div>
       </div>
 
-      <form className="topbar__search" onSubmit={submitSearch} role="search">
-        <SearchBar
-          value={query}
-          onChange={setQuery}
-          placeholder="Search inspections, references…"
-          ariaLabel="Search inspections"
-        />
-      </form>
+      {/* UI-09: command-style global search over every record category. */}
+      <GlobalSearch />
 
       <div className="topbar__actions">
         <ConnectionPill />
         <button
           type="button"
           className="icon-btn"
-          aria-label={pendingReviews > 0 ? `Notifications: ${pendingReviews} awaiting review` : 'Notifications'}
-          title={pendingReviews > 0 ? `${pendingReviews} findings awaiting review` : 'No new notifications'}
+          aria-label="Notifications"
+          title="No new notifications — a real notification feed arrives with live review assignment"
         >
           <Icon name="bell" size={18} />
-          {pendingReviews > 0 && <span className="icon-btn__dot" aria-hidden />}
         </button>
         <span className="avatar" title={`${user.fullName} · signed in`} aria-hidden>
-          {(user.fullName.replace(/^Dr\.?\s+/i, '').split(/\s+/).map((p) => p[0]).slice(0, 2).join('') || '–').toUpperCase()}
+          {initials(user.fullName)}
         </span>
       </div>
     </header>

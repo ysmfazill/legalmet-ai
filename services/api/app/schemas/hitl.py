@@ -183,4 +183,10 @@ class ReviewStatusOut(CamelModel):
     # Gate (Phase 13): can a final decision be recorded right now?
     decision_allowed: bool = False
     decision_blockers: list[str] = []
+    # UI-06: verification-task progress. REQUIRED tasks block a final
+    # decision while open; RECOMMENDED never do.
+    verification_total: int = 0
+    verification_open_required: int = 0
+    verification_in_progress: int = 0
+    verification_completed: int = 0
     boundary_note: str = HITL_BOUNDARY_NOTE

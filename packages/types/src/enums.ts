@@ -403,6 +403,13 @@ export const EVIDENCE_GRAPH_NODE_TYPES = [
   'FIELD_CORRECTION',
   'FINDING_REVIEW',
   'INSPECTION_DECISION',
+  // UI-07 — physical verification + lot intelligence records.
+  'MEASUREMENT',
+  'INSTRUMENT',
+  'MEASUREMENT_EVALUATION',
+  'LOT',
+  'LOT_PACKAGE',
+  'SAMPLING_RUN',
 ] as const;
 export type EvidenceGraphNodeKind = (typeof EVIDENCE_GRAPH_NODE_TYPES)[number];
 
@@ -434,6 +441,16 @@ export const EVIDENCE_GRAPH_EDGE_TYPES = [
   'DECISION_FOR_INSPECTION',
   'DECISION_BASED_ON_EVALUATION',
   'DECISION_SUPERSEDES_DECISION',
+  // UI-07 — physical verification + lot intelligence relations.
+  'MEASUREMENT_VERIFIES_FIELD',
+  'MEASUREMENT_VERIFIES_LOT_PACKAGE',
+  'INSTRUMENT_USED_FOR_MEASUREMENT',
+  'MEASUREMENT_HAS_EVALUATION',
+  'INSPECTION_HAS_LOT',
+  'LOT_HAS_PACKAGE',
+  'LOT_HAS_SAMPLING_RUN',
+  'SAMPLING_RUN_SELECTED_PACKAGE',
+  'LOT_DECISION_FOR_INSPECTION',
 ] as const;
 export type EvidenceGraphEdgeKind = (typeof EVIDENCE_GRAPH_EDGE_TYPES)[number];
 
@@ -508,5 +525,237 @@ export const HITL_AUDIT_EVENT_TYPES = [
   'DECISION_SUBMITTED',
   'DECISION_CHANGED',
   'SUPERVISOR_REVIEWED',
+  // UI-06 verification lifecycle
+  'VERIFICATION_CREATED',
+  'VERIFICATION_STARTED',
+  'VERIFICATION_RESULT_RECORDED',
+  'VERIFICATION_COMPLETED',
+  'VERIFICATION_CANCELLED',
 ] as const;
 export type HitlAuditEventType = (typeof HITL_AUDIT_EVENT_TYPES)[number];
+
+// --- Evidence Planner + verification (UI-06) -----------------------------------
+// The evidence plan answers "what evidence is still required before an
+// inspector can make a defensible decision?". Evidence completeness is NEVER
+// a compliance verdict — a gap means the evidence is incomplete, nothing more.
+
+/** Status of one piece of evidence behind a plan row. */
+export const EVIDENCE_ITEM_STATUSES = [
+  'AVAILABLE',
+  'MISSING',
+  'REQUIRES_VERIFICATION',
+  'VERIFIED',
+  'REJECTED',
+  'NOT_APPLICABLE',
+] as const;
+export type EvidenceItemStatus = (typeof EVIDENCE_ITEM_STATUSES)[number];
+
+/** Evidence kinds the planner tracks (only what the system supports). */
+export const EVIDENCE_REQUIREMENT_KINDS = [
+  'IMAGE',
+  'OCR',
+  'REGION',
+  'FIELD',
+  'EVALUATION',
+  'MEASUREMENT',
+  'INSPECTOR_OBSERVATION',
+] as const;
+export type EvidenceRequirementKind = (typeof EVIDENCE_REQUIREMENT_KINDS)[number];
+
+/** Verification task types. MEASUREMENT = manual reading from an appropriate
+ * Legal Metrology instrument (the app is NOT connected to a physical scale). */
+export const VERIFICATION_TASK_TYPES = [
+  'MEASUREMENT',
+  'INSPECTOR_OBSERVATION',
+] as const;
+export type VerificationTaskType = (typeof VERIFICATION_TASK_TYPES)[number];
+
+/** Verification task lifecycle — enforced by the backend service layer. */
+export const VERIFICATION_TASK_STATUSES = [
+  'PENDING',
+  'IN_PROGRESS',
+  'COMPLETED',
+  'CANCELLED',
+] as const;
+export type VerificationTaskStatus = (typeof VERIFICATION_TASK_STATUSES)[number];
+
+/**
+ * REQUIRED blocks a final decision while open; RECOMMENDED never does — the
+ * system must distinguish a legal/operational obligation from an AI
+ * recommendation.
+ */
+export const VERIFICATION_LEVELS = ['REQUIRED', 'RECOMMENDED'] as const;
+export type VerificationLevel = (typeof VERIFICATION_LEVELS)[number];
+
+// --- Physical verification + lot intelligence (UI-07) -------------------------
+// Lot lifecycle: IN_PROGRESS until an inspector submits the explicit,
+// evidence-gated decision. The three decision values are the only terminal
+// lot statuses — "INSUFFICIENT EVIDENCE" is a gate message, never a status.
+
+export const LOT_STATUSES = [
+  'IN_PROGRESS',
+  'COMPLIANT',
+  'NON_COMPLIANT',
+  'REQUIRES_REVIEW',
+] as const;
+export type LotStatus = (typeof LOT_STATUSES)[number];
+
+/** Package lifecycle inside a lot. NOT_SAMPLED → PENDING (sampled) → MEASURED. */
+export const LOT_PACKAGE_STATUSES = [
+  'NOT_SAMPLED',
+  'PENDING',
+  'MEASURED',
+] as const;
+export type LotPackageStatus = (typeof LOT_PACKAGE_STATUSES)[number];
+
+/** How the sample was selected. RANDOM draws are seeded and reproducible. */
+export const SAMPLING_METHODS = ['RANDOM', 'MANUAL'] as const;
+export type SamplingMethod = (typeof SAMPLING_METHODS)[number];
+
+/**
+ * The frozen regulatory evaluation of one recorded measurement.
+ * UNAVAILABLE is a fact, not an error: no permissible-error procedure is
+ * configured for the applicable version, so the system refuses to guess —
+ * the inspector reviews the measurement instead.
+ */
+export const MEASUREMENT_EVALUATION_STATUSES = [
+  'EVALUATED',
+  'UNAVAILABLE',
+] as const;
+export type MeasurementEvaluationStatus =
+  (typeof MEASUREMENT_EVALUATION_STATUSES)[number];
+
+/**
+ * The deterministic rule result (only when status=EVALUATED). A rule result
+ * is NOT a violation: the inspector weighs it in the final decision.
+ */
+export const MEASUREMENT_OUTCOMES = [
+  'WITHIN_TOLERANCE',
+  'EXCEEDS_TOLERANCE',
+] as const;
+export type MeasurementOutcome = (typeof MEASUREMENT_OUTCOMES)[number];
+
+/** Versioned regulatory procedures governing PHYSICAL verification work. */
+export const REGULATORY_PROCEDURE_KINDS = [
+  'MEASUREMENT_TOLERANCE',
+  'SAMPLING',
+] as const;
+export type RegulatoryProcedureKind =
+  (typeof REGULATORY_PROCEDURE_KINDS)[number];
+
+// --- Citizen Mode (UI-02) ----------------------------------------------------
+// Anonymous screening outcomes. Deliberately non-committal vocabulary: a
+// consumer scan is an AUTOMATED SCREENING result only. There is no "violation"
+// or "confirmed" outcome — by construction the citizen surface cannot express
+// a legal determination. Official determination belongs to the department.
+export const CITIZEN_SCREEN_OUTCOMES = [
+  'NO_OBVIOUS_ISSUE',
+  'POSSIBLE_ISSUE',
+  'REVIEW_REQUIRED',
+  'INSUFFICIENT_EVIDENCE',
+  'IMAGE_UNREADABLE',
+] as const;
+export type CitizenScreenOutcome = (typeof CITIZEN_SCREEN_OUTCOMES)[number];
+
+// --- Complaint lifecycle (UI-03) ----------------------------------------------
+// The complaint state machine. Values mirror app/schemas/citizen.py exactly;
+// legal edges are enforced ONLY by the backend service layer — the frontend
+// can request a transition, never set a status directly.
+export const CITIZEN_REPORT_STATUSES = [
+  'SUBMITTED',
+  'UNDER_REVIEW',
+  'REJECTED',
+  'REQUEST_INFORMATION',
+  'ACCEPTED',
+  'ASSIGNED',
+  'INSPECTION_SCHEDULED',
+  'INSPECTION_COMPLETED',
+  'ACTION_TAKEN',
+  'CLOSED',
+] as const;
+export type CitizenReportStatus = (typeof CITIZEN_REPORT_STATUSES)[number];
+
+/** Department actions a complaint can receive (one state-machine edge each). */
+export const COMPLAINT_ACTIONS = [
+  'START_REVIEW',
+  'ACCEPT',
+  'REJECT',
+  'REQUEST_INFORMATION',
+  'ASSIGN',
+  'CREATE_INSPECTION',
+  'COMPLETE_INSPECTION',
+  'RECORD_ACTION',
+  'CLOSE',
+] as const;
+export type ComplaintAction = (typeof COMPLAINT_ACTIONS)[number];
+
+/** Deterministic SYSTEM screening triage — never an official priority decision. */
+export const COMPLAINT_RISK_LEVELS = ['LOW', 'MEDIUM', 'HIGH'] as const;
+export type ComplaintRiskLevel = (typeof COMPLAINT_RISK_LEVELS)[number];
+
+// --- Audit events (UI-02 + UI-03 additions) ------------------------------------
+// Citizen events carry no actor (anonymous by design); department complaint
+// actions record the acting user. Mirrors app/core/enums.py exactly.
+
+export const CITIZEN_AUDIT_EVENT_TYPES = [
+  'CITIZEN_SCAN_COMPLETED',
+  'CITIZEN_REPORT_SUBMITTED',
+  // UI-03 — complaint lifecycle.
+  'COMPLAINT_REVIEW_STARTED',
+  'COMPLAINT_ACCEPTED',
+  'COMPLAINT_REJECTED',
+  'COMPLAINT_INFO_REQUESTED',
+  'CITIZEN_INFO_PROVIDED',
+  'COMPLAINT_ASSIGNED',
+  'COMPLAINT_INSPECTION_CREATED',
+  'COMPLAINT_INSPECTION_COMPLETED',
+  'COMPLAINT_ACTION_TAKEN',
+  'COMPLAINT_CLOSED',
+] as const;
+export type CitizenAuditEventType = (typeof CITIZEN_AUDIT_EVENT_TYPES)[number];
+
+// --- Reporting & evidence pack (UI-08) ----------------------------------------
+// One live report per inspection. Statuses mirror app/core/enums.py exactly;
+// the report is a decision-support artifact, never a legal authority.
+
+export const REPORT_STATUSES = [
+  'DRAFT',
+  'UNDER_REVIEW',
+  'FINALIZED',
+  'EXPORTED',
+  'AMENDED',
+] as const;
+export type ReportStatus = (typeof REPORT_STATUSES)[number];
+
+/** Report-side result vocabulary — the inspector's decision or NOT_EVALUATED. */
+export const REPORT_RESULTS = [
+  'COMPLIANT',
+  'NON_COMPLIANT',
+  'REQUIRES_FURTHER_REVIEW',
+  'NOT_EVALUATED',
+] as const;
+export type ReportResult = (typeof REPORT_RESULTS)[number];
+
+/** Evidence kinds collected into the report's evidence pack (E-00N manifest). */
+export const REPORT_EVIDENCE_TYPES = [
+  'IMAGE',
+  'IMAGE_REGION',
+  'EXTRACTED_FIELD',
+  'MEASUREMENT',
+  'LOT',
+  'COMPLAINT',
+  'FINDING',
+] as const;
+export type ReportEvidenceType = (typeof REPORT_EVIDENCE_TYPES)[number];
+
+/** Report lifecycle audit events (append-only, on the shared audit trail). */
+export const REPORT_AUDIT_EVENT_TYPES = [
+  'REPORT_CREATED',
+  'REPORT_GENERATED',
+  'REPORT_REVIEWED',
+  'REPORT_FINALIZED',
+  'REPORT_EXPORTED_PDF',
+  'REPORT_EXPORTED_DOCX',
+  'REPORT_AMENDED',
+] as const;
+export type ReportAuditEventType = (typeof REPORT_AUDIT_EVENT_TYPES)[number];
