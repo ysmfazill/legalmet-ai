@@ -273,7 +273,18 @@ export async function fetchObjectUrl(storageKey: string, signal?: AbortSignal): 
     headers: authHeaders(),
     signal,
   });
-  if (!response.ok) throw await toClientError(response);
+  if (!response.ok) {
+    const error = await toClientError(response);
+    // Image-specific wording so image components can surface the real cause
+    // instead of a generic failure (auth vs missing file vs other).
+    if (error.status === 401) {
+      throw new ApiClientError(401, error.payload, 'Session expired. Please sign in again.');
+    }
+    if (error.status === 404) {
+      throw new ApiClientError(404, error.payload, 'Source image unavailable.');
+    }
+    throw error;
+  }
   const blob = await response.blob();
   return URL.createObjectURL(blob);
 }

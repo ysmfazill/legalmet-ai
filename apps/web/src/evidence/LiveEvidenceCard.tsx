@@ -12,6 +12,14 @@ import { memo } from 'react';
 import { FIELD_TYPE_LABELS } from '@legalmet/config';
 import type { LiveEvidenceItem } from './useLiveEvidence';
 
+/** Compact stored-image metadata line, e.g. "PNG · 1000 × 624". */
+function imageMetaLabel(item: LiveEvidenceItem): string {
+  const type = (item.imageMimeType ?? '').replace('image/', '').toUpperCase() || 'IMAGE';
+  const dims =
+    item.imageWidth && item.imageHeight ? ` · ${item.imageWidth} × ${item.imageHeight}` : '';
+  return `${type}${dims}`;
+}
+
 import { ExtractionStatusBadge } from '../components/Badge';
 import { Icon } from '../components/Icon';
 import { useObjectUrl } from '../intake/useObjectUrl';
@@ -39,7 +47,7 @@ export const LiveEvidenceCard = memo(function LiveEvidenceCard({
         ) : view.status === 'loading' ? (
           <span className="spinner" aria-hidden />
         ) : (
-          <span className="evi-card__thumb-missing">
+          <span className="evi-card__thumb-missing" title={view.message}>
             <Icon name="image" size={18} />
           </span>
         )}
@@ -57,6 +65,11 @@ export const LiveEvidenceCard = memo(function LiveEvidenceCard({
           ) : (
             <span className="evi-card__no-region">REGION NOT AVAILABLE</span>
           ))}
+        {view.status === 'ready' && (
+          <span className="evi-card__thumb-meta">
+            SOURCE PACKAGE · {imageMetaLabel(item)}
+          </span>
+        )}
       </div>
       <div className="evi-card__body">
         <span className="eyebrow">{FIELD_TYPE_LABELS[item.fieldType]}</span>

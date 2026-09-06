@@ -171,12 +171,12 @@ export function PerceptionViewer({
           ) : (
             <div className="pviewer__fallback" title={view.message}>
               <Icon name="image" size={26} />
-              <span>Source image unavailable</span>
+              <span>{view.message}</span>
               <span className="pviewer__fallback-detail">
                 {image.originalFilename} · {image.imageType}
                 {image.width && image.height ? ` · ${image.width}×${image.height}px` : ''} — the
                 image metadata and all perception evidence below are preserved; only the file
-                could not be loaded ({view.message}).
+                could not be loaded.
               </span>
             </div>
           )}

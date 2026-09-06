@@ -27,6 +27,10 @@ export interface LiveEvidenceItem {
   referenceNo: string;
   productName: string;
   imageStorageKey: string | null;
+  /** Stored-image metadata for the evidence card (null when no image). */
+  imageMimeType: string | null;
+  imageWidth: number | null;
+  imageHeight: number | null;
   /** Fractional bbox on the image, or null when the field has no region. */
   region: BoundingBox | null;
   fieldType: ExtractedField['fieldType'];
@@ -56,8 +60,25 @@ export function useLiveEvidence(enabled: boolean) {
 
     for (const inspection of inspections) {
       const fields = await api.listFields(inspection.id);
+
+      // The LIST endpoint returns summaries only — it does NOT embed
+      // packages/images/product. The detail response does, and the evidence
+      // cards need it to render the REAL stored package image. (Without this
+      // fetch every imageStorageKey below is null and no photo ever shows.)
+      let detail: Inspection | null = null;
+      try {
+        detail = await api.getInspection(inspection.id);
+      } catch {
+        // Detail unavailable — fall back to whatever the list item carries.
+        detail = null;
+      }
+      const images = (detail?.packages ?? inspection.packages ?? []).flatMap(
+        (p) => p.images ?? [],
+      );
+      const imagesById = new Map(images.map((i) => [i.id, i]));
+
       if (fields.length === 0) {
-        if ((inspection.packages ?? []).some((p) => (p.images ?? []).length > 0)) {
+        if (images.some((i) => i.storageKey)) {
           pending.push(inspection);
         }
         continue;
@@ -77,9 +98,6 @@ export function useLiveEvidence(enabled: boolean) {
       const ocr = await api.listOcrResults(inspection.id);
       const regionsById = new Map(regions.map((r) => [r.id, r]));
       const ocrById = new Map(ocr.map((o) => [o.id, o]));
-      const images =
-        (inspection.packages ?? []).flatMap((p) => p.images ?? []) ?? [];
-      const imagesById = new Map(images.map((i) => [i.id, i]));
 
       for (const field of fields) {
         const region = field.imageRegionId
@@ -94,8 +112,12 @@ export function useLiveEvidence(enabled: boolean) {
           fieldId: field.id,
           inspectionId: inspection.id,
           referenceNo: inspection.referenceNo,
-          productName: inspection.product?.name ?? inspection.referenceNo,
+          productName:
+            detail?.product?.name ?? inspection.product?.name ?? inspection.referenceNo,
           imageStorageKey: image?.storageKey ?? null,
+          imageMimeType: image?.mimeType ?? null,
+          imageWidth: image?.width ?? null,
+          imageHeight: image?.height ?? null,
           region: region?.bbox ?? ocrLine?.bbox ?? null,
           fieldType: field.fieldType,
           value: field.correctedValue ?? field.normalizedValue ?? field.rawText,

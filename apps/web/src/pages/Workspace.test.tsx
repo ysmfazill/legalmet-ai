@@ -25,8 +25,10 @@ vi.mock('../api/client', () => ({
   },
   // Mirrors the real constructor: (status, payload, message).
   ApiClientError: class extends Error {
-    constructor(_status: number, _payload: unknown, message: string) {
+    readonly status: number;
+    constructor(status: number, _payload: unknown, message: string) {
       super(message);
+      this.status = status;
     }
   },
 }));
@@ -40,8 +42,15 @@ let mockUser: User = {
   createdAt: '2026-01-01T00:00:00Z',
 };
 
+// Auth state the page sees — mutated per test (state-machine coverage).
+let mockAuth: { kind: string; user?: unknown } = { kind: 'authenticated', user: mockUser };
+
 vi.mock('../app/AppContext', () => ({
-  useApp: () => ({ isLive: true, user: mockUser }),
+  useApp: () => ({
+    isLive: mockAuth.kind === 'authenticated',
+    user: mockUser,
+    auth: mockAuth,
+  }),
 }));
 
 vi.mock('../mock/adapter', () => ({
@@ -179,6 +188,7 @@ beforeEach(() => {
     isActive: true,
     createdAt: '2026-01-01T00:00:00Z',
   };
+  mockAuth = { kind: 'authenticated', user: mockUser };
   getInspectionMock.mockReset();
   getSourceMock.mockReset();
   assignMock.mockReset();
@@ -291,5 +301,44 @@ describe('RealInspectionWorkspace (UI-05)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Assign inspector$/ }));
 
     expect(await screen.findByText(/Confirm the reassignment explicitly/i)).toBeTruthy();
+  });
+});
+
+describe('WorkspacePage state machine (loading / error / not-found)', () => {
+  it('404 renders an honest "Inspection not found" empty state', async () => {
+    getInspectionMock.mockRejectedValue(
+      new ApiClientError(404, null, 'Inspection i1 not found.'),
+    );
+    renderPage();
+
+    expect(await screen.findByText('Inspection not found')).toBeTruthy();
+    // A way out, not a dead end.
+    expect(screen.getByRole('button', { name: /All inspections/ })).toBeTruthy();
+  });
+
+  it('a non-404 API failure renders an ERROR state with Retry — never a fake empty state', async () => {
+    getInspectionMock.mockRejectedValue(
+      new ApiClientError(401, null, 'Not authenticated.'),
+    );
+    renderPage();
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toBeTruthy();
+    expect(screen.getByText(/retry/i)).toBeTruthy();
+    // The failure must NOT be disguised as a data-absence empty state.
+    expect(screen.queryByText('Inspection not found')).toBeNull();
+    expect(screen.queryByText(/No work/i)).toBeNull();
+    expect(screen.queryByText(/Sign in to open/i)).toBeNull();
+  });
+
+  it('holds the loading state while authentication is still restoring (no empty-state flash)', async () => {
+    mockAuth = { kind: 'authenticating' };
+    renderPage();
+
+    // Loading label is shown and the API has NOT been called yet.
+    expect(await screen.findByText(/Loading inspection workspace/i)).toBeTruthy();
+    expect(getInspectionMock).not.toHaveBeenCalled();
+    expect(screen.queryByText('Inspection not found')).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });
