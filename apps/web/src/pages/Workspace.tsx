@@ -22,7 +22,7 @@ import { EvidenceViewer } from '../components/EvidenceViewer';
 import { FindingCard } from '../components/FindingCard';
 import { Icon } from '../components/Icon';
 import { PageHeader } from '../components/PageHeader';
-import { AsyncView, EmptyState, ErrorState } from '../components/states';
+import { AsyncView, EmptyState, ErrorState, LoadingState } from '../components/states';
 import { useAsync } from '../data/useAsync';
 import {
   COMPLAINT_RISK_META,
@@ -70,21 +70,29 @@ function qualityTone(score: number): Tone {
 }
 
 /**
- * One inspection id resolves to one of three things:
- *   - a fully-worked DEMO inspection (authored evidence + findings), or
- *   - a REAL intake inspection (uploaded image + provenance, NO analysis), or
- *   - nothing we can render.
+ * One inspection id resolves to one of four things:
+ *   - a fully-worked DEMO inspection (authored evidence + findings),
+ *   - a REAL inspection (uploaded image, perception, evidence, findings), or
+ *   - "missing" — no such inspection exists (404), or
+ *   - "anonymous" — no session, so real inspections cannot be fetched.
  * Demo data is served by the mock adapter and always wins; real inspections are
- * fetched from the backend only when authenticated.
+ * fetched from the backend only when authenticated. Fetch FAILURES (expired
+ * session, network, server error) are thrown and rendered as an error state
+ * with Retry — never mistaken for "no evidence".
  */
 type WorkspaceResult =
   | { kind: 'demo'; detail: InspectionDetail }
   | { kind: 'real'; inspection: Inspection }
-  | { kind: 'none' };
+  | { kind: 'missing' }
+  | { kind: 'anonymous' };
 
 export function WorkspacePage() {
   const { id = '' } = useParams();
-  const { isLive } = useApp();
+  const { auth, isLive } = useApp();
+  // Session restore: while the stored token is being checked we don't yet know
+  // whether real inspections are fetchable — hold the loading state instead of
+  // resolving "none", which would flash a misleading empty state.
+  const authResolved = auth?.kind !== 'authenticating';
 
   const query = useAsync<WorkspaceResult>(async () => {
     const demo = await mockApi.getInspectionDetail(id);
@@ -93,12 +101,31 @@ export function WorkspacePage() {
       try {
         const inspection = await api.getInspection(id);
         return { kind: 'real', inspection };
-      } catch {
-        return { kind: 'none' };
+      } catch (error) {
+        // 404 → the inspection genuinely does not exist (honest empty state).
+        // Anything else (expired session, network, server error) must surface
+        // as an error with Retry — never silently become "no evidence".
+        if (error instanceof ApiClientError && error.status === 404) {
+          return { kind: 'missing' };
+        }
+        throw error;
       }
     }
-    return { kind: 'none' };
-  }, [id, isLive]);
+    return { kind: 'anonymous' };
+  }, [id, isLive, authResolved]);
+
+  if (!authResolved) {
+    return (
+      <div className="page">
+        <PageHeader eyebrow="Workspace" title="Inspection Workspace" />
+        <Card>
+          <CardBody>
+            <LoadingState label="Loading inspection workspace…" />
+          </CardBody>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="page">
@@ -108,6 +135,8 @@ export function WorkspacePage() {
             <Workspace detail={result.detail} />
           ) : result.kind === 'real' ? (
             <RealInspectionWorkspace inspection={result.inspection} />
+          ) : result.kind === 'missing' ? (
+            <NoWorkspace missing />
           ) : (
             <NoWorkspace />
           )
@@ -117,7 +146,7 @@ export function WorkspacePage() {
   );
 }
 
-function NoWorkspace() {
+function NoWorkspace({ missing = false }: { missing?: boolean }) {
   const navigate = useNavigate();
   return (
     <>
@@ -126,8 +155,12 @@ function NoWorkspace() {
         <CardBody>
           <EmptyState
             icon="image"
-            title="No worked evidence for this inspection"
-            message="Fully-linked evidence (regions, declarations, findings and rules) is authored for the demonstration inspections below."
+            title={missing ? 'Inspection not found' : 'Sign in to open an inspection workspace'}
+            message={
+              missing
+                ? 'No inspection exists with this ID. It may have been removed by a demo data reset, or the link is stale.'
+                : 'Fully-linked evidence (regions, declarations, findings and rules) is available for the demonstration inspections below, or after signing in.'
+            }
             action={
               <div className="row row--wrap" style={{ gap: 'var(--space-2)', justifyContent: 'center' }}>
                 {WORKED_DEMOS.map((d) => (
@@ -135,6 +168,9 @@ function NoWorkspace() {
                     {d.label}
                   </button>
                 ))}
+                <button type="button" className="btn btn--subtle btn--sm" onClick={() => navigate('/inspections')}>
+                  All inspections
+                </button>
               </div>
             }
           />

@@ -89,11 +89,20 @@ class Settings(BaseSettings):
     demo_admin_password: str = "changeme-admin"
     demo_inspector_email: str = "inspector@legalmet.local"
     demo_inspector_password: str = "changeme-inspector"
-    # Prompt 9 (Phase 18): seed the three full-lifecycle demo inspections
-    # (DEMO-FOOD / DEMO-WATER / DEMO-OIL) through the REAL services. The first
-    # boot on a fresh DB pays the real local-OCR cost (~a minute on CPU);
-    # later boots skip (idempotent). Set False to boot fast without demos.
+    # Prompt 9 (Phase 18): seed the full-lifecycle demo inspections through
+    # the REAL services. The first boot on a fresh DB pays the real local-OCR
+    # cost (~a minute on CPU); later boots skip (idempotent). Set False to
+    # boot fast without demos. `demo_inspection_refs` selects WHICH of the
+    # four authored demo inspections (DEMO-FOOD / DEMO-WATER / DEMO-OIL /
+    # DEMO-QUINOA) are seeded — the fresh-demo default is the single
+    # DEMO-FOOD inspection (comma-separated env override).
     seed_demo_inspections: bool = True
+    # Comma-separated subset of DEMO-FOOD / DEMO-WATER / DEMO-OIL / DEMO-QUINOA.
+    demo_inspection_refs: str = "DEMO-FOOD"
+
+    @property
+    def demo_inspection_ref_list(self) -> list[str]:
+        return [r.strip() for r in self.demo_inspection_refs.split(",") if r.strip()]
 
     # --- Regulatory intelligence seed (Prompt 5) ---------------------------
     # Idempotent seed of the researched Legal Metrology dataset at startup.

@@ -87,15 +87,17 @@ runtime**:
 
 1. Login as inspector. Reach the seeded inspections through **Review → Engine
    findings**: click rows there to open each workspace (the eyebrow shows
-   `DEMO-FOOD` / `DEMO-WATER` / `DEMO-OIL` / `DEMO-QUINOA`), or through the
-   **Inspections** page with the source toggle switched to
-   **Demonstration data**. Note: the Dashboard aggregates still show the
-   labelled demo dataset (INS-…) — they are marked as demonstration data, not
-   live counts.
-2. DEMO-QUINOA is the fully COMPLIANT imported package (shows the
-   country-of-origin applicability resolving deterministically).
-3. DEMO-OIL shows honest NOT_DETECTED findings for absent declarations.
-4. Everything in demo A (evidence chains, versions, graph) works on seeded
+   `DEMO-FOOD`), or through the **Inspections** page with the source toggle
+   switched to **Demonstration data**. Note: the Dashboard aggregates still
+   show the labelled demo dataset (INS-…) — they are marked as demonstration
+   data, not live counts.
+2. To also show the fully COMPLIANT imported package and the honest
+   NOT_DETECTED cases, seed the full set once with
+   `SEED_DEMO_INSPECTION_REFS=DEMO-FOOD,DEMO-WATER,DEMO-OIL,DEMO-QUINOA
+   npm run reset:demo` (DEMO-QUINOA = country-of-origin applicability
+   resolving deterministically; DEMO-OIL = NOT_DETECTED findings for absent
+   declarations). The default single-inspection state keeps the demo clean.
+3. Everything in demo A (evidence chains, versions, graph) works on seeded
    data without running perception live.
 
 ## E. If OCR fails on stage
@@ -110,6 +112,9 @@ runtime**:
   app.main:app --port 8000` + `npm run dev:web` in a second terminal).
 - Backend boots in ~2 s with the pre-warmed DB (seeding is skipped — it is
   idempotent).
+- If the demo DATA is in a bad state (stale dev activity, cluttered lists):
+  `npm run reset:demo` restores the clean intentional dataset in ~40 s
+  (keeps logins + regulatory data). Safe to run repeatedly.
 - If the DB itself is corrupted: `bash scripts/demo.sh --fresh` re-seeds
   (~2 minutes, real OCR) — do this before the demo, not during.
 

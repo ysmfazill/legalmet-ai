@@ -95,9 +95,11 @@ finalization gate, Evidence Pack, PDF/DOCX exports, versioning, audit).
 storage path-traversal fix, upload dimension guard, ORM/migration drift
 eliminated with a drift-guard integration test, duplicate-run guards,
 measured performance (see [`docs/production-hardening.md`](docs/production-hardening.md)),
-an offline local demo with four seeded full-lifecycle demo inspections
-(`DEMO-FOOD` / `DEMO-WATER` / `DEMO-OIL` / `DEMO-QUINOA` — see [`docs/demo.md`](docs/demo.md)),
-and honest confidence/AI-vs-HUMAN semantics throughout the UI.
+an offline local demo with a seeded full-lifecycle demo inspection
+(`DEMO-FOOD` by default; `SEED_DEMO_INSPECTION_REFS` selects the set — see
+[`docs/demo.md`](docs/demo.md)), a one-command safe demo reset
+(`npm run reset:demo`), and honest confidence/AI-vs-HUMAN semantics
+throughout the UI.
 
 See [`docs/architecture.md`](docs/architecture.md) for the full design.
 
@@ -188,11 +190,13 @@ alembic upgrade head
 
 > On startup the backend also creates tables (dev convenience), seeds
 > clearly-labelled **demo** users/rules when `SEED_DEMO_DATA=true`, and — on a
-> fresh database — seeds **four full-lifecycle demo inspections**
-> (`DEMO-FOOD` / `DEMO-WATER` / `DEMO-OIL` / `DEMO-QUINOA`) through the real
-> services, including real local OCR (~2 minutes on CPU, first boot only;
-> later boots skip). Disable with `SEED_DEMO_INSPECTIONS=false`. Details:
-> [`docs/demo.md`](docs/demo.md).
+> fresh database — seeds the **full-lifecycle demo inspections** through the
+> real services, including real local OCR (`DEMO-FOOD` by default, ~40 s on
+> CPU, first boot only; later boots skip). Select the set with
+> `SEED_DEMO_INSPECTION_REFS=DEMO-FOOD,DEMO-WATER,DEMO-OIL,DEMO-QUINOA`;
+> disable with `SEED_DEMO_INSPECTIONS=false`. Restore a clean demo state at
+> any time with `npm run reset:demo` (wipes transactional activity, keeps
+> users + regulatory data). Details: [`docs/demo.md`](docs/demo.md).
 
 ---
 

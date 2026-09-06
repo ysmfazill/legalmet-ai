@@ -11,6 +11,12 @@
 #   bash scripts/demo.sh --fresh    # ALSO wipe the local demo database first
 #                                   # (legalmet.db + storage/) — first boot then
 #                                   # re-seeds, paying the real-OCR cost (~2 min)
+#   bash scripts/demo.sh --reset    # SAFE DEMO RESET instead of a full wipe:
+#                                   # removes transactional activity but keeps
+#                                   # login accounts + regulatory data, then
+#                                   # re-seeds the one intentional demo
+#                                   # inspection (real OCR, ~40 s). Use this to
+#                                   # restore a clean demo state.
 #
 # Everything the script does is documented step by step in README.md.
 set -euo pipefail
@@ -21,7 +27,11 @@ FRONTEND_URL="http://localhost:5173"
 BACKEND_URL="http://localhost:8000"
 
 FRESH=0
-[ "${1:-}" = "--fresh" ] && FRESH=1
+RESET=0
+case "${1:-}" in
+  --fresh) FRESH=1 ;;
+  --reset) RESET=1 ;;
+esac
 
 step() { printf '\n\033[1;36m== %s\033[0m\n' "$*"; }
 
@@ -47,7 +57,12 @@ else
   echo ".venv present — skipping pip install"
 fi
 
-# --- 3. Optional fresh demo database ----------------------------------------
+# --- 3. Optional fresh database / safe demo reset ---------------------------
+if [ "$RESET" = "1" ]; then
+  step "SAFE DEMO RESET — removing transactional activity (keeping users + regulatory data)"
+  bash "$ROOT/scripts/reset-demo.sh"
+fi
+
 if [ "$FRESH" = "1" ]; then
   step "Fresh database requested — removing legalmet.db and storage/"
   rm -f "$API/legalmet.db"
@@ -76,7 +91,7 @@ PIDS+=($!)
 echo ""
 echo "  Frontend : $FRONTEND_URL   (login: inspector@legalmet.local / changeme-inspector)"
 echo "  Backend  : $BACKEND_URL/api/v1/health"
-echo "  First boot with a fresh DB seeds 4 demo inspections via real OCR (~2 min);"
+echo "  First boot with a fresh DB seeds the demo inspection(s) via real OCR (~40 s);"
 echo "  later boots take ~2 s. Ctrl+C stops both servers."
 echo ""
 

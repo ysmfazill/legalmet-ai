@@ -59,10 +59,24 @@ Log in as `inspector@legalmet.local` / `changeme-inspector`
 (or `admin@legalmet.local` / `changeme-admin`; `auditor@legalmet.local` is
 read-only — good for demonstrating role enforcement).
 
-## 4. The seeded demo inspections (DEMO-FOOD / DEMO-WATER / DEMO-OIL / DEMO-QUINOA)
+## 4. The seeded demo inspections (DEMO-FOOD by default)
 
-Each was produced **through the real services at seed time** — nothing about
-them is hand-written into the database:
+By default the system seeds **one** intentional demo inspection, `DEMO-FOOD`.
+The full set (`DEMO-WATER`, `DEMO-OIL`, `DEMO-QUINOA`) is available by setting
+`SEED_DEMO_INSPECTION_REFS=DEMO-FOOD,DEMO-WATER,DEMO-OIL,DEMO-QUINOA` before
+the first boot (or before `npm run reset:demo`). To restore a clean demo
+state at any time:
+
+```bash
+npm run reset:demo     # wipes ALL transactional activity (inspections,
+                       # evidence, findings, complaints, audit, stored files),
+                       # keeps users + regulatory data + rules, then re-seeds
+                       # the demo inspection(s) through the real pipeline.
+                       # Idempotent — run it as often as you like.
+```
+
+Each seeded inspection was produced **through the real services at seed
+time** — nothing about it is hand-written into the database:
 
 | Stage | What happened | Where to show it |
 | --- | --- | --- |
@@ -77,7 +91,8 @@ The evidence-graph view is the demo's centerpiece: every finding traces back
 through the requirement → version → document → source chain, and every node is
 tagged with its origin (AI / HUMAN / SYSTEM).
 
-The four demos deliberately cover different outcomes:
+The demos deliberately cover different outcomes (seed the ones you want with
+`SEED_DEMO_INSPECTION_REFS`):
 
 | Inspection | Story | Final decision |
 | --- | --- | --- |
@@ -92,7 +107,7 @@ history — perception never silently decides applicability.
 
 ## 5. Live demo flow (do this on stage)
 
-1. **Login** as inspector; the Dashboard shows the four demo inspections.
+1. **Login** as inspector; the Dashboard shows the seeded demo inspection(s).
 2. Open **DEMO-FOOD** → walk the evidence chain for one NON_COMPLIANT finding:
    finding → extracted field (raw OCR text + confidence) → requirement in
    force (version + source).
@@ -115,12 +130,13 @@ history — perception never silently decides applicability.
 
 - **OCR engine fails to load / models missing** → perception runs fail with
   `AI_SERVICE_UNAVAILABLE` and the UI shows an honest error state. Fall back to
-  the four seeded demo inspections — they already contain complete perception
+  the seeded demo inspection(s) — they already contain complete perception
   evidence, findings, reviews and decisions, and need no engine at runtime.
-- **Fresh-database boot is slow** (first boot runs real OCR on four labels) →
-  pre-boot once before the demo; subsequent boots are ~2 s and skip seeding.
-  Worst case, boot with `SEED_DEMO_INSPECTIONS=false` and show the seeded
-  demos from the pre-warmed database.
+- **Fresh-database boot is slow** (first boot runs real OCR) → pre-boot once
+  before the demo; subsequent boots are ~2 s and skip seeding. Worst case,
+  boot with `SEED_DEMO_INSPECTIONS=false` and show the seeded demos from the
+  pre-warmed database. If the demo data itself is in a bad state,
+  `npm run reset:demo` restores the clean intentional dataset in ~40 s.
 - **Upload rejected by the quality gate** → that is the system working
   correctly; narrate it (blur/glare/too-small detection), then upload a clean
   photo.

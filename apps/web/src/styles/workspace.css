@@ -510,6 +510,13 @@
   color: var(--text-faint);
   font-size: var(--fs-sm);
 }
+.pviewer__fallback-detail {
+  max-width: 46ch;
+  padding: 0 var(--space-3);
+  text-align: center;
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+}
 .spinner--sm {
   width: 14px;
   height: 14px;

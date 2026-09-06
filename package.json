@@ -12,6 +12,7 @@
     "dev:web": "npm run dev --workspace @legalmet/web",
     "build:web": "npm run build --workspace @legalmet/web",
     "demo": "bash scripts/demo.sh",
+    "reset:demo": "bash scripts/reset-demo.sh",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present"
   },

@@ -79,7 +79,7 @@ async def _lifespan(app: FastAPI):
 
         db = SessionLocal()
         try:
-            seed_demo_inspections(db)
+            seed_demo_inspections(db, references=settings.demo_inspection_ref_list)
         except Exception:  # noqa: BLE001 - demo data must never block startup
             logger.exception("demo_inspections_failed")
         finally:

@@ -66,8 +66,16 @@ _DEMO_INSPECTIONS: list[tuple[str, str, str, str]] = [
 ]
 
 
-def seed_demo_inspections(db: Session) -> dict[str, str]:
-    """Create the three full-lifecycle demo inspections. Idempotent."""
+def seed_demo_inspections(
+    db: Session, references: list[str] | None = None
+) -> dict[str, str]:
+    """Create the full-lifecycle demo inspections. Idempotent.
+
+    ``references`` selects a subset of :data:`_DEMO_INSPECTIONS` (by reference
+    number); ``None`` seeds all of them. The safe demo reset
+    (``python -m scripts.reset_demo``) seeds the single-inspection subset
+    configured by ``SEED_DEMO_INSPECTION_REFS`` (default: ``DEMO-FOOD``).
+    """
     results: dict[str, str] = {}
     services = get_services()
     inspector = db.execute(
@@ -77,7 +85,17 @@ def seed_demo_inspections(db: Session) -> dict[str, str]:
         logger.warning("demo_inspections_skipped", reason="no inspector user")
         return results
 
-    for reference, image_file, product_name, category in _DEMO_INSPECTIONS:
+    known_refs = {entry[0] for entry in _DEMO_INSPECTIONS}
+    selected = (
+        [entry for entry in _DEMO_INSPECTIONS if entry[0] in set(references)]
+        if references is not None
+        else _DEMO_INSPECTIONS
+    )
+    unknown = set(references or []) - known_refs
+    if unknown:
+        logger.warning("demo_inspections_unknown_refs", unknown=sorted(unknown))
+
+    for reference, image_file, product_name, category in selected:
         existing = db.execute(
             select(Inspection).where(Inspection.reference_no == reference)
         ).scalar_one_or_none()
