@@ -2,6 +2,9 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom';
 
 import { AppProvider } from './app/AppContext';
 import { AppShell } from './app/AppShell';
+import { EntryPage } from './app/EntryPage';
+import { LoginPage } from './app/LoginPage';
+import { RequireAuth } from './app/RequireAuth';
 import { CitizenLayout } from './citizen/CitizenLayout';
 import { CitizenHelpPage } from './citizen/CitizenHelp';
 import { CitizenHomePage } from './citizen/CitizenHome';
@@ -34,17 +37,49 @@ import { SettingsPage } from './pages/Settings';
 import { WorkspacePage } from './pages/Workspace';
 
 /**
- * Root of the METRASIGHT inspection platform. A single BrowserRouter wraps the
- * AppProvider (backend connectivity + demo inspector context); every primary
- * destination renders inside the AppShell layout via <Outlet />.
+ * Root of the METRASIGHT platform.
+ *
+ * Routing contract (entry-flow):
+ *   `/`                 PUBLIC entry page — choose Citizen / Inspector / Department.
+ *   `/login/*`          PUBLIC staff login pages (real POST /auth/login).
+ *   `/citizen/*`        PUBLIC Citizen Mode — anonymous, no account, own shell.
+ *   `/dashboard`, …     STAFF workspace — every route behind RequireAuth; an
+ *                       anonymous visitor is redirected to the entry page.
+ *                       Real authorization is the backend's per-endpoint
+ *                       JWT + role checks; the guard is UX, not security.
  */
 export default function App() {
   return (
     <BrowserRouter>
       <AppProvider>
         <Routes>
+          {/* PUBLIC — entry + staff login */}
+          <Route index element={<EntryPage />} />
+          <Route path="login/inspector" element={<LoginPage mode="inspector" />} />
+          <Route path="login/department" element={<LoginPage mode="department" />} />
+
+          {/* PUBLIC — Citizen Mode (same shell placement as before the split) */}
           <Route element={<AppShell />}>
-            <Route index element={<DashboardPage />} />
+            <Route path="citizen" element={<CitizenLayout />}>
+              <Route index element={<CitizenHomePage />} />
+              <Route path="scan" element={<CitizenScanPage />} />
+              <Route path="result" element={<CitizenResultPage />} />
+              <Route path="report" element={<CitizenReportPage />} />
+              <Route path="reports" element={<CitizenReportsPage />} />
+              <Route path="reports/:id" element={<CitizenReportDetailPage />} />
+              <Route path="help" element={<CitizenHelpPage />} />
+            </Route>
+          </Route>
+
+          {/* STAFF — authenticated workspace */}
+          <Route
+            element={
+              <RequireAuth>
+                <AppShell />
+              </RequireAuth>
+            }
+          >
+            <Route path="dashboard" element={<DashboardPage />} />
             <Route path="inspections" element={<InspectionsPage />} />
             <Route path="inspections/new" element={<NewInspectionPage />} />
             <Route path="inspections/:id" element={<WorkspacePage />} />
@@ -64,20 +99,11 @@ export default function App() {
             <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="audit" element={<AuditPage />} />
             <Route path="settings" element={<SettingsPage />} />
-            {/* Citizen Mode — its own shell: no sidebar/topbar, anonymous. */}
-            <Route path="citizen" element={<CitizenLayout />}>
-              <Route index element={<CitizenHomePage />} />
-              <Route path="scan" element={<CitizenScanPage />} />
-              <Route path="result" element={<CitizenResultPage />} />
-              <Route path="report" element={<CitizenReportPage />} />
-              <Route path="reports" element={<CitizenReportsPage />} />
-              <Route path="reports/:id" element={<CitizenReportDetailPage />} />
-              <Route path="help" element={<CitizenHelpPage />} />
-            </Route>
             <Route path="department" element={<DepartmentPage />} />
             <Route path="inspector" element={<InspectorPage />} />
-            <Route path="*" element={<NotFoundPage />} />
           </Route>
+
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </AppProvider>
     </BrowserRouter>

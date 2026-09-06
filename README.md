@@ -225,6 +225,15 @@ The dev server proxies `/api` → `http://localhost:8000`, so with the backend
 running the shell shows a live **"Connected"** status. To target a different
 backend, set `VITE_API_BASE_URL` (see `apps/web/.env.example`).
 
+**Entry flow:** the app opens on a public entry page (`/`) with three access
+modes — **Citizen** (anonymous, no account, straight into Citizen Mode),
+**Inspector Login** and **Department Login** (both real `POST /auth/login`;
+they land on the Inspector Workspace and the Department Command Center
+respectively). Staff sessions persist via the stored JWT and restore on
+refresh; the top bar has a **Sign out** button. All staff routes redirect
+anonymous visitors back to the entry page (UX only — real authorization is
+the backend's per-endpoint JWT + role checks).
+
 ---
 
 ## Testing & verification

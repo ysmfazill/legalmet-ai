@@ -1,4 +1,4 @@
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { Icon } from '../components/Icon';
 import { initials } from '../lib/user';
@@ -42,9 +42,15 @@ function ConnectionPill() {
  * yet it renders no count (a mock count would misrepresent demo data as live).
  */
 export function TopBar() {
-  const { user, navOpen, setNavOpen } = useApp();
+  const { user, navOpen, setNavOpen, logout } = useApp();
   const location = useLocation();
+  const navigate = useNavigate();
   const page = resolvePage(location.pathname);
+
+  const signOut = () => {
+    logout();
+    navigate('/', { replace: true });
+  };
 
   return (
     <header className="topbar">
@@ -88,6 +94,15 @@ export function TopBar() {
         <span className="avatar" title={`${user.fullName} · signed in`} aria-hidden>
           {initials(user.fullName)}
         </span>
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label="Sign out"
+          title={`Sign out ${user.fullName}`}
+          onClick={signOut}
+        >
+          <Icon name="logout" size={18} />
+        </button>
       </div>
     </header>
   );

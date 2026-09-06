@@ -1,0 +1,253 @@
+/**
+ * ENTRY FLOW — the public front door (`/`) and the staff login pages
+ * (`/login/inspector`, `/login/department`). White + brown visual identity
+ * (tokens.css); Citizen Mode stays the simplest, most prominent entry.
+ */
+
+.entry {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background:
+    radial-gradient(1200px 500px at 50% -10%, var(--accent-soft), transparent 70%),
+    var(--bg);
+  padding: var(--space-8) var(--space-4);
+}
+
+.entry__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.entry__logo {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.entry__wordmark {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  color: var(--brand-brown-dark);
+}
+
+.entry__tagline {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
+.entry__main {
+  width: 100%;
+  max-width: 1020px;
+  margin-top: var(--space-8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.entry__main--narrow {
+  max-width: 460px;
+}
+
+.entry__question {
+  margin: 0 0 var(--space-6);
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text);
+  text-align: center;
+}
+
+.entry__cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+  width: 100%;
+}
+
+/* CITIZEN — the prominent public entry: lifted, warm, primary CTA. */
+.entry-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.entry-card--citizen {
+  border: 2px solid var(--accent);
+  box-shadow: 0 10px 28px rgba(62, 42, 31, 0.14);
+  background: linear-gradient(180deg, var(--brand-brown-soft), var(--surface) 55%);
+}
+
+.entry-card__icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.entry-card--citizen .entry-card__icon {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.entry-card__title {
+  margin: var(--space-1) 0 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.entry-card__desc {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+  min-height: 3em;
+}
+
+.entry-card__cta {
+  margin-top: var(--space-2);
+}
+
+/* Outline variant used by the two staff cards (kept local to the entry flow). */
+.btn--outline {
+  background: transparent;
+  color: var(--accent);
+  border: 1.5px solid var(--accent);
+}
+.btn--outline:hover {
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+}
+
+.entry-card__footnote {
+  margin-top: var(--space-1);
+  font-size: 0.78rem;
+  color: var(--text-faint);
+  letter-spacing: 0.02em;
+}
+
+.entry__note {
+  margin: var(--space-6) 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* --- Login card ------------------------------------------------------------- */
+
+.login-card {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.login-card__title {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.login-card__blurb {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.login-card__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.login-card__form .field__label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.login-card__form input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.login-card__form input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+.login-card__error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(180, 40, 30, 0.08);
+  border: 1px solid rgba(180, 40, 30, 0.25);
+  color: #8f2a20;
+  font-size: 0.85rem;
+}
+
+.login-card__demo-hint {
+  margin: var(--space-1) 0 0;
+  font-size: 0.78rem;
+  color: var(--text-faint);
+}
+
+.login-card__demo-hint code {
+  background: var(--accent-soft);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 0.75rem;
+}
+
+.login-card__back {
+  margin-top: var(--space-2);
+  font-size: 0.85rem;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.login-card__back:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 860px) {
+  .entry__cards {
+    grid-template-columns: 1fr;
+  }
+  .entry-card__desc {
+    min-height: 0;
+  }
+}

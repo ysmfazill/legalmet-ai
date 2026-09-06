@@ -23,7 +23,7 @@ const STAFF_ROLES: readonly User['role'][] = ['ADMIN', 'INSPECTOR', 'SUPERVISOR'
 
 /** Primary destinations of the inspection platform. */
 export const PRIMARY_NAV: NavItem[] = [
-  { to: '/', label: 'Command Center', icon: 'dashboard', end: true },
+  { to: '/dashboard', label: 'Command Center', icon: 'dashboard' },
   { to: '/inspections', label: 'Inspections', icon: 'inspections' },
   { to: '/complaints', label: 'Complaints', icon: 'complaints' },
   { to: '/review', label: 'Review Queue', icon: 'review', badge: 'review' },
@@ -63,7 +63,10 @@ export interface PageMeta {
 
 /** Resolve the top-bar title + breadcrumb for a pathname (TopBar is outside Routes). */
 export function resolvePage(pathname: string): PageMeta {
-  if (pathname === '/') return { title: 'Command Center', breadcrumb: ['Command Center'] };
+  if (pathname === '/' || pathname.startsWith('/login'))
+    return { title: 'Welcome', breadcrumb: ['METRASIGHT'] };
+  if (pathname === '/dashboard')
+    return { title: 'Command Center', breadcrumb: ['Command Center'] };
   if (pathname === '/inspections/new')
     return { title: 'New Inspection', breadcrumb: ['Inspections', 'New'] };
   if (/^\/inspections\/[^/]+$/.test(pathname))

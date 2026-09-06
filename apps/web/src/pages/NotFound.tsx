@@ -14,7 +14,7 @@ export function NotFoundPage() {
             title="This page could not be found"
             message="The page you are looking for may have moved, or the link is incorrect."
             action={
-              <Link className="btn btn--primary" to="/">
+              <Link className="btn btn--primary" to="/dashboard">
                 Back to Command Center
               </Link>
             }

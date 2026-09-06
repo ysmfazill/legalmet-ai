@@ -17,7 +17,7 @@ export function CitizenLayout() {
   return (
     <CitizenSessionProvider>
       <div className="citizen-root">
-        <Link to="/inspections" className="citizen-root__staff-link">
+        <Link to="/login/inspector" className="citizen-root__staff-link">
           Inspector sign-in
           <Icon name="arrowRight" size={12} />
         </Link>
