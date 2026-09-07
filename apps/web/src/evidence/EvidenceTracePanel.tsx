@@ -60,7 +60,19 @@ export function EvidenceTracePanel({
     );
   }
 
-  const graph = state.graph!;
+  // Defense in depth: a missing graph is an honest empty state, never a
+  // crash. (The hook should never leave graph null with loading=false and
+  // no error, but this panel must be un-crashable regardless.)
+  const graph = state.graph;
+  if (!graph) {
+    return (
+      <EmptyState
+        icon="alert"
+        title="Evidence trace unavailable"
+        message="No evidence graph was loaded for this item."
+      />
+    );
+  }
 
   const onShowOnImage = (node: TraceNode) => {
     const m = (node.metadata ?? {}) as Record<string, Json>;

@@ -51,7 +51,6 @@ export function useEvidenceGraph(loader: EvidenceGraphLoader): EvidenceGraphStat
   const [tracing, setTracing] = useState(false);
   const [traceRootId, setTraceRootId] = useState<string | null>(null);
 
-  const alive = useRef(true);
   const loaderRef = useRef(loader);
   loaderRef.current = loader;
   // Latest selection without re-creating startTrace (avoids stale-closure bugs
@@ -60,25 +59,37 @@ export function useEvidenceGraph(loader: EvidenceGraphLoader): EvidenceGraphStat
   selectedIdRef.current = selectedId;
 
   useEffect(() => {
-    alive.current = true;
+    // Per-invocation cancellation. A shared `alive` ref is WRONG under React
+    // 18 StrictMode (double-invoked effects): the second run resets it to
+    // true, so the first — aborted — run's finally() still fires and flips
+    // loading=false while the real fetch is in flight. graph=null +
+    // loading=false then crashed the trace panel ("reading 'nodeCount'") and
+    // took the whole app down with it.
+    let cancelled = false;
     const controller = new AbortController();
     setLoading(true);
     loaderRef
       .current(controller.signal)
       .then((result) => {
-        if (!alive.current) return;
+        if (cancelled || controller.signal.aborted) return;
+        // A nullish payload is an honest error — never a silent null graph.
+        if (result == null) {
+          setGraph(null);
+          setError('The backend returned no evidence graph for this item.');
+          return;
+        }
         setGraph(result);
         setError(null);
       })
       .catch((err: unknown) => {
-        if (!alive.current || controller.signal.aborted) return;
+        if (cancelled || controller.signal.aborted) return;
         setError(err instanceof Error ? err.message : 'Failed to load evidence graph');
       })
       .finally(() => {
-        if (alive.current) setLoading(false);
+        if (!cancelled && !controller.signal.aborted) setLoading(false);
       });
     return () => {
-      alive.current = false;
+      cancelled = true;
       controller.abort();
     };
   }, [reloadToken]);
